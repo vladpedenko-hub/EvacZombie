@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 9e28cd4a9ff74c3498b35f2e10ebfa15
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Prefabs/Components/Roof/Roof_Window_01.prefab
+  uploadId: 717635

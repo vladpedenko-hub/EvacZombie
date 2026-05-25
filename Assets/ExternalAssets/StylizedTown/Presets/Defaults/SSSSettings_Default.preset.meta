@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 8fa3055e2a1363246838debd20206d37
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Presets/Defaults/SSSSettings_Default.preset
+  uploadId: 717635

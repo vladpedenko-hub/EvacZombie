@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 1dfef75dd6b98b34cad0f5d921181cc7
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Prefabs/Components/Walls/Door_02.prefab
+  uploadId: 717635

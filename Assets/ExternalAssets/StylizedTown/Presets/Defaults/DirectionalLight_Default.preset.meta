@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: c1cf8506f04ef2c4a88b64b6c4202eea
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Presets/Defaults/DirectionalLight_Default.preset
+  uploadId: 717635

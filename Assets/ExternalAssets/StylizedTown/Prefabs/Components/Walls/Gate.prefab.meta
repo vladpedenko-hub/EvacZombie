@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 111fa117e799d4a4b915d4c6057dd1df
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Prefabs/Components/Walls/Gate.prefab
+  uploadId: 717635

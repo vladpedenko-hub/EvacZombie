@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: beb219b6c9da98a4282d20ba87b7e7aa
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Prefabs/Components/Walls/Window_03.prefab
+  uploadId: 717635

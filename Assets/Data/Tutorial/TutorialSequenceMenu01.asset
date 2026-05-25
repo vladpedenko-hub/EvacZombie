@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 332aa137affed994d871823fcc60d0d1, type: 3}
+  m_Name: TutorialSequenceMenu01
+  m_EditorClassIdentifier: 
+  tutorialId: TutorialMenu_01
+  steps:
+  - stepType: 1
+    targetId: Level1
+    useDarkMask: 1
+    dialogText: 
+    characterIcon: {fileID: 0}
+    dialogPosition: 0
+  - stepType: 1
+    targetId: Level1_1
+    useDarkMask: 1
+    dialogText: 
+    characterIcon: {fileID: 0}
+    dialogPosition: 0

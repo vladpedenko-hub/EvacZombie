@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bd9cd1e56c2e5e4582b32df6b9aa9a8, type: 3}
+  m_Name: NewRegion2
+  m_EditorClassIdentifier: 
+  regionName: Texas
+  regionUIPrefab: {fileID: 1596381028881423041, guid: e06699f085917e24b9c84645d51112b2, type: 3}
+  regionRewardLootbox: {fileID: 11400000, guid: 876651ccfaa87924cbec7cb20b71d086, type: 2}
+  levels:
+  - {fileID: 11400000, guid: 7907a634b547f35498534e985baa8978, type: 2}
+  - {fileID: 11400000, guid: eadae4c05b8e09d4390eb559be7e494b, type: 2}
+  - {fileID: 11400000, guid: c4013788b20c93849af081f0f3e2d4c5, type: 2}
+  - {fileID: 11400000, guid: d3abd84acc348634baa16b0f14700d5c, type: 2}
+  - {fileID: 11400000, guid: cd7bda4b8fc98b547a434d9fb0c18493, type: 2}

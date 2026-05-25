@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c4a80989bfc0e04f8256cb7af9d54de, type: 3}
+  m_Name: SoldierCardData
+  m_EditorClassIdentifier: 
+  cardType: 2
+  cardName: Soldier
+  description: Soldier
+  icon: {fileID: 5390246818323809478, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
+  cardPrefab: {fileID: 5563988904170882665, guid: 093f3964162ef3b4fb727b0cb037c4bb, type: 3}
+  category: 1
+  rarity: 1
+  uiButtonPrefab: {fileID: 5696677907596636750, guid: 2bb28bc51af1728418505e329e136af5, type: 3}
+  maxLevel: 5
+  upgradeCosts:
+  - duplicateCardsNeeded: 5
+    currencyCost: 100
+  - duplicateCardsNeeded: 10
+    currencyCost: 100
+  - duplicateCardsNeeded: 15
+    currencyCost: 100
+  - duplicateCardsNeeded: 20
+    currencyCost: 100
+  - duplicateCardsNeeded: 25
+    currencyCost: 100
+  stats:
+  - statType: 3
+    statName: "\u0423\u0440\u043E\u043D"
+    baseValue: 20
+    valuePerLevel: 5
+    unitSuffix: " \u0435\u0434."
+  - statType: 5
+    statName: "\u0420\u0430\u0434\u0438\u0443\u0441 \u043E\u0433\u043D\u044F"
+    baseValue: 5
+    valuePerLevel: 1
+    unitSuffix: " \u043C."
+  - statType: 6
+    statName: "\u0414\u043B\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C"
+    baseValue: 10
+    valuePerLevel: 1
+    unitSuffix: " \u0441\u0435\u043A."
+  - statType: 4
+    statName: "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u0440\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C"
+    baseValue: 1
+    valuePerLevel: -0.05
+    unitSuffix: " \u0435\u0434."
+  - statType: 8
+    statName: "\u041A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E"
+    baseValue: 2
+    valuePerLevel: 1
+    unitSuffix: " \u0435\u0434."

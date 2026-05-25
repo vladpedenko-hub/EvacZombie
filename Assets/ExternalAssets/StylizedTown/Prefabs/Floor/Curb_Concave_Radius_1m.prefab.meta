@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: d7eeb15b677bc8f49a2787e9b1f221cf
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Prefabs/Floor/Curb_Concave_Radius_1m.prefab
+  uploadId: 717635

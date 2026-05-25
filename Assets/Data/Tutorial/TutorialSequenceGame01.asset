@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 332aa137affed994d871823fcc60d0d1, type: 3}
+  m_Name: TutorialSequenceGame01
+  m_EditorClassIdentifier: 
+  tutorialId: TutorialGame_01
+  steps:
+  - stepType: 0
+    targetId: LevelGame1
+    useDarkMask: 1
+    dropTargetId: 
+    swipeOffset: {x: 0, y: 400}
+    dialogText: "\u0412\u0440\u0435\u043C\u044F \u0432\u044B\u0437\u044B\u0432\u0430\u0442\u044C
+      \u0432\u0435\u0440\u0442\u043E\u043B\u0435\u0442! "
+    characterIcon: {fileID: 9112743452827066768, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
+    dialogPosition: 2
+  - stepType: 4
+    targetId: Card_Helicopter
+    useDarkMask: 1
+    dropTargetId: 
+    swipeOffset: {x: 500, y: 900}
+    dialogText: "\u0422\u044B \u0433\u043E\u0442\u043E\u0432 \u0441\u043F\u0430\u0441\u0430\u0442\u044C
+      \u043B\u044E\u0434\u0435\u0439? "
+    characterIcon: {fileID: 9112743452827066768, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
+    dialogPosition: 2

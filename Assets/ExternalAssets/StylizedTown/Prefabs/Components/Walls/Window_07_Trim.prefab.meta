@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 72d93add5eb567a4d9921884ca09469f
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Prefabs/Components/Walls/Window_07_Trim.prefab
+  uploadId: 717635

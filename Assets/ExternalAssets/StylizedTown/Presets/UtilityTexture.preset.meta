@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 9303d565bd8aa6948ba775e843320e4d
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2655988077585873504
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Presets/UtilityTexture.preset
+  uploadId: 717635

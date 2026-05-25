@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: ec27e0feefd2c8f46973e1944486f085
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Prefabs/Components/StoreFront/Label_03.prefab
+  uploadId: 717635

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: f2f6b4bfd417f54479c08b1516031fb3
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Scripts/FPSCounter.cs
+  uploadId: 717635

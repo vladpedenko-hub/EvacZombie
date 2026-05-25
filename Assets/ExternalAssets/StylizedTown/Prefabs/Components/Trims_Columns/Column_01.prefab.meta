@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 4a7131a7b082fe546a65668e905dfa7a
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Prefabs/Components/Trims_Columns/Column_01.prefab
+  uploadId: 717635

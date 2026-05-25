@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: e5e9d475d0596f44689711e8d82aab48
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Prefabs/Components/Walls/Passage_01.prefab
+  uploadId: 717635

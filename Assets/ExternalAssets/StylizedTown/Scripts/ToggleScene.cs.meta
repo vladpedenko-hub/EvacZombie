@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: ab5475eb424ba8348aa8a8f7236ddb85
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Scripts/ToggleScene.cs
+  uploadId: 717635

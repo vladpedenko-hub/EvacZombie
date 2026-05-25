@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 0f47bdd29022d8a4a97b748a7a2e59fd
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 178797
+  packageName: Stylized Town
+  packageVersion: 1.1
+  assetPath: Assets/StylizedTown/Prefabs/Components/Trims_Columns/Step.prefab
+  uploadId: 717635
