@@ -23,6 +23,12 @@ public class Zombie : MonoBehaviour
 	[Header("Хаос")]
 	public ChaosSettings chaosSettings;
 
+	[Header("Барикады")]
+	[Tooltip("Радиус, в котором зомби переключается на атаку барикады вместо обхода")]
+	public float barricadeCheckRadius = 3.5f;
+	[Tooltip("Урон за один удар по барикаде")]
+	public int barricadeDamage = 25;
+
 	[Header("Поведение у приманки")]
 	[Tooltip("Радиус, в котором зомби слегка расходятся вокруг точки приманки")]
 	public float crowdRadius = 0.8f;
@@ -376,34 +382,59 @@ public class Zombie : MonoBehaviour
 
 	protected virtual Transform FindClosestVictim()
 	{
+		// Ищем ближайшую живую жертву
 		Transform closest = null;
 		float minDist = float.MaxValue;
 
 		foreach (var h in Human.AllHumans)
 		{
 			if (h == null) continue;
-
 			float d = Vector3.Distance(transform.position, h.transform.position);
-			if (d < minDist)
-			{
-				minDist = d;
-				closest = h.transform;
-			}
+			if (d < minDist) { minDist = d; closest = h.transform; }
 		}
 
 		foreach (var s in Scientist.AllScientists)
 		{
 			if (s == null) continue;
-
 			float d = Vector3.Distance(transform.position, s.transform.position);
-			if (d < minDist)
-			{
-				minDist = d;
-				closest = s.transform;
-			}
+			if (d < minDist) { minDist = d; closest = s.transform; }
 		}
 
-		return closest;
+		// Есть жертва — проверяем, не блокирует ли барикада путь к ней.
+		// PathPartial = NavMesh довёл только до барикады, дальше пройти не может.
+		if (closest != null)
+		{
+			bool pathBlocked = agent != null
+				&& agent.enabled
+				&& agent.isOnNavMesh
+				&& agent.pathStatus == NavMeshPathStatus.PathPartial;
+
+			if (pathBlocked && TryFindNearestBarricade(out Barricade blocker))
+				return blocker.transform;
+
+			return closest;
+		}
+
+		// Нет жертв вообще — барикада как запасная цель
+		if (TryFindNearestBarricade(out Barricade fallback))
+			return fallback.transform;
+
+		return null;
+	}
+
+	private bool TryFindNearestBarricade(out Barricade result)
+	{
+		result = null;
+		float bestDist = barricadeCheckRadius;
+
+		foreach (var b in Barricade.AllBarricades)
+		{
+			if (b == null) continue;
+			float d = Vector3.Distance(transform.position, b.transform.position);
+			if (d < bestDist) { bestDist = d; result = b; }
+		}
+
+		return result != null;
 	}
 
 	protected virtual IEnumerator AttackRoutine(Transform target)
@@ -420,7 +451,15 @@ public class Zombie : MonoBehaviour
 		if (target != null && !isDead)
 		{
 			float dist = Vector3.Distance(transform.position, target.position);
-			if (dist <= attackDistance + 0.25f)
+
+			// У барикад NavMesh вырезан, зомби останавливается чуть дальше центра —
+			// даём дополнительный запас дистанции
+			bool targetIsBarricade = target.GetComponent<Barricade>() != null;
+			float effectiveRange = targetIsBarricade
+				? attackDistance + 1.5f
+				: attackDistance + 0.25f;
+
+			if (dist <= effectiveRange)
 			{
 				InfectTarget(target.gameObject);
 			}
@@ -433,6 +472,14 @@ public class Zombie : MonoBehaviour
 	protected virtual void InfectTarget(GameObject targetObj)
 	{
 		if (targetObj == null) return;
+
+		// Барикада — наносим урон вместо заражения
+		Barricade barricade = targetObj.GetComponent<Barricade>();
+		if (barricade != null)
+		{
+			barricade.TakeDamage(barricadeDamage);
+			return;
+		}
 
 		Human human = targetObj.GetComponent<Human>();
 		if (human != null)

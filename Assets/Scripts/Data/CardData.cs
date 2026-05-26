@@ -4,7 +4,7 @@ using System.Collections.Generic;
 public enum CardCategory { Evacuation, Combat, Utility }
 public enum CardRarity { Common, Rare, Epic, Legendary }
 
-// НОВОЕ: Технические типы статов для связи с кодом
+// пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ
 public enum StatType
 {
 	None,
@@ -15,16 +15,17 @@ public enum StatType
 	Radius,
 	Duration,
 	Cooldown,
-	Count           
+	Count,
+	Health
 }
 
 [System.Serializable]
 public class CardStat
 {
-	[Tooltip("Для кода (выбери тип стата)")]
+	[Tooltip("пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ)")]
 	public StatType statType;
 
-	[Tooltip("Для UI (например: 'Вместимость')")]
+	[Tooltip("пїЅпїЅпїЅ UI (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: 'пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ')")]
 	public string statName;
 
 	public float baseValue;
@@ -53,26 +54,26 @@ public class UpgradeRequirements
 [CreateAssetMenu(fileName = "NewCardData", menuName = "ZombieGame/Card Data")]
 public class CardData : ScriptableObject
 {
-	[Header("Базовые данные")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public CardManager.CardType cardType;
 	public string cardName;
 	[TextArea] public string description;
 	public Sprite icon;
 	public GameObject cardPrefab;
 
-	[Header("Мета и UI")]
+	[Header("пїЅпїЅпїЅпїЅ пїЅ UI")]
 	public CardCategory category;
 	public CardRarity rarity;
 	public GameObject uiButtonPrefab;
 
-	[Header("Гача и Прокачка")]
+	[Header("пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public int maxLevel = 5;
 	public List<UpgradeRequirements> upgradeCosts;
 
-	[Header("Характеристики")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public List<CardStat> stats;
 
-	// НОВЫЙ МЕТОД: Код машины вызывает его, чтобы получить готовую цифру
+	// пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 	public float GetCalculatedStat(StatType type, int currentLevel)
 	{
 		CardStat foundStat = stats.Find(s => s.statType == type);
@@ -81,7 +82,7 @@ public class CardData : ScriptableObject
 			return foundStat.GetFloatValue(currentLevel);
 		}
 
-		Debug.LogWarning($"Стат {type} не найден в карточке {cardName}!");
+		Debug.LogWarning($"пїЅпїЅпїЅпїЅ {type} пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ {cardName}!");
 		return 0f;
 	}
 }

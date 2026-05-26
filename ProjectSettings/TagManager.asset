@@ -16,6 +16,7 @@ TagManager:
   - Sniper
   - CarWaypoint
   - Scientist
+  - BarricadeSurface
   layers:
   - Default
   - TransparentFX

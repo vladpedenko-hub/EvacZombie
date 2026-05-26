@@ -1,11 +1,11 @@
 using UnityEngine;
 
-// [ÃÄÅ ÂÈÑÈÒ]: Íà ïóñòîì îáúåêòå (InputManager) íà áîåâîé ñöåíå.
+// [ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½]: ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (InputManager) ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.
 public class InputManager : MonoBehaviour
 {
 	public static InputManager Instance;
 
-	[Header("Âèçóàë")]
+	[Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½")]
 	public GameObject invalidPlacementIcon;
 
 	private Camera mainCam;
@@ -13,7 +13,7 @@ public class InputManager : MonoBehaviour
 	private bool isDragging;
 	private LineRenderer radiusCircle;
 
-	// Ïîäñâåòêà çäàíèÿ ëèíèåé
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	private LineRenderer buildingOutline;
 	private GameObject outlinedBuilding;
 	private Vector3[] buildingCorners = new Vector3[4];
@@ -24,7 +24,7 @@ public class InputManager : MonoBehaviour
 	{
 		mainCam = Camera.main;
 
-		// Ğàäèóñ êàğò
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 		GameObject circleObj = new GameObject("DragRadiusVisual");
 		radiusCircle = circleObj.AddComponent<LineRenderer>();
 		radiusCircle.startWidth = 0.2f;
@@ -33,7 +33,7 @@ public class InputManager : MonoBehaviour
 		radiusCircle.loop = true;
 		radiusCircle.enabled = false;
 
-		// Êîíòóğ çäàíèÿ
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		GameObject outlineObj = new GameObject("BuildingOutline");
 		buildingOutline = outlineObj.AddComponent<LineRenderer>();
 		buildingOutline.startWidth = 0.15f;
@@ -134,7 +134,7 @@ public class InputManager : MonoBehaviour
 			if (placed && GameManager.Instance.State == GameManager.GameState.Planning)
 				GameManager.Instance.StartGame();
 
-			// --- ÍÎÂÎÅ: ÒĞÈÃÃÅĞ ÒÓÒÎĞÈÀËÀ ÄËß ÑÍÀÉÏÅĞÀ ---
+			// --- ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ---
 			if (placed && TutorialManager.Instance != null)
 			{
 				TutorialManager.Instance.NextStep();
@@ -165,7 +165,7 @@ public class InputManager : MonoBehaviour
 			if (GameManager.Instance.State == GameManager.GameState.Planning)
 				GameManager.Instance.StartGame();
 
-			// --- ÍÎÂÎÅ: ÒĞÈÃÃÅĞ ÒÓÒÎĞÈÀËÀ ÄËß ÎÑÒÀËÜÍÛÕ ÊÀĞÒ (ÂÅĞÒÎËÅÒ, ÁÎÌÁÀ È Ò.Ä.) ---
+			// --- ï¿½ï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ ï¿½.ï¿½.) ---
 			if (TutorialManager.Instance != null)
 			{
 				TutorialManager.Instance.NextStep();
@@ -264,6 +264,10 @@ public class InputManager : MonoBehaviour
 			case CardManager.CardType.Bait:
 				return true;
 
+			case CardManager.CardType.Barricade:
+				// Ğ¢Ğ¾Ğ»ÑŒĞºĞ¾ Ğ½Ğ° Ğ¾Ğ±ÑŠĞµĞºÑ‚Ğ°Ñ… Ñ Ñ‚ĞµĞ³Ğ¾Ğ¼ "BarricadeSurface"
+				return hit.collider.CompareTag("BarricadeSurface");
+
 			default:
 				return !isBuilding;
 		}
@@ -304,6 +308,7 @@ public class InputManager : MonoBehaviour
 				case CardManager.CardType.Sniper: return 25f;
 				case CardManager.CardType.Helicopter: return 12f;
 				case CardManager.CardType.Bait: return 15f;
+				case CardManager.CardType.Barricade: return 0f;
 				default: return 5f;
 			}
 		}
@@ -379,6 +384,21 @@ public class InputManager : MonoBehaviour
 					Instantiate(card.cardPrefab, spawnPos + offset, Quaternion.identity);
 				}
 				break;
+
+			case CardManager.CardType.Barricade:
+			{
+				// ĞÑ€Ğ¸ĞµĞ½Ñ‚Ğ¸Ñ€ÑƒĞµĞ¼ Ğ±Ğ°Ñ€Ğ¸ĞºĞ°Ğ´Ñƒ Ğ¿Ğ¾Ğ¿ĞµÑ€Ñ‘Ğº Ğ´Ğ¾Ñ€Ğ¾Ğ³Ğ¸ Ğ¿Ğ¾ Ğ½Ğ°Ğ¿Ñ€Ğ°Ğ²Ğ»ĞµĞ½Ğ¸Ñ mesh'Ğ° Ğ´Ğ¾Ñ€Ğ¾Ğ³Ğ¸
+				Quaternion barricadeRotation = Quaternion.identity;
+				if (hit.collider != null)
+				{
+					Vector3 roadDir = hit.collider.transform.forward;
+					roadDir.y = 0f;
+					if (roadDir.sqrMagnitude > 0.001f)
+						barricadeRotation = Quaternion.LookRotation(roadDir.normalized) * Quaternion.Euler(0, 90, 0);
+				}
+				Instantiate(card.cardPrefab, spawnPos, barricadeRotation);
+				break;
+			}
 
 			default:
 				Instantiate(card.cardPrefab, spawnPos, Quaternion.identity);

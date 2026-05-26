@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c4a80989bfc0e04f8256cb7af9d54de, type: 3}
+  m_Name: BaricadeCardData
+  m_EditorClassIdentifier: 
+  cardType: 8
+  cardName: Barricade
+  description: Attract Zombie in radius
+  icon: {fileID: 21300006, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
+  cardPrefab: {fileID: 543788178168439961, guid: 6958ac4eadd14744bac49e94e04f83d4, type: 3}
+  category: 2
+  rarity: 1
+  uiButtonPrefab: {fileID: 8634180962768684290, guid: 67c0a9a5a766815428368a63674ea0c1, type: 3}
+  maxLevel: 5
+  upgradeCosts:
+  - duplicateCardsNeeded: 5
+    currencyCost: 100
+  - duplicateCardsNeeded: 10
+    currencyCost: 500
+  - duplicateCardsNeeded: 15
+    currencyCost: 1000
+  - duplicateCardsNeeded: 20
+    currencyCost: 5000
+  - duplicateCardsNeeded: 25
+    currencyCost: 10000
+  stats:
+  - statType: 9
+    statName: "\u0425\u041F"
+    baseValue: 200
+    valuePerLevel: 50
+    unitSuffix: "\u0445\u043F."

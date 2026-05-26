@@ -3,12 +3,12 @@ using System.Collections.Generic;
 
 public class CardManager : MonoBehaviour
 {
-	// Оставляем CardType чисто для связи внутри префабов карточек (если он там используется)
-	public enum CardType { None, Helicopter, Soldier, Bait, Bomb, Car, Sniper, CombatHelicopter };
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ CardType пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+	public enum CardType { None, Helicopter, Soldier, Bait, Bomb, Car, Sniper, CombatHelicopter, Barricade };
 
 	public static CardManager Instance;
 
-	[Header("Куда спавнить карты?")]
+	[Header("пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ?")]
 	public Transform cardsPanel;
 
 	private void Awake() => Instance = this;
@@ -20,7 +20,7 @@ public class CardManager : MonoBehaviour
 
 	private void SpawnDeck()
 	{
-		// 1. Очищаем панель
+		// 1. пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 		foreach (Transform child in cardsPanel)
 		{
 			Destroy(child.gameObject);
@@ -28,11 +28,11 @@ public class CardManager : MonoBehaviour
 
 		if (PlayerProfile.Instance == null)
 		{
-			Debug.LogError("PlayerProfile не найден! Сначала запустите Главное Меню.");
+			Debug.LogError("PlayerProfile пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ! пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ.");
 			return;
 		}
 
-		// 2. Спавним карты из колоды (теперь мы перебираем CardData)
+		// 2. пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ CardData)
 		foreach (CardData card in PlayerProfile.Instance.currentDeck)
 		{
 			if (card != null && card.uiButtonPrefab != null)
@@ -41,7 +41,7 @@ public class CardManager : MonoBehaviour
 			}
 			else if (card != null && card.uiButtonPrefab == null)
 			{
-				Debug.LogWarning($"У карты {card.cardName} не назначен UI префаб кнопки!");
+				Debug.LogWarning($"пїЅ пїЅпїЅпїЅпїЅпїЅ {card.cardName} пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ UI пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ!");
 			}
 		}
 	}

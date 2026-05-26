@@ -4266,8 +4266,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 0bd17913ae57dce4797965b64cdd1804, type: 2}
   - {fileID: 11400000, guid: b3084314811ba144aa8a8bb8a317d51c, type: 2}
   - {fileID: 11400000, guid: 1c757795683951a4eb7ebe82058437a3, type: 2}
+  - {fileID: 11400000, guid: 94f258fab33029c468d2ae15efc6fe84, type: 2}
   starterCards:
   - {fileID: 11400000, guid: 0a72315cfb99069488aed8c73ee79c63, type: 2}
+  - {fileID: 11400000, guid: 94f258fab33029c468d2ae15efc6fe84, type: 2}
   ownedCardsProgress: []
   currentDeck:
   - {fileID: 0}
