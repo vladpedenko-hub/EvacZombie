@@ -3,21 +3,21 @@ using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
 
-// [ГДЕ ВИСИТ]: На префабе учёного (Scientist).
+// [пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ]: пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (Scientist).
 [RequireComponent(typeof(NavMeshAgent))]
 public class Scientist : MonoBehaviour
 {
 	public static List<Scientist> AllScientists = new List<Scientist>();
 
-	[Header("Настройки баланса")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public float walkSpeed = 1.5f;
 	public float runSpeed = 4.0f;
 	public float panicRadius = 8f;
 
-	[Header("Хаос")]
+	[Header("пїЅпїЅпїЅпїЅ")]
 	public ChaosSettings chaosSettings;
 
-	[Header("Эвакуация")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public float carStoppingDistance = 1.4f;
 	public float heliStoppingDistance = 2.0f;
 
@@ -52,6 +52,13 @@ public class Scientist : MonoBehaviour
 	{
 		if (!agent.isActiveAndEnabled || !agent.isOnNavMesh) return;
 
+		// РџРѕР»РЅР°СЏ РїР°СѓР·Р° (LevelUp СЌРєСЂР°РЅ, С‚Р°Р№Рј-СЃС‚РѕРї Рё С‚.Рї.) вЂ” РѕСЃС‚Р°РЅР°РІР»РёРІР°РµРј Р°РіРµРЅС‚
+		if (Time.timeScale < 0.001f)
+		{
+			if (!agent.isStopped) agent.isStopped = true;
+			return;
+		}
+
 		if (GameManager.Instance != null && GameManager.Instance.State == GameManager.GameState.Planning)
 		{
 			if (!agent.isStopped) agent.isStopped = true;
@@ -64,7 +71,7 @@ public class Scientist : MonoBehaviour
 
 		if (isBoarding) return;
 
-		// Если сейчас в панике — просто ждём окончания
+		// пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 		if (isPanicking)
 		{
 			agent.speed = runSpeed;
@@ -77,7 +84,7 @@ public class Scientist : MonoBehaviour
 			return;
 		}
 
-		// --- ПРИОРИТЕТ 1: ЭВАКУАЦИЯ ---
+		// --- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ---
 		if (isRescuing && rescueTarget != null)
 		{
 			agent.speed = runSpeed;
@@ -95,7 +102,7 @@ public class Scientist : MonoBehaviour
 			return;
 		}
 
-		// --- ПРИОРИТЕТ 2: ПОБЕГ ОТ ЗОМБИ ---
+		// --- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 2: пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ ---
 		Zombie nearest = null;
 		float minD = panicRadius;
 
@@ -115,7 +122,7 @@ public class Scientist : MonoBehaviour
 		{
 			agent.speed = runSpeed;
 
-			// Редкая паника
+			// пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 			if (ShouldPanic(minD))
 			{
 				StartPanicMove();
@@ -140,7 +147,7 @@ public class Scientist : MonoBehaviour
 			return;
 		}
 
-		// --- ПРИОРИТЕТ 3: МИРНАЯ ЖИЗНЬ ---
+		// --- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 3: пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ ---
 		agent.speed = walkSpeed;
 
 		if (!agent.pathPending)
@@ -247,7 +254,7 @@ public class Scientist : MonoBehaviour
 
 	public IEnumerator PlayBoardingAnimation(Vector3 boardCenter, float duration, float liftHeight = 0.6f)
 	{
-		// ФИКС: Защита старта корутины
+		// пїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 		if (this == null || gameObject == null) yield break;
 
 		isBoarding = true;
@@ -269,7 +276,7 @@ public class Scientist : MonoBehaviour
 		float t = 0f;
 		while (t < 1f)
 		{
-			// ФИКС: Прерываем цикл, если объект был уничтожен извне
+			// пїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 			if (this == null || gameObject == null || transform == null)
 			{
 				yield break;
@@ -284,7 +291,7 @@ public class Scientist : MonoBehaviour
 			yield return null;
 		}
 
-		// ФИКС: Защита финала
+		// пїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 		if (this != null && gameObject != null && transform != null)
 		{
 			transform.position = endPos;

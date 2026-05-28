@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 822a55ec0ef39904f84fcc9967b75335, type: 3}
+  m_Name: upgrade_sniper_damage
+  m_EditorClassIdentifier: 
+  upgradeId: sniper_damage
+  targetCardType: 6
+  displayName: "\u0411\u0440\u043E\u043D\u0435\u0431\u043E\u0439\u043D\u044B\u0435
+    \u041F\u0430\u0442\u0440\u043E\u043D\u044B"
+  descriptionTier1: "+50% \u0443\u0440\u043E\u043D"
+  iconTier1: {fileID: 0}
+  accentColor: {r: 0.9, g: 0.3, b: 0.2, a: 1}
+  displayNameEnhanced: "\u042D\u043A\u0437\u0435\u043A\u0443\u0442\u043E\u0440"
+  descriptionTier2: "+100% \u0443\u0440\u043E\u043D"
+  iconTier2: {fileID: 0}
+  displayNameUltimate: "\u0428\u0442\u043E\u0440\u043C \u0421\u0432\u0438\u043D\u0446\u0430"
+  descriptionTier3: "\u041C\u0433\u043D\u043E\u0432\u0435\u043D\u043D\u043E \u0443\u0431\u0438\u0432\u0430\u0435\u0442
+    \u043D\u0435-\u0431\u043E\u0441\u0441\u043E\u0432"
+  iconTier3: {fileID: 0}
+  ultimateColor: {r: 1, g: 0.8, b: 0.2, a: 1}
+  effectType: 10
+  valueT1: 0.5
+  valueT2: 1
+  valueT3: 0

@@ -75,6 +75,23 @@ public class Sniper : MonoBehaviour
 		if (lifespan <= 0f) lifespan = 15f;
 		if (civilianThreatRadius <= 0f) civilianThreatRadius = 6f;
 
+		// Run-modifiers (roguelite)
+		var run = RunSessionData.Instance;
+		if (run != null)
+		{
+			attackRange *= (1f + run.GetModifier("sniper_range_mult"));
+			damage = Mathf.RoundToInt(damage * (1f + run.GetModifier("sniper_damage_mult")));
+			cooldownDelay *= Mathf.Max(0.1f, 1f - run.GetModifier("sniper_cooldown_red"));
+			lifespan += run.GetModifier("sniper_duration_add");
+			maxPierceTargets += (int)run.GetModifier("sniper_pierce_add");
+
+			if (run.HasFlag("sniper_global_range"))
+				attackRange = 9999f;
+
+			if (run.HasFlag("sniper_permanent"))
+				lifespan = 99999f;
+		}
+
 		StartCoroutine(SniperRoutine());
 	}
 
@@ -155,6 +172,17 @@ public class Sniper : MonoBehaviour
 					laserLine.endColor = new Color(1f, 0.5f, 0f);
 
 					ApplyPiercingDamage(target);
+
+					// Triple target upgrade
+					if (RunSessionData.Instance != null && RunSessionData.Instance.HasFlag("sniper_triple_target"))
+					{
+						var extras = FindTopNTargets(3);
+						foreach (var extra in extras)
+						{
+							if (extra != target)
+								ApplyPiercingDamage(extra);
+						}
+					}
 
 					isFirstShot = false;
 
@@ -323,7 +351,10 @@ public class Sniper : MonoBehaviour
 			Zombie z = hit.collider.GetComponent<Zombie>();
 			if (z != null)
 			{
-				z.TakeDamage(Mathf.RoundToInt(currentDamage));
+				int actualDamage = (RunSessionData.Instance != null && RunSessionData.Instance.HasFlag("sniper_instakill"))
+					? 99999
+					: Mathf.RoundToInt(currentDamage);
+				z.TakeDamage(actualDamage);
 				targetsHit++;
 
 				currentDamage *= pierceDamageFalloff;
@@ -336,4 +367,20 @@ public class Sniper : MonoBehaviour
 			primaryTarget.TakeDamage(damage);
 		}
 	}
+	private System.Collections.Generic.List<Zombie> FindTopNTargets(int n)
+	{
+		var result = new System.Collections.Generic.List<Zombie>();
+		foreach (var z in Zombie.AllZombies)
+		{
+			if (z == null) continue;
+			float d = Vector3.Distance(transform.position, z.transform.position);
+			if (d <= attackRange)
+				result.Add(z);
+		}
+		result.Sort((a, b) => Vector3.Distance(transform.position, a.transform.position)
+			.CompareTo(Vector3.Distance(transform.position, b.transform.position)));
+		if (result.Count > n) result.RemoveRange(n, result.Count - n);
+		return result;
+	}
+
 }

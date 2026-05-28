@@ -87,6 +87,21 @@ public class Barricade : MonoBehaviour, IDamageable
             if (hpFromCard > 0) maxHealth = hpFromCard;
         }
 
+        // Run-modifiers (roguelite)
+        var run = RunSessionData.Instance;
+        if (run != null)
+        {
+            float hpMult = 1f + run.GetModifier("barricade_hp_mult");
+            maxHealth = Mathf.RoundToInt(maxHealth * hpMult);
+
+            if (run.HasFlag("barricade_indestructible"))
+                maxHealth = 999999;
+
+            float widthMult = run.GetModifier("barricade_width_mult");
+            if (widthMult > 0f)
+                transform.localScale *= (1f + widthMult);
+        }
+
         currentHealth = maxHealth;
     }
 
@@ -102,6 +117,33 @@ public class Barricade : MonoBehaviour, IDamageable
     public void TakeDamage(int damage)
     {
         if (isDead) return;
+
+        // Roguelite: reflect damage and death zone
+        var run = RunSessionData.Instance;
+        if (run != null)
+        {
+            float reflectPct = run.GetModifier("barricade_reflect_pct");
+            if (reflectPct > 0f)
+            {
+                Collider[] nearby = Physics.OverlapSphere(transform.position, 3f);
+                foreach (var c in nearby)
+                {
+                    Zombie z = c?.GetComponent<Zombie>();
+                    if (z != null)
+                    {
+                        z.TakeDamage(Mathf.RoundToInt(damage * reflectPct));
+                        break;
+                    }
+                }
+            }
+
+            if (run.HasFlag("barricade_death_zone"))
+            {
+                Collider[] deathZone = Physics.OverlapSphere(transform.position, 1.5f);
+                foreach (var c in deathZone)
+                    c?.GetComponent<Zombie>()?.TakeDamage(99999);
+            }
+        }
 
         currentHealth -= damage;
 

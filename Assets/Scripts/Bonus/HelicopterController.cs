@@ -9,31 +9,31 @@ public class HelicopterController : MonoBehaviour
 	public enum HeliState { Landing, Loading, TakingOff }
 	public HeliState currentState;
 
-	[Header("����� � ���������")]
+	[Header("����� � ���������")]
 	public CardData myCardData;
 
-	[Header("����������� ���������")]
+	[Header("����������� ���������")]
 	public float buffRadius = 15f;
 	public float exitHeight = 40f;
 
-	[Header("������ ���������� ����")]
+	[Header("������ ���������� ����")]
 	public float landingRadius = 3f;
 	public Color landingColor = new Color(0f, 1f, 0.2f, 0.5f);
 	public GameObject customLandingPrefab;
 
-	[Header("�������")]
+	[Header("�������")]
 	public float boardingRadius = 2.5f;
 	public float boardingAnimDuration = 0.28f;
 	public float boardingLiftHeight = 1.2f;
 
-	[Tooltip("���������, ��� ������� �������� �������� ����� � ��������� ��������")]
+	[Tooltip("���������, ��� ������� �������� �������� ����� � ��������� ��������")]
 	public float panicRadius = 3f;
 
 	public GameObject sirenRingPrefab;
 	public GameObject humanAlertPrefab;
 	public float alertDuration = 2.0f;
 
-	[Header("������")]
+	[Header("������")]
 	public TextMeshProUGUI loadText;
 	public GameObject hotWarning;
 
@@ -72,6 +72,26 @@ public class HelicopterController : MonoBehaviour
 		if (attractRadius <= 0) attractRadius = 12f;
 		if (loadTime <= 0) loadTime = 15f;
 		if (boardingCooldown <= 0) boardingCooldown = 0.5f;
+
+		// Run-modifiers (roguelite)
+		var run = RunSessionData.Instance;
+		if (run != null)
+		{
+			maxCapacity += (int)run.GetModifier("heli_capacity_add");
+			verticalSpeed *= (1f + run.GetModifier("heli_speed_mult"));
+			attractRadius *= (1f + run.GetModifier("heli_radius_mult"));
+			loadTime += run.GetModifier("heli_loadtime_add");
+			boardingCooldown *= Mathf.Max(0.05f, 1f - run.GetModifier("heli_boarding_reduction"));
+
+			if (run.HasFlag("heli_no_panic"))
+				panicRadius = 0f;
+
+			if (run.HasFlag("heli_instant_land"))
+				verticalSpeed = 9999f;
+
+			if (run.HasFlag("heli_unlimited_capacity"))
+				maxCapacity = 999;
+		}
 	}
 
 	public void Launch(Vector3 pos)
@@ -179,27 +199,52 @@ public class HelicopterController : MonoBehaviour
 			}
 		}
 
+		// Ultimate: global attract - all civilians run to heli
+		if (RunSessionData.Instance != null && RunSessionData.Instance.HasFlag("heli_global_attract"))
+		{
+			foreach (var h in Human.AllHumans)
+			{
+				if (h == null || h.rescueTarget != null) continue;
+				h.SetRescueTarget(transform);
+			}
+			foreach (var s in Scientist.AllScientists)
+			{
+				if (s == null || s.rescueTarget != null) continue;
+				s.SetRescueTarget(transform);
+			}
+		}
+
 		StartCoroutine(LoadRoutine());
 	}
 
 	private IEnumerator LoadRoutine()
 	{
-		float nextBoardTime = 0;
 		float waitTimer = 0;
 
-		// ���������� ��� ����������� �������� �����
-		float panicCheckInterval = 0.2f;
-		float nextPanicCheckTime = 0;
+		// Локальные таймеры на Time.deltaTime — не зависят от реального времени, паузятся при timeScale=0
+		float boardCooldownTimer = boardingCooldown; // стартуем готовыми к посадке
+		float panicCheckTimer = 0f;
+		const float panicCheckInterval = 0.2f;
 		float panicRadiusSqr = panicRadius * panicRadius;
 
 		while (currentLoad < maxCapacity && !isTooHot && waitTimer < loadTime)
 		{
-			waitTimer += Time.deltaTime;
-
-			// ���������������� ���� �������� ������
-			if (Time.time >= nextPanicCheckTime)
+			// Ждём возобновления времени — не трогаем таймеры во время паузы
+			if (Time.timeScale < 0.001f)
 			{
-				nextPanicCheckTime = Time.time + panicCheckInterval;
+				yield return null;
+				continue;
+			}
+
+			float dt = Time.deltaTime;
+			waitTimer       += dt;
+			boardCooldownTimer += dt;
+			panicCheckTimer += dt;
+
+			// Периодическая проверка паники (зомби рядом)
+			if (panicCheckTimer >= panicCheckInterval)
+			{
+				panicCheckTimer = 0f;
 				foreach (var z in Zombie.AllZombies)
 				{
 					if (z != null && (z.transform.position - transform.position).sqrMagnitude < panicRadiusSqr)
@@ -212,7 +257,7 @@ public class HelicopterController : MonoBehaviour
 
 			if (isTooHot) break;
 
-			if (Time.time >= nextBoardTime)
+			if (boardCooldownTimer >= boardingCooldown)
 			{
 				bool boarded = false;
 
@@ -260,14 +305,38 @@ public class HelicopterController : MonoBehaviour
 				if (boarded)
 				{
 					if (loadText) loadText.text = currentLoad.ToString();
-					nextBoardTime = Time.time + boardingCooldown;
+					boardCooldownTimer = 0f;
+
+					// ── Ранний взлёт: все оставшиеся цивильные уже на борту ──
+					// Не ждём таймер — если грузить больше некого, взлетаем сразу.
+					if (AllCiviliansHandled())
+						break;
 				}
 			}
+
+			// Ещё одна проверка в конце итерации (на случай если цивильных не было вообще)
+			if (currentLoad > 0 && AllCiviliansHandled())
+				break;
 
 			yield return null;
 		}
 
 		TakeOff(isTooHot);
+	}
+
+	/// <summary>
+	/// Возвращает true если все люди и учёные на карте уже на борту этого вертолёта.
+	/// Используется для раннего взлёта без ожидания таймера.
+	/// </summary>
+	private bool AllCiviliansHandled()
+	{
+		foreach (var h in Human.AllHumans)
+			if (h != null && !loadedUnits.Contains(h.gameObject)) return false;
+
+		foreach (var s in Scientist.AllScientists)
+			if (s != null && !loadedUnits.Contains(s.gameObject)) return false;
+
+		return true;
 	}
 
 	private void TakeOff(bool fromPanic = false)

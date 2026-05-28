@@ -18,6 +18,11 @@ public class InputManager : MonoBehaviour
 	private GameObject outlinedBuilding;
 	private Vector3[] buildingCorners = new Vector3[4];
 
+	/// <summary>
+	/// Установи true чтобы полностью заблокировать размещение карт (например, во время паузы).
+	/// </summary>
+	public bool IsPaused = false;
+
 	private void Awake() => Instance = this;
 
 	private void Start()
@@ -52,6 +57,8 @@ public class InputManager : MonoBehaviour
 
 	public void StartDragging(CardData card)
 	{
+		if (IsPaused) return;   // Блокируем во время паузы (LevelUpScreen)
+
 		draggingCard = card;
 		isDragging = true;
 
@@ -105,6 +112,7 @@ public class InputManager : MonoBehaviour
 	public bool EndDragging()
 	{
 		if (!isDragging) return false;
+		if (IsPaused) { isDragging = false; return false; }  // Блокируем во время паузы
 
 		isDragging = false;
 		radiusCircle.enabled = false;

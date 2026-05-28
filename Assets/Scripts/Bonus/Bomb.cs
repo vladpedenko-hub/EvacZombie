@@ -38,6 +38,17 @@ public class Bomb : MonoBehaviour
 			damageRadius = 6f;
 			damage = 1000;
 		}
+
+		// Run-modifiers (roguelite)
+		var runStart = RunSessionData.Instance;
+		if (runStart != null)
+		{
+			damageRadius *= (1f + runStart.GetModifier("bomb_radius_mult"));
+			damage = Mathf.RoundToInt(damage * (1f + runStart.GetModifier("bomb_damage_mult")));
+
+			if (runStart.HasFlag("bomb_mega_radius"))
+				damageRadius = 150f;
+		}
 	}
 
 	public void Launch(Vector3 pos)
@@ -144,6 +155,34 @@ public class Bomb : MonoBehaviour
 		else
 		{
 			CreateProceduralExplosion(targetPos);
+		}
+
+		// Roguelite effects
+		var run = RunSessionData.Instance;
+		if (run != null)
+		{
+			// Stun survivors
+			if (run.HasFlag("bomb_stun"))
+			{
+				Collider[] stunHits = Physics.OverlapSphere(transform.position, damageRadius);
+				foreach (var h in stunHits)
+				{
+					Zombie z = h?.GetComponent<Zombie>();
+					if (z != null && !z.IsDead)
+						z.Stun(5f);
+				}
+			}
+
+			// Cluster bombs
+			int clusterCount = (int)run.GetModifier("bomb_cluster_count");
+			for (int i = 0; i < clusterCount; i++)
+			{
+				Vector2 rndOffset = UnityEngine.Random.insideUnitCircle * damageRadius * 0.7f;
+				Vector3 miniPos = targetPos + new Vector3(rndOffset.x, 0, rndOffset.y);
+				Collider[] miniHits = Physics.OverlapSphere(miniPos, damageRadius * 0.3f);
+				foreach (var mh in miniHits)
+					mh?.GetComponent<Zombie>()?.TakeDamage(150);
+			}
 		}
 
 		Destroy(warningCircle);

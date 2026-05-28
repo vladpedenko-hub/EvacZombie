@@ -51,6 +51,7 @@ public class Zombie : MonoBehaviour
 	protected Coroutine brainRoutine;
 
 	private bool isDistracted = false;
+	private bool isStunned = false;
 	private float nextChaosCheckTime = 0f;
 
 	private Bait currentBait = null;
@@ -141,6 +142,8 @@ public class Zombie : MonoBehaviour
 		isDead = false;
 		isAttacking = false;
 		isDistracted = false;
+		isStunned = false;
+		isStunned = false;
 		currentHealth = maxHealth;
 		nextChaosCheckTime = 0f;
 
@@ -244,6 +247,12 @@ public class Zombie : MonoBehaviour
 					agent.isStopped = true;
 				}
 
+				yield return wait;
+				continue;
+			}
+
+			if (isStunned)
+			{
 				yield return wait;
 				continue;
 			}
@@ -478,6 +487,8 @@ public class Zombie : MonoBehaviour
 		if (barricade != null)
 		{
 			barricade.TakeDamage(barricadeDamage);
+			float stunDur = RunSessionData.Instance?.GetModifier("barricade_stun_dur") ?? 0f;
+			if (stunDur > 0f) Stun(stunDur);
 			return;
 		}
 
@@ -660,6 +671,8 @@ public class Zombie : MonoBehaviour
 		if (isDead) return;
 		isDead = true;
 
+		XPManager.Instance?.OnZombieKilled(false);
+
 		if (brainRoutine != null)
 		{
 			StopCoroutine(brainRoutine);
@@ -710,4 +723,21 @@ public class Zombie : MonoBehaviour
 			Destroy(gameObject);
 		}
 	}
+	public void Stun(float duration)
+	{
+		if (!isDead)
+			StartCoroutine(StunRoutine(duration));
+	}
+
+	private System.Collections.IEnumerator StunRoutine(float duration)
+	{
+		isStunned = true;
+		if (agent != null && agent.enabled && agent.isOnNavMesh)
+			agent.isStopped = true;
+		yield return new WaitForSeconds(duration);
+		isStunned = false;
+		if (agent != null && agent.enabled && agent.isOnNavMesh)
+			agent.isStopped = false;
+	}
+
 }

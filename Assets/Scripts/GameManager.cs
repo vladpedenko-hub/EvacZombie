@@ -28,6 +28,11 @@ public class GameManager : MonoBehaviour
 
 	private void Awake() => Instance = this;
 
+	private void Start()
+	{
+		RunSessionData.Instance?.ResetForNewLevel();
+	}
+
 	public void SetTotalHumans(int count)
 	{
 		totalHumans = count;
@@ -54,6 +59,8 @@ public class GameManager : MonoBehaviour
 		pendingScientists += scientists;
 
 		UIManager.Instance.SpawnFlyingText(transportWorldPos, total);
+
+		XPManager.Instance?.OnCivilianEvacuated(humans, scientists);
 	}
 
 	public void AddRescuedHumans(int count, Vector3 transportWorldPos)
