@@ -34,27 +34,27 @@ MonoBehaviour:
     currencyCost: 100
   stats:
   - statType: 1
-    statName: "\u0412\u043C\u0435\u0441\u0442\u0438\u043C\u043E\u0441\u0442\u044C"
+    statName: Capacity
     baseValue: 8
     valuePerLevel: 2
-    unitSuffix: " \u0447\u0435\u043B."
+    unitSuffix: ' hum.'
   - statType: 2
     statName: "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C \u043F\u043E\u043B\u0435\u0442\u0430"
     baseValue: 15
     valuePerLevel: 2
-    unitSuffix: " \u043C\\c."
+    unitSuffix: m/s.
   - statType: 5
-    statName: "\u0420\u0430\u0434\u0438\u0443\u0441 \u043F\u043E\u0441\u0430\u0434\u043A\u0438"
+    statName: Radius
     baseValue: 3
     valuePerLevel: 0.5
-    unitSuffix: " \u043C."
+    unitSuffix: ' m.'
   - statType: 4
-    statName: "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u0440\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C"
+    statName: Fire Rate
     baseValue: 0.4
     valuePerLevel: -0.02
-    unitSuffix: " \u0441\u0435\u043A."
+    unitSuffix: ' sec.'
   - statType: 3
-    statName: "\u0423\u0440\u043E\u043D"
+    statName: Damage
     baseValue: 15
     valuePerLevel: 5
-    unitSuffix: " \u0435\u0434."
+    unitSuffix: ' points.'

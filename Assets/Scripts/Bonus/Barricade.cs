@@ -3,34 +3,34 @@ using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
 
-// Баррикада — размещается на дороге, блокирует путь через NavMeshObstacle.
-// Зомби могут атаковать и разрушить её. Реализует IDamageable, поэтому
-// ZombieBoss также может наносить ей урон в режиме ярости.
+// Barricade — placed on the road, blocks passage via NavMeshObstacle.
+// Zombies can attack and destroy it. Implements IDamageable, so
+// ZombieBoss can also deal damage to it in rage mode.
 [RequireComponent(typeof(NavMeshObstacle))]
 [RequireComponent(typeof(Collider))]
 public class Barricade : MonoBehaviour, IDamageable
 {
     public static List<Barricade> AllBarricades = new List<Barricade>();
 
-    [Header("Данные карты")]
+    [Header("Card Data")]
     public CardData myCardData;
 
-    [Header("HP (переопределяется из CardData.StatType.Health)")]
+    [Header("HP (overridden from CardData.StatType.Health)")]
     public int maxHealth = 200;
 
-    [Header("Хит-фидбэк (как у зомби)")]
+    [Header("Hit Feedback (same as zombie)")]
     public Color hitFlashColor = new Color(1f, 0.2f, 0.2f);
     public float hitFlashDuration = 0.1f;
     public float deathShrinkDuration = 0.2f;
 
-    // ── внутреннее состояние ──────────────────────────────────────────────
+    // ── internal state ──────────────────────────────────────────────
     private int currentHealth;
     private bool isDead = false;
 
     private NavMeshObstacle obstacle;
     private Collider cachedCollider;
 
-    // рендеры + PropertyBlock (точно как в Zombie.cs)
+    // renderers + PropertyBlock (same pattern as in Zombie.cs)
     private Renderer[] allRenderers;
     private MaterialPropertyBlock propertyBlock;
     private Dictionary<Renderer, Color> originalColors = new Dictionary<Renderer, Color>();
@@ -38,19 +38,19 @@ public class Barricade : MonoBehaviour, IDamageable
 
     private Coroutine hitFlashRoutine;
 
-    // ── жизненный цикл ───────────────────────────────────────────────────
+    // ── lifecycle ───────────────────────────────────────────────────
 
     private void Awake()
     {
         obstacle = GetComponent<NavMeshObstacle>();
         cachedCollider = GetComponent<Collider>();
 
-        // Вырезаем NavMesh сразу при установке, без задержки
+        // Carve NavMesh immediately on placement, without delay
         obstacle.carving = true;
         obstacle.carvingMoveThreshold = 0f;
         obstacle.carvingTimeToStationary = 0f;
 
-        // Собираем рендеры (один раз в Awake, как в Zombie)
+        // Collect renderers once in Awake, same as in Zombie
         allRenderers = GetComponentsInChildren<Renderer>();
         propertyBlock = new MaterialPropertyBlock();
 
@@ -75,7 +75,7 @@ public class Barricade : MonoBehaviour, IDamageable
 
     private void Start()
     {
-        // Читаем HP из CardData, если назначена
+        // Read HP from CardData if assigned
         if (myCardData != null && PlayerProfile.Instance != null)
         {
             int level = 1;
@@ -108,12 +108,12 @@ public class Barricade : MonoBehaviour, IDamageable
     private void OnEnable()  => AllBarricades.Add(this);
     private void OnDisable() => AllBarricades.Remove(this);
 
-    // ── IDamageable + публичный метод для Zombie ─────────────────────────
+    // ── IDamageable + public method for Zombie ─────────────────────────
 
-    /// <summary>Вызывается из ZombieBoss.BreakBuildingsAround (float-версия интерфейса).</summary>
+    /// <summary>Called from ZombieBoss.BreakBuildingsAround (float overload of the interface).</summary>
     public void TakeDamage(float damage) => TakeDamage(Mathf.CeilToInt(damage));
 
-    /// <summary>Вызывается из Zombie.InfectTarget напрямую.</summary>
+    /// <summary>Called directly from Zombie.InfectTarget.</summary>
     public void TakeDamage(int damage)
     {
         if (isDead) return;
@@ -157,7 +157,7 @@ public class Barricade : MonoBehaviour, IDamageable
         hitFlashRoutine = StartCoroutine(HitFlashRoutine());
     }
 
-    // ── вспомогательные ──────────────────────────────────────────────────
+    // ── helpers ──────────────────────────────────────────────────
 
     private void Die()
     {
@@ -170,10 +170,10 @@ public class Barricade : MonoBehaviour, IDamageable
             hitFlashRoutine = null;
         }
 
-        // Снимаем препятствие — NavMesh восстанавливается, зомби проходят
+        // Remove obstacle — NavMesh restores, zombies can pass through
         obstacle.enabled = false;
 
-        // Выключаем коллайдер, чтобы зомби не атаковали труп
+        // Disable collider so zombies don't attack the corpse
         if (cachedCollider != null) cachedCollider.enabled = false;
 
         StartCoroutine(DeathRoutine());

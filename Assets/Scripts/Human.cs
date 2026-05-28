@@ -3,21 +3,21 @@ using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
 
-// [��� �����]: �� ������� �������� (Human).
+// [WHERE IT LIVES]: On the Human prefab (Human).
 [RequireComponent(typeof(NavMeshAgent))]
 public class Human : MonoBehaviour
 {
 	public static List<Human> AllHumans = new List<Human>();
 
-	[Header("��������� �������")]
+	[Header("Movement Settings")]
 	public float walkSpeed = 1.5f;
 	public float runSpeed = 4.0f;
 	public float panicRadius = 8f;
 
-	[Header("����")]
+	[Header("Chaos")]
 	public ChaosSettings chaosSettings;
 
-	[Header("���������")]
+	[Header("Stopping Distances")]
 	public float carStoppingDistance = 1.4f;
 	public float heliStoppingDistance = 2.0f;
 
@@ -52,7 +52,7 @@ public class Human : MonoBehaviour
 	{
 		if (!agent.isActiveAndEnabled || !agent.isOnNavMesh) return;
 
-		// Полная пауза (LevelUp экран, тайм-стоп и т.п.) — останавливаем агент
+		// Full pause (LevelUp screen, time-stop, etc.) — stop the agent
 		if (Time.timeScale < 0.001f)
 		{
 			if (!agent.isStopped) agent.isStopped = true;
@@ -73,7 +73,7 @@ public class Human : MonoBehaviour
 
 		float boost = AbilityManager.Instance != null ? AbilityManager.Instance.GetSpeedMultiplier() : 1f;
 
-		// ���� ������ � ������ � ������ ��� ���������
+		// Currently panicking — run at full speed until panic expires
 		if (isPanicking)
 		{
 			agent.speed = runSpeed * boost;
@@ -86,7 +86,7 @@ public class Human : MonoBehaviour
 			return;
 		}
 
-		// --- ��������� 1: ��������� ---
+		// --- Priority 1: Rescue ---
 		if (isRescuing && rescueTarget != null)
 		{
 			agent.speed = runSpeed * boost;
@@ -104,7 +104,7 @@ public class Human : MonoBehaviour
 			return;
 		}
 
-		// --- ��������� 2: ����� �� ����� ---
+		// --- Priority 2: Flee from zombie ---
 		Zombie nearest = null;
 		float minD = panicRadius;
 
@@ -124,7 +124,7 @@ public class Human : MonoBehaviour
 		{
 			agent.speed = runSpeed * boost;
 
-			// ������ ������
+			// Trigger panic
 			if (ShouldPanic(minD))
 			{
 				StartPanicMove();
@@ -149,7 +149,7 @@ public class Human : MonoBehaviour
 			return;
 		}
 
-		// --- ��������� 3: ������ ����� ---
+		// --- Priority 3: Random wander ---
 		agent.speed = walkSpeed * boost;
 
 		if (!agent.pathPending)
@@ -212,7 +212,7 @@ public class Human : MonoBehaviour
 		if (!agent.isActiveAndEnabled || !agent.isOnNavMesh)
 			return;
 
-		// ����� ����������: ���� = ����� ����������, �� ��������� �� ����������
+		// Stopping distance logic: 0 for helicopter, adjusted for car
 		float stop = 0.0f;
 
 		if (t.GetComponent<CarController>() != null)

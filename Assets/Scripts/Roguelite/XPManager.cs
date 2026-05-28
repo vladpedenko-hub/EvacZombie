@@ -4,7 +4,7 @@ public class XPManager : MonoBehaviour
 {
     public static XPManager Instance { get; private set; }
 
-    [Header("XP за события")]
+    [Header("XP Per Event")]
     public int xpPerZombieKill      = 5;
     public int xpPerBossKill        = 50;
     public int xpPerCivilian        = 20;

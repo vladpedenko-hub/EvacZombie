@@ -9,37 +9,37 @@ public class Zombie : MonoBehaviour
 {
 	public static List<Zombie> AllZombies = new List<Zombie>();
 
-	[Header("Настройки")]
+	[Header("Settings")]
 	public int maxHealth = 100;
 	public float detectRadius = 10f;
 	public float attackDistance = 1.4f;
 	public float attackCooldown = 1.0f;
 	public float moveSpeed = 2.8f;
 
-	[Header("Заражение")]
+	[Header("Infection")]
 	public float infectDelay = 0.15f;
 	public GameObject zombiePrefab;
 
-	[Header("Хаос")]
+	[Header("Chaos")]
 	public ChaosSettings chaosSettings;
 
-	[Header("Барикады")]
-	[Tooltip("Радиус, в котором зомби переключается на атаку барикады вместо обхода")]
+	[Header("Barricades")]
+	[Tooltip("Radius within which the zombie switches to attacking the barricade instead of walking around it")]
 	public float barricadeCheckRadius = 3.5f;
-	[Tooltip("Урон за один удар по барикаде")]
+	[Tooltip("Damage dealt per hit to a barricade")]
 	public int barricadeDamage = 25;
 
-	[Header("Поведение у приманки")]
-	[Tooltip("Радиус, в котором зомби слегка расходятся вокруг точки приманки")]
+	[Header("Bait Behavior")]
+	[Tooltip("Radius within which zombies spread out slightly around the bait point")]
 	public float crowdRadius = 0.8f;
 
-	[Tooltip("Сила дрожания зомби вокруг приманки")]
+	[Tooltip("Shake strength of zombies around the bait")]
 	public float crowdShakeStrength = 0.12f;
 
-	[Tooltip("Длительность одного цикла дрожания")]
+	[Tooltip("Duration of one shake cycle")]
 	public float crowdShakeDuration = 0.35f;
 
-	[Header("Хит-фидбэк")]
+	[Header("Hit Feedback")]
 	public Color hitFlashColor = Color.white;
 	public float hitFlashDuration = 0.08f;
 	public float deathShrinkDuration = 0.12f;
@@ -391,7 +391,7 @@ public class Zombie : MonoBehaviour
 
 	protected virtual Transform FindClosestVictim()
 	{
-		// Ищем ближайшую живую жертву
+		// Find the nearest living target
 		Transform closest = null;
 		float minDist = float.MaxValue;
 
@@ -409,8 +409,8 @@ public class Zombie : MonoBehaviour
 			if (d < minDist) { minDist = d; closest = s.transform; }
 		}
 
-		// Есть жертва — проверяем, не блокирует ли барикада путь к ней.
-		// PathPartial = NavMesh довёл только до барикады, дальше пройти не может.
+		// Target found — check if a barricade is blocking the path to it.
+		// PathPartial = NavMesh only reached the barricade, cannot go further.
 		if (closest != null)
 		{
 			bool pathBlocked = agent != null
@@ -424,7 +424,7 @@ public class Zombie : MonoBehaviour
 			return closest;
 		}
 
-		// Нет жертв вообще — барикада как запасная цель
+		// No targets at all — use barricade as fallback target
 		if (TryFindNearestBarricade(out Barricade fallback))
 			return fallback.transform;
 
@@ -461,8 +461,8 @@ public class Zombie : MonoBehaviour
 		{
 			float dist = Vector3.Distance(transform.position, target.position);
 
-			// У барикад NavMesh вырезан, зомби останавливается чуть дальше центра —
-			// даём дополнительный запас дистанции
+			// Barricades carve NavMesh, so the zombie stops slightly past the center —
+			// give extra distance allowance
 			bool targetIsBarricade = target.GetComponent<Barricade>() != null;
 			float effectiveRange = targetIsBarricade
 				? attackDistance + 1.5f
@@ -482,7 +482,7 @@ public class Zombie : MonoBehaviour
 	{
 		if (targetObj == null) return;
 
-		// Барикада — наносим урон вместо заражения
+		// Barricade — deal damage instead of infecting
 		Barricade barricade = targetObj.GetComponent<Barricade>();
 		if (barricade != null)
 		{

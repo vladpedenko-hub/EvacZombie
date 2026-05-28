@@ -6,7 +6,7 @@ public class UpgradeManager : MonoBehaviour
 {
     public static UpgradeManager Instance { get; private set; }
 
-    [Header("Все апгрейды в игре (заполни в инспекторе или через Resources.LoadAll)")]
+    [Header("All upgrades in the game (fill in Inspector or via Resources.LoadAll)")]
     public List<RunUpgradeDefinition> allUpgrades;
 
     private void Awake()
@@ -14,7 +14,7 @@ public class UpgradeManager : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
 
-        // Автозагрузка из Resources/Upgrades/ если список пуст
+        // Auto-load from Resources/Upgrades/ if the list is empty
         if (allUpgrades == null || allUpgrades.Count == 0)
         {
             allUpgrades = Resources.LoadAll<RunUpgradeDefinition>("Upgrades").ToList();
@@ -22,8 +22,8 @@ public class UpgradeManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Вернуть 3 случайных апгрейда для показа игроку.
-    /// Исключает максимально прокачанные (стак = 3).
+    /// Return 3 random upgrades to show the player.
+    /// Excludes fully maxed upgrades (stack = 3).
     /// </summary>
     public List<(RunUpgradeDefinition upgrade, int nextTier)> GetUpgradeOptions(
         List<CardData> currentDeck,
@@ -32,7 +32,7 @@ public class UpgradeManager : MonoBehaviour
         var session = RunSessionData.Instance;
         var pool = new List<(RunUpgradeDefinition, int nextTier)>();
 
-        // Собираем типы карт в деке
+        // Collect card types from the current deck
         var deckCardTypes = new HashSet<CardManager.CardType>(
             currentDeck.Select(c => c.cardType)
         );
@@ -50,7 +50,7 @@ public class UpgradeManager : MonoBehaviour
             pool.Add((upg, nextTier));
         }
 
-        // Перемешать и взять 3 уникальных upgradeId
+        // Shuffle and take 3 unique upgradeIds
         pool = pool.OrderBy(_ => Random.value).ToList();
 
         var result = new List<(RunUpgradeDefinition, int)>();
@@ -67,7 +67,7 @@ public class UpgradeManager : MonoBehaviour
         return result;
     }
 
-    /// <summary>Применить выбранный апгрейд.</summary>
+    /// <summary>Apply the selected upgrade.</summary>
     public void ApplyUpgrade(RunUpgradeDefinition upgrade)
     {
         RunSessionData.Instance.ApplyUpgrade(upgrade);

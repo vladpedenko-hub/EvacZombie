@@ -2,41 +2,41 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Синглтон — хранит XP, апгрейды и модификаторы текущего забега.
-/// Сбрасывается при старте каждого уровня через ResetForNewLevel().
-/// НЕ сохраняется между уровнями.
+/// Singleton — stores XP, upgrades, and modifiers for the current run.
+/// Reset at the start of each level via ResetForNewLevel().
+/// NOT persisted between levels.
 /// </summary>
 public class RunSessionData : MonoBehaviour
 {
     public static RunSessionData Instance { get; private set; }
 
-    // ── XP и уровни ──────────────────────────────────────────────────────
+    // ── XP and levels ──────────────────────────────────────────────────────
     public int CurrentXP { get; private set; }
     public int CurrentRunLevel { get; private set; } = 1;
 
-    // Пороги XP для каждого уровня (индекс = уровень-1, значение = нужный XP для перехода)
+    // XP thresholds for each level (index = level-1, value = XP needed to advance)
     private static readonly int[] XpThresholds = { 100, 150, 200, 250, 300, 375, 450, 550, 700, 900 };
 
-    // ── Стаки апгрейдов: upgradeId → сколько раз взято (0-3) ─────────────
+    // ── Upgrade stacks: upgradeId → how many times taken (0-3) ─────────────
     public Dictionary<string, int> UpgradeStacks { get; private set; } = new Dictionary<string, int>();
 
-    // ── Числовые модификаторы (аддитивные поверх базовых статов) ─────────
+    // ── Numeric modifiers (additive on top of base stats) ─────────
     private Dictionary<string, float> _modifiers = new Dictionary<string, float>();
 
-    // ── Флаги для Ultimate-эффектов ───────────────────────────────────────
+    // ── Flags for Ultimate effects ───────────────────────────────────────
     private HashSet<string> _flags = new HashSet<string>();
 
-    // ── Событие левел апа (UI подписывается) ──────────────────────────────
+    // ── Level up event (UI subscribes) ──────────────────────────────
     public System.Action OnLevelUp;
 
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        // НЕ DontDestroyOnLoad — сессионные данные живут только в сцене уровня
+        // NOT DontDestroyOnLoad — session data only lives within the level scene
     }
 
-    // ── Публичный API ─────────────────────────────────────────────────────
+    // ── Public API ─────────────────────────────────────────────────────
 
     public void ResetForNewLevel()
     {
@@ -47,12 +47,12 @@ public class RunSessionData : MonoBehaviour
         _flags.Clear();
     }
 
-    /// <summary>Начислить XP. Вызывать из XPManager.</summary>
+    /// <summary>Grant XP. Call from XPManager.</summary>
     public void AddXP(int amount)
     {
         if (amount <= 0) return;
 
-        // XP начисляется только во время активного геймплея
+        // XP is only granted during active gameplay
         if (GameManager.Instance != null)
         {
             var st = GameManager.Instance.State;
@@ -68,14 +68,14 @@ public class RunSessionData : MonoBehaviour
         CheckLevelUp();
     }
 
-    /// <summary>Аддитивный модификатор. Один и тот же ключ может быть добавлен несколько раз.</summary>
+    /// <summary>Additive modifier. The same key can be added multiple times.</summary>
     public void AddModifier(string key, float value)
     {
         if (!_modifiers.ContainsKey(key)) _modifiers[key] = 0f;
         _modifiers[key] += value;
     }
 
-    /// <summary>Прочитать суммарный модификатор. Возвращает defaultValue если не задан.</summary>
+    /// <summary>Read the total modifier. Returns defaultValue if not set.</summary>
     public float GetModifier(string key, float defaultValue = 0f)
     {
         return _modifiers.TryGetValue(key, out float val) ? val : defaultValue;
@@ -84,7 +84,7 @@ public class RunSessionData : MonoBehaviour
     public void SetFlag(string flagId) => _flags.Add(flagId);
     public bool HasFlag(string flagId) => _flags.Contains(flagId);
 
-    /// <summary>Применить апгрейд — увеличить стак и запустить эффект.</summary>
+    /// <summary>Apply an upgrade — increment the stack and trigger the effect.</summary>
     public void ApplyUpgrade(RunUpgradeDefinition upgrade)
     {
         if (!UpgradeStacks.ContainsKey(upgrade.upgradeId))
@@ -103,18 +103,18 @@ public class RunSessionData : MonoBehaviour
 
     public bool IsMaxed(string upgradeId) => GetStack(upgradeId) >= 3;
 
-    // ── Внутреннее ───────────────────────────────────────────────────────
+    // ── Internal ───────────────────────────────────────────────────────
 
     private void CheckLevelUp()
     {
         int thresholdIndex = CurrentRunLevel - 1;
-        if (thresholdIndex >= XpThresholds.Length) return; // достигнут максимум
+        if (thresholdIndex >= XpThresholds.Length) return; // max level reached
 
         if (CurrentXP >= XpThresholds[thresholdIndex])
         {
             CurrentXP -= XpThresholds[thresholdIndex];
             CurrentRunLevel++;
-            Debug.Log($"[RunSessionData] *** LEVEL UP → уровень {CurrentRunLevel} ***");
+            Debug.Log($"[RunSessionData] *** LEVEL UP → level {CurrentRunLevel} ***");
             OnLevelUp?.Invoke();
         }
     }

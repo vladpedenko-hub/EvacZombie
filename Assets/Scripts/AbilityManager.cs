@@ -44,7 +44,7 @@ public class AbilityManager : MonoBehaviour
         if (Instance == this) Instance = null;
     }
 
-    // Вызывается из LevelManager.LoadLevel() — единственный источник инициализации
+    // Called from LevelManager.LoadLevel() — the sole initialization entry point
     public void Initialize(LevelData levelData)
     {
         IsEnabled = levelData != null && levelData.abilityEnabled;
@@ -82,17 +82,17 @@ public class AbilityManager : MonoBehaviour
         TutorialManager.Instance.StartTutorial(abilityReadyTutorialSequence);
     }
 
-    // Вызывается из LevelUpScreen.ShowScreen() — прячем кнопку на время выбора апгрейда
+    // Called from LevelUpScreen.ShowScreen() — hide the button while upgrade selection is open
     public void OnLevelUpScreenOpened()
     {
         OnButtonShouldHide?.Invoke();
     }
 
-    // Вызывается из LevelUpScreen.CloseScreen() после восстановления timeScale
+    // Called from LevelUpScreen.CloseScreen() after timeScale is restored
     public void OnLevelUpScreenClosed()
     {
-        // Сначала показываем кнопку — TutorialTarget успеет зарегистрироваться
-        // до того, как туториал попытается найти цель для пальца
+        // Show the button first — TutorialTarget will register before
+        // the tutorial tries to find a finger target
         OnButtonShouldShow?.Invoke();
 
         if (_tutorialPending && state == AbilityState.Ready)

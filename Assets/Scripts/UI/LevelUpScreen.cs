@@ -4,8 +4,8 @@ using TMPro;
 using System.Collections.Generic;
 
 /// <summary>
-/// Экран выбора апгрейда при Level Up.
-/// Полная пауза: Time.timeScale=0 + явная остановка NavMeshAgent/Animator/Helicopter.
+/// Upgrade selection screen shown on Level Up.
+/// Full pause: Time.timeScale=0 + explicit stop of NavMeshAgent/Animator/Helicopter.
 /// </summary>
 public class LevelUpScreen : MonoBehaviour
 {
@@ -14,22 +14,22 @@ public class LevelUpScreen : MonoBehaviour
     public TextMeshProUGUI levelUpTitle;
     public UpgradeCardUI[] upgradeCards;
 
-    [Header("Настройки")]
+    [Header("Settings")]
     public CardManager.CardType heroType = CardManager.CardType.Helicopter;
 
     public static bool IsShowing { get; private set; } = false;
 
-    // ── внутреннее состояние ──────────────────────────────────────────────
+    // ── internal state ──────────────────────────────────────────────
     private bool _isShowing = false;
     private GameManager.GameState _stateBeforePause;
     private bool _subscribedToEvent = false;
 
-    // Все агенты, которые были остановлены нами (чтобы потом разморозить только их)
+    // All agents stopped by us (so we only unfreeze those we froze)
     private readonly List<NavMeshAgent> _frozenAgents     = new List<NavMeshAgent>();
     private readonly List<Animator>     _frozenAnimators  = new List<Animator>();
     private readonly List<HelicopterController> _frozenHelis = new List<HelicopterController>();
 
-    // ── жизненный цикл ────────────────────────────────────────────────────
+    // ── lifecycle ────────────────────────────────────────────────────
 
     private void Start()
     {
@@ -66,17 +66,17 @@ public class LevelUpScreen : MonoBehaviour
         TutorialManager.OnTutorialFinished -= HandleTutorialFinished;
     }
 
-    // Туториал паузит мир через PauseTime() (timeScale=0).
-    // FreezeWorld() здесь НЕ нужен — Human/HelicopterController проверяют timeScale самостоятельно,
-    // а заморозка аниматоров ломает UI-карточки.
+    // Tutorial pauses the world via PauseTime() (timeScale=0).
+    // FreezeWorld() is NOT needed here — Human/HelicopterController check timeScale themselves,
+    // and freezing animators breaks UI cards.
     private void HandleTutorialStarted()
     {
-        // LevelUp уже заморозил всё — нам ничего делать не нужно
+        // LevelUp already froze everything — nothing to do here
     }
 
     private void HandleTutorialFinished()
     {
-        // TimeScale восстановлен через ResumeTime() внутри TutorialManager.FinishTutorial()
+        // TimeScale is restored via ResumeTime() inside TutorialManager.FinishTutorial()
     }
 
     private void TrySubscribe()
@@ -87,7 +87,7 @@ public class LevelUpScreen : MonoBehaviour
         _subscribedToEvent = true;
     }
 
-    // ── показ экрана ──────────────────────────────────────────────────────
+    // ── show screen ──────────────────────────────────────────────────────
 
     private void ShowScreen()
     {
@@ -96,7 +96,7 @@ public class LevelUpScreen : MonoBehaviour
 
         if (GameManager.Instance == null)
         {
-            Debug.LogWarning("[LevelUpScreen] ShowScreen: GameManager is null — пропуск");
+            Debug.LogWarning("[LevelUpScreen] ShowScreen: GameManager is null — skipping");
             return;
         }
 
@@ -119,32 +119,32 @@ public class LevelUpScreen : MonoBehaviour
         IsShowing = true;
         AbilityManager.Instance?.OnLevelUpScreenOpened();
 
-        // ── 1. Полный тайм-стоп (через TimeManager, чтобы его Update() не восстанавливал timeScale) ──
+        // ── 1. Full time stop (via TimeManager so its Update() doesn't restore timeScale) ──
         if (TimeManager.Instance != null)
             TimeManager.Instance.PauseTime();
         else
             Time.timeScale = 0f;
 
-        // ── 2. Явно замораживаем весь мир (NavMesh, Animator, Helicopter) ──
+        // ── 2. Explicitly freeze the entire world (NavMesh, Animator, Helicopter) ──
         FreezeWorld();
 
-        // ── 3. Блокируем UI-карты ─────────────────────────────────────────
+        // ── 3. Block UI cards ─────────────────────────────────────────
         if (InputManager.Instance != null)
             InputManager.Instance.IsPaused = true;
 
         if (CardManager.Instance != null && CardManager.Instance.cardsPanel != null)
             CardManager.Instance.cardsPanel.gameObject.SetActive(false);
 
-        // ── 4. Фиксируем стейт GameManager ───────────────────────────────
+        // ── 4. Save GameManager state ───────────────────────────────
         _stateBeforePause = GameManager.Instance.State;
         GameManager.Instance.State = GameManager.GameState.GameOver;
 
-        // ── 5. Показываем экран ───────────────────────────────────────────
+        // ── 5. Show screen ───────────────────────────────────────────
         if (screenRoot != null)
             screenRoot.SetActive(true);
 
         if (levelUpTitle != null && RunSessionData.Instance != null)
-            levelUpTitle.text = $"УРОВЕНЬ {RunSessionData.Instance.CurrentRunLevel}";
+            levelUpTitle.text = $"LEVEL {RunSessionData.Instance.CurrentRunLevel}";
 
         for (int i = 0; i < upgradeCards.Length; i++)
         {
@@ -161,7 +161,7 @@ public class LevelUpScreen : MonoBehaviour
         }
     }
 
-    // ── выбор карточки ────────────────────────────────────────────────────
+    // ── card selection ────────────────────────────────────────────────────
 
     private void OnCardSelected(RunUpgradeDefinition upgrade)
     {
@@ -171,7 +171,7 @@ public class LevelUpScreen : MonoBehaviour
         CloseScreen();
     }
 
-    // ── закрытие и снятие паузы ───────────────────────────────────────────
+    // ── close and unpause ───────────────────────────────────────────────
 
     private void CloseScreen()
     {
@@ -182,7 +182,7 @@ public class LevelUpScreen : MonoBehaviour
         if (screenRoot != null)
             screenRoot.SetActive(false);
 
-        // Восстанавливаем в обратном порядке
+        // Restore in reverse order
         if (GameManager.Instance != null)
             GameManager.Instance.State = _stateBeforePause;
 
@@ -192,7 +192,7 @@ public class LevelUpScreen : MonoBehaviour
         if (InputManager.Instance != null)
             InputManager.Instance.IsPaused = false;
 
-        // Размораживаем мир ПЕРЕД возвратом времени
+        // Unfreeze the world BEFORE restoring time
         UnfreezeWorld();
 
         if (TimeManager.Instance != null)
@@ -203,11 +203,11 @@ public class LevelUpScreen : MonoBehaviour
         AbilityManager.Instance?.OnLevelUpScreenClosed();
     }
 
-    // ── заморозка / разморозка мира ───────────────────────────────────────
+    // ── freeze / unfreeze world ───────────────────────────────────────
 
     /// <summary>
-    /// Явно останавливает всех NavMeshAgent-ов, Animator-ы и Helicopter-ы.
-    /// Вызывать ПОСЛЕ установки timeScale = 0.
+    /// Explicitly stops all NavMeshAgents, Animators, and Helicopters.
+    /// Call AFTER setting timeScale = 0.
     /// </summary>
     private void FreezeWorld()
     {
@@ -215,13 +215,13 @@ public class LevelUpScreen : MonoBehaviour
         _frozenAnimators.Clear();
         _frozenHelis.Clear();
 
-        // ── NavMeshAgent: updatePosition=false ГАРАНТИРУЕТ что transform не двигается ──
-        // Это официальный Unity API для паузы движения агента.
-        // isStopped только замедляет, updatePosition=false — реально блокирует.
+        // ── NavMeshAgent: updatePosition=false GUARANTEES the transform does not move ──
+        // This is the official Unity API for pausing agent movement.
+        // isStopped only decelerates; updatePosition=false actually blocks movement.
         foreach (var agent in FindObjectsOfType<NavMeshAgent>())
         {
             if (agent == null || !agent.isActiveAndEnabled) continue;
-            agent.updatePosition = false;   // ← главный флаг: агент НЕ двигает transform
+            agent.updatePosition = false;   // ← key flag: agent does NOT move the transform
             agent.updateRotation = false;
             if (agent.isOnNavMesh)
             {
@@ -231,16 +231,16 @@ public class LevelUpScreen : MonoBehaviour
             _frozenAgents.Add(agent);
         }
 
-        // ── Animator: speed=0 замораживает анимацию ──────────────────────
+        // ── Animator: speed=0 freezes animation ──────────────────────
         foreach (var anim in FindObjectsOfType<Animator>())
         {
             if (anim == null || !anim.isActiveAndEnabled) continue;
-            anim.updateMode = AnimatorUpdateMode.Normal; // переводим в режим уважающий timeScale
+            anim.updateMode = AnimatorUpdateMode.Normal; // switch to mode that respects timeScale
             anim.speed      = 0f;
             _frozenAnimators.Add(anim);
         }
 
-        // ── Helicopter: отключаем Update() ───────────────────────────────
+        // ── Helicopter: disable Update() ───────────────────────────────
         foreach (var heli in FindObjectsOfType<HelicopterController>())
         {
             if (heli == null || !heli.enabled) continue;
@@ -256,8 +256,8 @@ public class LevelUpScreen : MonoBehaviour
             if (agent == null) continue;
             agent.updatePosition = true;
             agent.updateRotation = true;
-            // Warp синхронизирует внутреннюю позицию агента с transform
-            // (на случай если за время паузы они разошлись)
+            // Warp syncs the agent's internal position with the transform
+            // (in case they drifted apart during the pause)
             if (agent.isActiveAndEnabled && agent.isOnNavMesh)
             {
                 agent.Warp(agent.transform.position);

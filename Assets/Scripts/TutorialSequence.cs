@@ -6,8 +6,8 @@ public enum TutorialStepType
 	DialogOnly,
 	ClickOnly,
 	DialogAndClick,
-	DragAndDrop,      // �����: ������ ������������� ��������
-	DialogAndDrag     // �����: ������ + �������������
+	DragAndDrop,      // Drag only: finger shows drag animation
+	DialogAndDrag     // Dialog + drag animation
 }
 
 public enum DialogPosition
@@ -20,27 +20,27 @@ public enum DialogPosition
 [System.Serializable]
 public class TutorialStep
 {
-	[Header("��� ����")]
+	[Header("Step Type")]
 	public TutorialStepType stepType;
 
-	[Tooltip("ID ���� (TutorialTarget), ������ �������� (��������, ��������)")]
+	[Tooltip("ID of the target (TutorialTarget) that the finger points to (e.g. a button, a card)")]
 	public string targetId;
 
-	[Tooltip("��������� �� ��������� ����� ������ ��������� ����?")]
+	[Tooltip("Should the dark mask be shown around the target element?")]
 	public bool useDarkMask = true;
 
-	[Header("Позиция пальца")]
-	[Tooltip("Смещение пальца в пикселях относительно центра цели (например (0, 50) — выше центра кнопки)")]
+	[Header("Finger Position")]
+	[Tooltip("Finger offset in pixels relative to the target center (e.g. (0, 50) — above the button center)")]
 	public Vector2 fingerOffset = Vector2.zero;
 
-	[Header("��������� Drag & Drop")]
-	[Tooltip("ID UI-����, ���� ����� �������� ����� (�����������, ��� �������� ������)")]
+	[Header("Drag & Drop Settings")]
+	[Tooltip("ID of the UI target to drag to (optional, overrides swipe direction)")]
 	public string dropTargetId;
 
-	[Tooltip("���� dropTargetId ������, ����� ������ ������������ ����� �� ����� �������")]
+	[Tooltip("If dropTargetId is empty, the finger will swipe by this offset from the start")]
 	public Vector2 swipeOffset = new Vector2(0, 400);
 
-	[Header("��������� �������")]
+	[Header("Dialog Settings")]
 	[TextArea(2, 4)]
 	public string dialogText;
 	public Sprite characterIcon;

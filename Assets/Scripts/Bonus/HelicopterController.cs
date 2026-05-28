@@ -9,31 +9,31 @@ public class HelicopterController : MonoBehaviour
 	public enum HeliState { Landing, Loading, TakingOff }
 	public HeliState currentState;
 
-	[Header("����� � ���������")]
+	[Header("Card Data")]
 	public CardData myCardData;
 
-	[Header("����������� ���������")]
+	[Header("Movement Settings")]
 	public float buffRadius = 15f;
 	public float exitHeight = 40f;
 
-	[Header("������ ���������� ����")]
+	[Header("Landing Zone Visuals")]
 	public float landingRadius = 3f;
 	public Color landingColor = new Color(0f, 1f, 0.2f, 0.5f);
 	public GameObject customLandingPrefab;
 
-	[Header("�������")]
+	[Header("Boarding")]
 	public float boardingRadius = 2.5f;
 	public float boardingAnimDuration = 0.28f;
 	public float boardingLiftHeight = 1.2f;
 
-	[Tooltip("���������, ��� ������� �������� �������� ����� � ��������� ��������")]
+	[Tooltip("Radius within which zombies trigger the helicopter to abort loading and flee")]
 	public float panicRadius = 3f;
 
 	public GameObject sirenRingPrefab;
 	public GameObject humanAlertPrefab;
 	public float alertDuration = 2.0f;
 
-	[Header("������")]
+	[Header("UI")]
 	public TextMeshProUGUI loadText;
 	public GameObject hotWarning;
 
@@ -221,15 +221,15 @@ public class HelicopterController : MonoBehaviour
 	{
 		float waitTimer = 0;
 
-		// Локальные таймеры на Time.deltaTime — не зависят от реального времени, паузятся при timeScale=0
-		float boardCooldownTimer = boardingCooldown; // стартуем готовыми к посадке
+		// Local timers using Time.deltaTime — pause automatically when timeScale=0
+		float boardCooldownTimer = boardingCooldown; // start ready to board
 		float panicCheckTimer = 0f;
 		const float panicCheckInterval = 0.2f;
 		float panicRadiusSqr = panicRadius * panicRadius;
 
 		while (currentLoad < maxCapacity && !isTooHot && waitTimer < loadTime)
 		{
-			// Ждём возобновления времени — не трогаем таймеры во время паузы
+			// Wait for time to resume — do not advance timers during pause
 			if (Time.timeScale < 0.001f)
 			{
 				yield return null;
@@ -241,7 +241,7 @@ public class HelicopterController : MonoBehaviour
 			boardCooldownTimer += dt;
 			panicCheckTimer += dt;
 
-			// Периодическая проверка паники (зомби рядом)
+			// Periodic panic check (zombie nearby)
 			if (panicCheckTimer >= panicCheckInterval)
 			{
 				panicCheckTimer = 0f;
@@ -307,14 +307,14 @@ public class HelicopterController : MonoBehaviour
 					if (loadText) loadText.text = currentLoad.ToString();
 					boardCooldownTimer = 0f;
 
-					// ── Ранний взлёт: все оставшиеся цивильные уже на борту ──
-					// Не ждём таймер — если грузить больше некого, взлетаем сразу.
+					// ── Early takeoff: all remaining civilians are already on board ──
+					// Don't wait for the timer — if there's no one left to load, take off immediately.
 					if (AllCiviliansHandled())
 						break;
 				}
 			}
 
-			// Ещё одна проверка в конце итерации (на случай если цивильных не было вообще)
+			// One more check at the end of the iteration (in case there were no civilians at all)
 			if (currentLoad > 0 && AllCiviliansHandled())
 				break;
 
@@ -325,8 +325,8 @@ public class HelicopterController : MonoBehaviour
 	}
 
 	/// <summary>
-	/// Возвращает true если все люди и учёные на карте уже на борту этого вертолёта.
-	/// Используется для раннего взлёта без ожидания таймера.
+	/// Returns true if all humans and scientists on the map are already on board this helicopter.
+	/// Used for early takeoff without waiting for the timer.
 	/// </summary>
 	private bool AllCiviliansHandled()
 	{

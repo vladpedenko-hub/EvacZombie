@@ -26,18 +26,18 @@ public class AbilityButtonUI : MonoBehaviour
             return;
         }
 
-        // Подписываемся на инициализацию
+        // Subscribe to initialization event
         AbilityManager.Instance.OnInitialized += HandleInitialized;
 
-        // Если LevelManager.LoadLevel() уже успел отработать до нашего Start() —
-        // обрабатываем состояние сразу, не ждём события
+        // If LevelManager.LoadLevel() already ran before our Start() —
+        // handle the state immediately without waiting for the event
         if (AbilityManager.Instance.IsInitialized)
             HandleInitialized(AbilityManager.Instance.IsEnabled);
     }
 
     private void HandleInitialized(bool isEnabled)
     {
-        // Отписываемся: нас интересует только первый вызов
+        // Unsubscribe: we only care about the first invocation
         AbilityManager.Instance.OnInitialized -= HandleInitialized;
 
         if (!isEnabled)

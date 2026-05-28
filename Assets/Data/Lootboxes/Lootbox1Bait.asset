@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4693fbe61bb159c43b421649b9b4a8a3, type: 3}
   m_Name: Lootbox1Bait
   m_EditorClassIdentifier: 
-  boxName: "\u041E\u0431\u044B\u0447\u043D\u044B\u0439 \u042F\u0449\u0438\u043A"
+  boxName: Bait lootbox
   boxIcon: {fileID: -1487877384612313618, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
   isTutorialBox: 1
   guaranteedCard: {fileID: 11400000, guid: 8398faed1ac8c014d9c4a3551736cc5d, type: 2}

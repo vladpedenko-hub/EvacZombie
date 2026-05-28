@@ -24,7 +24,7 @@ MonoBehaviour:
   requiredRescuedHumans: 10
   star1RequiredHumans: 10
   star2RequiredHumans: 20
-  star3Description: "\u041F\u0440\u043E\u0439\u0442\u0438 \u0438\u0434\u0435\u0430\u043B\u044C\u043D\u043E"
+  star3Description: Save all
   missionTitleOverride: 
   missionIcon: {fileID: -5159087384432534610, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
   missionDescription: 
@@ -37,3 +37,5 @@ MonoBehaviour:
   levelRewardLootbox: {fileID: 11400000, guid: cf9c080cc60fd834782fe96eb286a38d, type: 2}
   scientistCount: 0
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
+  abilityEnabled: 1
+  onStartTutorial: {fileID: 0}

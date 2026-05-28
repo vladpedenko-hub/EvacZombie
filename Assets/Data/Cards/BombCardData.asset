@@ -34,12 +34,12 @@ MonoBehaviour:
     currencyCost: 100
   stats:
   - statType: 5
-    statName: "\u0420\u0430\u0434\u0438\u0443\u0441"
+    statName: Radius
     baseValue: 6
     valuePerLevel: 1
-    unitSuffix: " \u043C."
+    unitSuffix: ' m.'
   - statType: 3
-    statName: "\u0423\u0440\u043E\u043D"
+    statName: Damage
     baseValue: 1000
     valuePerLevel: 200
-    unitSuffix: " \u0435\u0434."
+    unitSuffix: points.

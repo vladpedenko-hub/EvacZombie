@@ -3,92 +3,92 @@ using UnityEngine;
 public enum UpgradeTier { Tier1 = 1, Tier2_Enhanced = 2, Tier3_Ultimate = 3 }
 public enum UpgradeEffectType
 {
-    // Вертолёт
-    Helicopter_SpeedMult,         // T1/T2: verticalSpeed *= (1 + value); T3: флаг heli_instant_land
-    Helicopter_CapacityAdd,       // T1/T2: maxCapacity += value; T3: флаг heli_unlimited_capacity
-    Helicopter_RadiusMult,        // T1/T2: attractRadius *= (1 + value); T3: флаг heli_global_attract
+    // Helicopter
+    Helicopter_SpeedMult,         // T1/T2: verticalSpeed *= (1 + value); T3: flag heli_instant_land
+    Helicopter_CapacityAdd,       // T1/T2: maxCapacity += value; T3: flag heli_unlimited_capacity
+    Helicopter_RadiusMult,        // T1/T2: attractRadius *= (1 + value); T3: flag heli_global_attract
     Helicopter_LoadTimeAdd,       // loadTime += value
     Helicopter_BoardingReduction, // boardingCooldown *= (1 - value)
-    Helicopter_NoPanic,           // флаг: никогда не паникует
-    Helicopter_InstantLand,       // флаг: мгновенная посадка
-    Helicopter_UnlimitedCapacity, // флаг: безлимитная вместимость
-    Helicopter_MegaphoneUlt,      // флаг: все гражданские бегут к вертолёту
+    Helicopter_NoPanic,           // flag: never panics
+    Helicopter_InstantLand,       // flag: instant landing
+    Helicopter_UnlimitedCapacity, // flag: unlimited capacity
+    Helicopter_MegaphoneUlt,      // flag: all civilians run to the helicopter
 
-    // Снайпер
-    Sniper_RangeMult,             // T1/T2: attackRange *= (1 + value); T3: флаг sniper_global_range
-    Sniper_DamageMult,            // T1/T2: damage *= (1 + value); T3: флаг sniper_instakill
+    // Sniper
+    Sniper_RangeMult,             // T1/T2: attackRange *= (1 + value); T3: flag sniper_global_range
+    Sniper_DamageMult,            // T1/T2: damage *= (1 + value); T3: flag sniper_instakill
     Sniper_CooldownReduction,     // cooldownDelay *= (1 - value)
-    Sniper_DurationAdd,           // T1: lifespan += value; T2/T3: флаг sniper_permanent
+    Sniper_DurationAdd,           // T1: lifespan += value; T2/T3: flag sniper_permanent
     Sniper_PierceAdd,             // maxPierceTargets += value
-    Sniper_Instakill,             // флаг: instakill non-boss
-    Sniper_Permanent,             // флаг: lifespan = бесконечен
-    Sniper_GlobalRange,           // флаг: бьёт по всей карте
-    Sniper_TripleTarget,          // флаг: 3 цели одновременно
+    Sniper_Instakill,             // flag: instakill non-boss
+    Sniper_Permanent,             // flag: lifespan = infinite
+    Sniper_GlobalRange,           // flag: hits across the entire map
+    Sniper_TripleTarget,          // flag: 3 targets simultaneously
 
-    // Бомба
-    Bomb_RadiusMult,              // T1/T2: damageRadius *= (1 + value); T3: флаг bomb_mega_radius
-    Bomb_DamageMult,              // T1/T2: damage *= (1 + value); T3: флаг bomb_stun
-    Bomb_ClusterCount,            // мини-бомбы: добавить value штук
-    Bomb_Count,                   // количество бомб за активацию += value
-    Bomb_DestroyBuildings,        // флаг: уничтожает здания
-    Bomb_Stun,                    // флаг: оглушает выживших зомби
-    Bomb_MegaRadius,              // флаг: radius = половина карты
+    // Bomb
+    Bomb_RadiusMult,              // T1/T2: damageRadius *= (1 + value); T3: flag bomb_mega_radius
+    Bomb_DamageMult,              // T1/T2: damage *= (1 + value); T3: flag bomb_stun
+    Bomb_ClusterCount,            // mini-bombs: add value units
+    Bomb_Count,                   // number of bombs per activation += value
+    Bomb_DestroyBuildings,        // flag: destroys buildings
+    Bomb_Stun,                    // flag: stuns surviving zombies
+    Bomb_MegaRadius,              // flag: radius = half the map
 
-    // Баррикада
-    Barricade_HPMult,             // T1/T2: maxHealth *= (1 + value); T3: флаг barricade_indestructible
-    Barricade_ReflectDamage,      // T1/T2: % отражения урона; T3: флаг barricade_death_zone
-    Barricade_StunDuration,       // длительность оглушения += value
+    // Barricade
+    Barricade_HPMult,             // T1/T2: maxHealth *= (1 + value); T3: flag barricade_indestructible
+    Barricade_ReflectDamage,      // T1/T2: % damage reflected; T3: flag barricade_death_zone
+    Barricade_StunDuration,       // stun duration += value
     Barricade_WidthMult,          // NavMeshObstacle scale *= (1 + value)
-    Barricade_CountAdd,           // количество баррикад за установку += value
-    Barricade_Indestructible,     // флаг: нельзя уничтожить
-    Barricade_DeathZone,          // флаг: зона мгновенной смерти
-    Barricade_FullWidth,          // флаг: блокирует всю улицу
+    Barricade_CountAdd,           // number of barricades per placement += value
+    Barricade_Indestructible,     // flag: cannot be destroyed
+    Barricade_DeathZone,          // flag: instant kill zone
+    Barricade_FullWidth,          // flag: blocks the entire street
 
-    // Общие
-    General_XPMult,               // множитель входящего XP
-    General_NoPanic,              // флаг: герой не паникует 5с после зомби рядом
+    // General
+    General_XPMult,               // incoming XP multiplier
+    General_NoPanic,              // flag: hero does not panic for 5s after zombie nearby
 }
 
 [CreateAssetMenu(fileName = "NewUpgrade", menuName = "ZombieGame/Run Upgrade")]
 public class RunUpgradeDefinition : ScriptableObject
 {
-    [Header("Идентификация")]
+    [Header("Identification")]
     public string upgradeId;
     public CardManager.CardType targetCardType; // CardType.None = General
 
-    [Header("Отображение (Тир 1)")]
+    [Header("Display (Tier 1)")]
     public string displayName;
     [TextArea(2, 4)] public string descriptionTier1;
     public Sprite iconTier1;
     public Color accentColor = Color.white;
 
-    [Header("Отображение (Тир 2 — Enhanced)")]
+    [Header("Display (Tier 2 — Enhanced)")]
     public string displayNameEnhanced;
     [TextArea(2, 4)] public string descriptionTier2;
     public Sprite iconTier2;
 
-    [Header("Отображение (Тир 3 — ULTIMATE)")]
+    [Header("Display (Tier 3 — ULTIMATE)")]
     public string displayNameUltimate;
     [TextArea(2, 4)] public string descriptionTier3;
     public Sprite iconTier3;
     public Color ultimateColor = new Color(1f, 0.8f, 0.2f);
 
-    [Header("Эффекты")]
+    [Header("Effects")]
     public UpgradeEffectType effectType;
     public float valueT1;
     public float valueT2;
     public float valueT3;
 
-    // ── Применение эффекта ────────────────────────────────────────────────
+    // ── Effect application ────────────────────────────────────────────────
 
-    /// <summary>Вызывается из RunSessionData.ApplyUpgrade(). tier = 1, 2 или 3.</summary>
+    /// <summary>Called from RunSessionData.ApplyUpgrade(). tier = 1, 2, or 3.</summary>
     public void ApplyEffect(int tier, RunSessionData session)
     {
         float val = tier == 1 ? valueT1 : tier == 2 ? valueT2 : valueT3;
 
         switch (effectType)
         {
-            // ── Вертолёт ──────────────────────────────────────────────
+            // ── Helicopter ──────────────────────────────────────────────
             case UpgradeEffectType.Helicopter_SpeedMult:
                 if (tier == 3) session.SetFlag("heli_instant_land");
                 else session.AddModifier("heli_speed_mult", val);
@@ -120,7 +120,7 @@ public class RunUpgradeDefinition : ScriptableObject
                 session.SetFlag("heli_global_attract");
                 break;
 
-            // ── Снайпер ──────────────────────────────────────────────
+            // ── Sniper ──────────────────────────────────────────────
             case UpgradeEffectType.Sniper_RangeMult:
                 if (tier == 3) session.SetFlag("sniper_global_range");
                 else session.AddModifier("sniper_range_mult", val);
@@ -152,7 +152,7 @@ public class RunUpgradeDefinition : ScriptableObject
                 session.SetFlag("sniper_triple_target");
                 break;
 
-            // ── Бомба ────────────────────────────────────────────────
+            // ── Bomb ────────────────────────────────────────────────
             case UpgradeEffectType.Bomb_RadiusMult:
                 if (tier == 3) session.SetFlag("bomb_mega_radius");
                 else session.AddModifier("bomb_radius_mult", val);
@@ -177,7 +177,7 @@ public class RunUpgradeDefinition : ScriptableObject
                 session.SetFlag("bomb_mega_radius");
                 break;
 
-            // ── Баррикада ────────────────────────────────────────────
+            // ── Barricade ────────────────────────────────────────────
             case UpgradeEffectType.Barricade_HPMult:
                 if (tier == 3) session.SetFlag("barricade_indestructible");
                 else session.AddModifier("barricade_hp_mult", val);
@@ -205,7 +205,7 @@ public class RunUpgradeDefinition : ScriptableObject
                 session.SetFlag("barricade_full_width");
                 break;
 
-            // ── Общие ────────────────────────────────────────────────
+            // ── General ────────────────────────────────────────────────
             case UpgradeEffectType.General_XPMult:
                 session.AddModifier("general_xp_mult", val);
                 break;
@@ -215,7 +215,7 @@ public class RunUpgradeDefinition : ScriptableObject
         }
     }
 
-    // ── Хелперы для UI ────────────────────────────────────────────────────
+    // ── UI Helpers ────────────────────────────────────────────────────
 
     public string GetDisplayName(int tier) => tier switch
     {

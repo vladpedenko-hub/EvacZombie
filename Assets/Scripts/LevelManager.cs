@@ -9,17 +9,17 @@ public class LevelManager : MonoBehaviour
 {
 	public static LevelManager Instance;
 
-	[Header("Ссылки на мир")]
+	[Header("World References")]
 	[SerializeField] private NavMeshSurface navSurface;
 	[SerializeField] private GameObject humanPrefab;
 	[SerializeField] private GameObject zombiePrefab;
 	[SerializeField] private GameObject defaultScientistPrefab;
 
-	[Header("Визуализация Планирования / Предупреждения")]
+	[Header("Planning / Warning Visualization")]
 	[SerializeField] private GameObject indicatorPrefab;
 	[SerializeField] private float indicatorHeight = 1.5f;
 
-	[Header("Освещение")]
+	[Header("Lighting")]
 	public Light sunLight;
 	public Color nightColor = new Color(0.1f, 0.1f, 0.3f);
 	public float nightIntensity = 0.2f;
@@ -105,7 +105,7 @@ public class LevelManager : MonoBehaviour
 		GameManager.Instance.SetTotalHumans(GameObject.FindGameObjectsWithTag("Human").Length);
 		GameManager.Instance.SetupTimer(data.levelTimer);
 
-		// --- ЗАПУСК ТУТОРИАЛА СРАЗУ ПРИ СТАРТЕ УРОВНЯ ---
+		// --- START TUTORIAL IMMEDIATELY ON LEVEL START ---
 		if (currentData != null && currentData.onStartTutorial != null && TutorialManager.Instance != null)
 		{
 			TutorialManager.Instance.StartTutorial(currentData.onStartTutorial);
@@ -316,7 +316,7 @@ public class LevelManager : MonoBehaviour
 
 		if (validPoints.Count == 0)
 		{
-			Debug.LogWarning($"[LevelManager] Не найдено точек спавна для группы {runtimeAction.actionData.spawnGroup}. Спавн пропущен.");
+			Debug.LogWarning($"[LevelManager] No spawn points found for group {runtimeAction.actionData.spawnGroup}. Spawn skipped.");
 			activeSpawnCoroutines--;
 			yield break;
 		}

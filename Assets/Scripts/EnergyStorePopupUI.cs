@@ -3,28 +3,28 @@ using UnityEngine.UI;
 using TMPro;
 using System;
 
-// Вешается на корневой объект попапа нехватки энергии (EnergyStorePopup)
+// Attached to the root object of the energy shortage popup (EnergyStorePopup)
 public class EnergyStorePopupUI : MonoBehaviour
 {
-	[Header("Окно")]
+	[Header("Window")]
 	[SerializeField] private GameObject root;
 	[SerializeField] private Button closeButton;
 
-	[Header("Таймер")]
+	[Header("Timer")]
 	[SerializeField] private TextMeshProUGUI timerText;
 
-	[Header("Кнопка Рекламы")]
+	[Header("Watch Ad Button")]
 	[SerializeField] private Button watchAdButton;
 	[SerializeField] private int energyPerAd = 10;
 
-	[Header("Кнопка Покупки (Ученые)")]
+	[Header("Buy with Scientists (Hard Currency)")]
 	[SerializeField] private Button buyWithHardButton;
 	[SerializeField] private int hardCurrencyCost = 50;
 	[SerializeField] private int energyPerBuy = 20;
 
 	private void Awake()
 	{
-		// Подписываем кнопки
+		// Wire up buttons
 		if (closeButton != null) closeButton.onClick.AddListener(Hide);
 		if (watchAdButton != null) watchAdButton.onClick.AddListener(OnWatchAdClicked);
 		if (buyWithHardButton != null) buyWithHardButton.onClick.AddListener(OnBuyWithHardClicked);
@@ -32,7 +32,7 @@ public class EnergyStorePopupUI : MonoBehaviour
 
 	private void Update()
 	{
-		// Обновляем таймер только если окно открыто и энергия не полная
+		// Update timer only when the window is open and energy is not full
 		if (root != null && root.activeSelf)
 		{
 			if (PlayerProfile.Instance.currentEnergy < PlayerProfile.Instance.maxEnergy)
@@ -40,11 +40,11 @@ public class EnergyStorePopupUI : MonoBehaviour
 				float secondsLeft = PlayerProfile.Instance.GetSecondsToNextEnergy();
 				int minutes = Mathf.FloorToInt(secondsLeft / 60);
 				int seconds = Mathf.FloorToInt(secondsLeft % 60);
-				timerText.text = $"До +1 ⚡: {minutes:00}:{seconds:00}";
+				timerText.text = $"Next ⚡ in: {minutes:00}:{seconds:00}";
 			}
 			else
 			{
-				timerText.text = "Энергия полная!";
+				timerText.text = "Energy full!";
 			}
 		}
 	}
@@ -54,7 +54,7 @@ public class EnergyStorePopupUI : MonoBehaviour
 		if (root != null) root.SetActive(true);
 		RefreshUI();
 
-		// TODO: Аналитика открытия попапа (пример для GameAnalytics/Firebase)
+		// TODO: Analytics event for popup open (example for GameAnalytics/Firebase)
 		// AnalyticsManager.LogEvent("energy_popup_opened");
 	}
 
@@ -65,7 +65,7 @@ public class EnergyStorePopupUI : MonoBehaviour
 
 	private void RefreshUI()
 	{
-		// Включаем/выключаем кнопку покупки за харду в зависимости от баланса Ученых
+		// Enable/disable the hard currency buy button based on Scientist balance
 		if (buyWithHardButton != null)
 		{
 			bool hasEnoughHard = PlayerProfile.Instance.totalScientistsCurrency >= hardCurrencyCost;
@@ -77,43 +77,43 @@ public class EnergyStorePopupUI : MonoBehaviour
 	{
 		if (PlayerProfile.Instance.totalScientistsCurrency >= hardCurrencyCost)
 		{
-			// Списываем ученых, начисляем энергию
+			// Deduct scientists, grant energy
 			PlayerProfile.Instance.totalScientistsCurrency -= hardCurrencyCost;
 			PlayerProfile.Instance.AddEnergy(energyPerBuy);
 
-			// TODO: Аналитика траты харды
+			// TODO: Analytics event for hard currency spend
 			// AnalyticsManager.LogResourceSink("scientists", hardCurrencyCost, "buy_energy");
 
 			RefreshUI();
 
-			// Если энергии теперь хватает на игру (или фулл) — можем автоматически закрыть окно
+			// If energy is now sufficient to play (or full) — auto-close the popup
 			Hide();
 		}
 	}
 
 	private void OnWatchAdClicked()
 	{
-		// TODO: Вызов SDK рекламы (AppLovin MAX или AdMob)
-		// В MVP делаем так: показываем заглушку, а в коллбеке успешного просмотра выдаем награду.
+		// TODO: Call ad SDK (AppLovin MAX or AdMob)
+		// For MVP: show a stub, then grant the reward in the successful view callback.
 
-		/* ПРИМЕР ИНТЕГРАЦИИ APPLOVIN MAX:
+		/* APPLOVIN MAX INTEGRATION EXAMPLE:
 		if (MaxSdk.IsRewardedAdReady("YOUR_AD_UNIT_ID")) {
 			MaxSdk.ShowRewardedAd("YOUR_AD_UNIT_ID");
-			// Обработчик должен висеть в отдельном AdManager, который вызовет метод ниже:
+			// The callback should live in a separate AdManager that calls the method below:
 		}
 		*/
 
-		// ДЛЯ ТЕСТОВ (Пока нет SDK, выдаем награду сразу по клику):
-		Debug.Log($"[Ads SDK Mock] Показали рекламу. Выдаем {energyPerAd} энергии.");
+		// FOR TESTING (No SDK yet — grant reward immediately on click):
+		Debug.Log($"[Ads SDK Mock] Ad shown. Granting {energyPerAd} energy.");
 		GrantAdReward();
 	}
 
-	// Этот метод будем вызывать из коллбека SDK рекламы
+	// This method will be called from the ad SDK callback
 	public void GrantAdReward()
 	{
 		PlayerProfile.Instance.AddEnergy(energyPerAd);
 
-		// TODO: Аналитика просмотра рекламы
+		// TODO: Analytics event for ad view
 		// AnalyticsManager.LogEvent("rv_energy_watched");
 
 		Hide();

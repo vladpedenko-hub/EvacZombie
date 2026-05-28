@@ -5,27 +5,27 @@ using UnityEngine.UI;
 
 public class LevelMissionPopupUI : MonoBehaviour
 {
-	[Header("Корень popup")]
+	[Header("Popup Root")]
 	[SerializeField] private GameObject root;
 
-	[Header("Тексты")]
+	[Header("Text Fields")]
 	[SerializeField] private TextMeshProUGUI titleText;
 	[SerializeField] private TextMeshProUGUI descriptionText;
 
-	[Header("Иконка уровня")]
+	[Header("Level Icon")]
 	[SerializeField] private Image missionIcon;
 
-	[Header("Тексты условий звезд")]
+	[Header("Star Condition Texts")]
 	[SerializeField] private TextMeshProUGUI star1Text;
 	[SerializeField] private TextMeshProUGUI star2Text;
 	[SerializeField] private TextMeshProUGUI star3Text;
 
-	[Header("Иконки звезд условий")]
+	[Header("Star Condition Icons")]
 	[SerializeField] private Image star1Icon;
 	[SerializeField] private Image star2Icon;
 	[SerializeField] private Image star3Icon;
 
-	[Header("Спрайты звезд")]
+	[Header("Star Sprites")]
 	[SerializeField] private Sprite emptyStarSprite;
 	[SerializeField] private Sprite filledStarSprite;
 
@@ -35,14 +35,14 @@ public class LevelMissionPopupUI : MonoBehaviour
 	[SerializeField] private Image lootboxIcon;
 	[SerializeField] private GameObject lootboxBlock;
 
-	[Header("Кнопки")]
+	[Header("Buttons")]
 	[SerializeField] private Button startButton;
 	[SerializeField] private Button closeButton;
 
-	[Header("Энергия")]
+	[Header("Energy")]
 	[SerializeField] private int levelEnergyCost = 5;
 	[SerializeField] private Image startButtonImage;
-	[SerializeField] private TextMeshProUGUI energyCostText; // НОВОЕ: Сюда закинь текст на кнопке "Play" (например "5 ⚡")
+	[SerializeField] private TextMeshProUGUI energyCostText; // NEW: Assign the text on the Play button (e.g. "5 ⚡")
 	[SerializeField] private Color enoughEnergyColor = Color.green;
 	[SerializeField] private Color notEnoughEnergyColor = Color.gray;
 	[SerializeField] private EnergyStorePopupUI energyStorePopup;
@@ -82,15 +82,15 @@ public class LevelMissionPopupUI : MonoBehaviour
 		GameObject targetRoot = root != null ? root : gameObject;
 		targetRoot.SetActive(true);
 
-		// Визуал кнопки и цены энергии
+		// Button visuals and energy cost display
 		bool hasEnoughEnergy = PlayerProfile.Instance.currentEnergy >= levelEnergyCost;
 		if (startButtonImage != null)
 			startButtonImage.color = hasEnoughEnergy ? enoughEnergyColor : notEnoughEnergyColor;
 
 		if (energyCostText != null)
-			energyCostText.text = $"-{levelEnergyCost}"; // Покажет "-5"
+			energyCostText.text = $"-{levelEnergyCost}"; // Shows "-5"
 
-		// Оригинальный код заполнения UI
+		// Fill UI data
 		if (titleText != null) titleText.text = selectedLevelData.GetMissionTitle(regionIndex, levelIndex);
 		if (descriptionText != null) descriptionText.text = selectedLevelData.missionDescription;
 
@@ -107,8 +107,8 @@ public class LevelMissionPopupUI : MonoBehaviour
 		int savedStars = 0;
 		if (PlayerProfile.Instance != null) savedStars = PlayerProfile.Instance.GetSavedStarsForLevel(selectedLevelData);
 
-		if (star1Text != null) star1Text.text = $"Спасти {selectedLevelData.GetStar1Target()} людей";
-		if (star2Text != null) star2Text.text = $"Спасти {selectedLevelData.GetStar2Target()} людей";
+		if (star1Text != null) star1Text.text = $"Save {selectedLevelData.GetStar1Target()} people";
+		if (star2Text != null) star2Text.text = $"Save {selectedLevelData.GetStar2Target()} people";
 		if (star3Text != null) star3Text.text = selectedLevelData.star3Description;
 
 		ApplyStarState(star1Icon, savedStars >= 1);

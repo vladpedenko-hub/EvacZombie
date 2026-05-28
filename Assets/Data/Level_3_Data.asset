@@ -24,7 +24,7 @@ MonoBehaviour:
   requiredRescuedHumans: 10
   star1RequiredHumans: 10
   star2RequiredHumans: 20
-  star3Description: "\u041F\u0440\u043E\u0439\u0442\u0438 \u0438\u0434\u0435\u0430\u043B\u044C\u043D\u043E"
+  star3Description: Save all
   missionTitleOverride: 
   missionIcon: {fileID: -7343220986905845580, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
   missionDescription: 

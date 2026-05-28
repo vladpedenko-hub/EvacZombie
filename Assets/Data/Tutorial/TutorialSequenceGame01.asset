@@ -17,18 +17,18 @@ MonoBehaviour:
   - stepType: 0
     targetId: LevelGame1
     useDarkMask: 1
+    fingerOffset: {x: 0, y: 0}
     dropTargetId: 
     swipeOffset: {x: 0, y: 400}
-    dialogText: "\u0412\u0440\u0435\u043C\u044F \u0432\u044B\u0437\u044B\u0432\u0430\u0442\u044C
-      \u0432\u0435\u0440\u0442\u043E\u043B\u0435\u0442! "
+    dialogText: Time to save some people bro!
     characterIcon: {fileID: 9112743452827066768, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
     dialogPosition: 2
   - stepType: 4
     targetId: Card_Helicopter
     useDarkMask: 1
+    fingerOffset: {x: 0, y: 0}
     dropTargetId: 
     swipeOffset: {x: 500, y: 900}
-    dialogText: "\u0422\u044B \u0433\u043E\u0442\u043E\u0432 \u0441\u043F\u0430\u0441\u0430\u0442\u044C
-      \u043B\u044E\u0434\u0435\u0439? "
+    dialogText: Use helicopter!
     characterIcon: {fileID: 9112743452827066768, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
     dialogPosition: 0

@@ -34,22 +34,22 @@ MonoBehaviour:
     currencyCost: 100
   stats:
   - statType: 3
-    statName: "\u0423\u0440\u043E\u043D"
+    statName: Damage
     baseValue: 100
     valuePerLevel: 25
-    unitSuffix: " \u0435\u0434."
+    unitSuffix: ' points.'
   - statType: 5
-    statName: "\u0414\u0430\u043B\u044C\u043D\u043E\u0441\u0442\u044C"
+    statName: Radius
     baseValue: 10
     valuePerLevel: 1
-    unitSuffix: " \u043C."
+    unitSuffix: ' m.'
   - statType: 6
-    statName: "\u0414\u043B\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C"
+    statName: Duration
     baseValue: 10
     valuePerLevel: 1
-    unitSuffix: " \u0441\u0435\u043A."
+    unitSuffix: ' sec.'
   - statType: 7
-    statName: "\u041F\u0435\u0440\u0435\u0437\u0430\u0440\u044F\u0434\u043A\u0430"
+    statName: Cooldown
     baseValue: 3
     valuePerLevel: -0.2
-    unitSuffix: " \u0441\u0435\u043A."
+    unitSuffix: ' sec.'

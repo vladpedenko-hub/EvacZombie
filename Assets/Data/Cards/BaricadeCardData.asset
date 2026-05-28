@@ -34,7 +34,7 @@ MonoBehaviour:
     currencyCost: 10000
   stats:
   - statType: 9
-    statName: "\u0425\u041F"
+    statName: HP
     baseValue: 200
     valuePerLevel: 50
-    unitSuffix: "\u0445\u043F."
+    unitSuffix: hp.

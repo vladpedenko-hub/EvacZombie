@@ -1,11 +1,11 @@
 using UnityEngine;
 
-// [��� �����]: �� ������ ������� (InputManager) �� ������ �����.
+// [WHERE IT LIVES]: On the InputManager object on the main scene.
 public class InputManager : MonoBehaviour
 {
 	public static InputManager Instance;
 
-	[Header("������")]
+	[Header("Icons")]
 	public GameObject invalidPlacementIcon;
 
 	private Camera mainCam;
@@ -13,13 +13,13 @@ public class InputManager : MonoBehaviour
 	private bool isDragging;
 	private LineRenderer radiusCircle;
 
-	// ��������� ������ ������
+	// Building outline state
 	private LineRenderer buildingOutline;
 	private GameObject outlinedBuilding;
 	private Vector3[] buildingCorners = new Vector3[4];
 
 	/// <summary>
-	/// Установи true чтобы полностью заблокировать размещение карт (например, во время паузы).
+	/// Set to true to fully block card placement (e.g. during pause).
 	/// </summary>
 	public bool IsPaused = false;
 
@@ -29,7 +29,7 @@ public class InputManager : MonoBehaviour
 	{
 		mainCam = Camera.main;
 
-		// ������ ����
+		// Radius circle
 		GameObject circleObj = new GameObject("DragRadiusVisual");
 		radiusCircle = circleObj.AddComponent<LineRenderer>();
 		radiusCircle.startWidth = 0.2f;
@@ -38,7 +38,7 @@ public class InputManager : MonoBehaviour
 		radiusCircle.loop = true;
 		radiusCircle.enabled = false;
 
-		// ������ ������
+		// Building outline
 		GameObject outlineObj = new GameObject("BuildingOutline");
 		buildingOutline = outlineObj.AddComponent<LineRenderer>();
 		buildingOutline.startWidth = 0.15f;
@@ -57,7 +57,7 @@ public class InputManager : MonoBehaviour
 
 	public void StartDragging(CardData card)
 	{
-		if (IsPaused) return;   // Блокируем во время паузы (LevelUpScreen)
+		if (IsPaused) return;   // Block during pause (LevelUpScreen)
 
 		draggingCard = card;
 		isDragging = true;
@@ -112,7 +112,7 @@ public class InputManager : MonoBehaviour
 	public bool EndDragging()
 	{
 		if (!isDragging) return false;
-		if (IsPaused) { isDragging = false; return false; }  // Блокируем во время паузы
+		if (IsPaused) { isDragging = false; return false; }  // Block during pause
 
 		isDragging = false;
 		radiusCircle.enabled = false;
@@ -142,7 +142,7 @@ public class InputManager : MonoBehaviour
 			if (placed && GameManager.Instance.State == GameManager.GameState.Planning)
 				GameManager.Instance.StartGame();
 
-			// --- �����: ������� ��������� ��� �������� ---
+			// --- Tutorial: advance step on card play ---
 			if (placed && TutorialManager.Instance != null)
 			{
 				TutorialManager.Instance.NextStep();
@@ -173,7 +173,7 @@ public class InputManager : MonoBehaviour
 			if (GameManager.Instance.State == GameManager.GameState.Planning)
 				GameManager.Instance.StartGame();
 
-			// --- �����: ������� ��������� ��� ��������� ���� (��������, ����� � �.�.) ---
+			// --- Tutorial: advance step on any other card play (e.g. helicopter, bait, etc.) ---
 			if (TutorialManager.Instance != null)
 			{
 				TutorialManager.Instance.NextStep();
@@ -273,7 +273,7 @@ public class InputManager : MonoBehaviour
 				return true;
 
 			case CardManager.CardType.Barricade:
-				// Только на объектах с тегом "BarricadeSurface"
+				// Only on objects tagged "BarricadeSurface"
 				return hit.collider.CompareTag("BarricadeSurface");
 
 			default:
@@ -395,7 +395,7 @@ public class InputManager : MonoBehaviour
 
 			case CardManager.CardType.Barricade:
 			{
-				// Ориентируем барикаду поперёк дороги по направлению mesh'а дороги
+				// Orient the barricade across the road based on the road mesh direction
 				Quaternion barricadeRotation = Quaternion.identity;
 				if (hit.collider != null)
 				{

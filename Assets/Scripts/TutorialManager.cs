@@ -13,15 +13,15 @@ public class TutorialManager : MonoBehaviour
 	public static event System.Action OnTutorialStarted;
 	public static event System.Action OnTutorialFinished;
 
-	[Header("UI ������ (�������)")]
-	[Tooltip("������ FullScreenBlocker")]
+	[Header("UI Elements (Main)")]
+	[Tooltip("FullScreenBlocker object")]
 	public GameObject fullScreenBlocker;
 	public GameObject dialogPanel;
 	public TextMeshProUGUI dialogText;
 	public Image dialogIcon;
 	public RectTransform fingerPointer;
 
-	[Header("��������� ����� (�����)")]
+	[Header("Mask Settings (Cutout)")]
 	public RectTransform maskContainer;
 	public CanvasGroup maskCanvasGroup;
 	public RectTransform topMask;
@@ -30,7 +30,7 @@ public class TutorialManager : MonoBehaviour
 	public RectTransform rightMask;
 	public float maskPadding = 25f;
 
-	[Header("�������� ����� (��� ��������)")]
+	[Header("Solid Dark Mask (No Cutout)")]
 	public GameObject solidDarkMask;
 
 	private Dictionary<string, RectTransform> activeTargets = new Dictionary<string, RectTransform>();
@@ -57,7 +57,7 @@ public class TutorialManager : MonoBehaviour
 
 		SceneManager.sceneUnloaded += OnSceneUnloaded;
 
-		// ������� ����������� ������ � �������, ���� ��� ��� ����, � ������ ��� ����� ������
+		// Remove the Button component from the blocker if it exists, and replace with a filter instead
 		Button btn = fullScreenBlocker.GetComponent<Button>();
 		if (btn != null) Destroy(btn);
 
@@ -101,9 +101,9 @@ public class TutorialManager : MonoBehaviour
 		currentStepIndex = 0;
 		isTutorialActive = true;
 
-		// Паузим timeScale только во время активной игры.
-		// В Planning-е таймер и зомби и так не работают, а кардинальная пауза
-		// блокирует регенерацию энергии и делает карточки недоступными.
+		// Pause timeScale only during active gameplay.
+		// In Planning, the timer and zombies are already inactive, and a hard pause
+		// blocks energy regeneration and makes cards unavailable.
 		_pausedTimeForTutorial = GameManager.Instance != null &&
 			(GameManager.Instance.State == GameManager.GameState.Playing ||
 			 GameManager.Instance.State == GameManager.GameState.SuddenDeath);
@@ -143,7 +143,7 @@ public class TutorialManager : MonoBehaviour
 		if (solidDarkMask != null) solidDarkMask.SetActive(false);
 		dialogPanel.SetActive(false);
 
-		// --- ����� ---
+		// --- Mask ---
 		if (step.useDarkMask)
 		{
 			if (step.stepType == TutorialStepType.DialogOnly)
@@ -161,7 +161,7 @@ public class TutorialManager : MonoBehaviour
 			}
 		}
 
-		// --- ������ ---
+		// --- Dialog ---
 		if (step.stepType == TutorialStepType.DialogOnly || step.stepType == TutorialStepType.DialogAndClick || step.stepType == TutorialStepType.DialogAndDrag)
 		{
 			dialogPanel.SetActive(true);
@@ -201,7 +201,7 @@ public class TutorialManager : MonoBehaviour
 			dialogPanel.transform.DOScale(1f, 0.4f).SetEase(Ease.OutBack).SetUpdate(true);
 		}
 
-		// --- ������ ���� � ������ ---
+		// --- Finger and Target ---
 		if (step.stepType != TutorialStepType.DialogOnly)
 		{
 			if (activeTargets.TryGetValue(step.targetId, out RectTransform targetRect) && targetRect != null)
@@ -209,18 +209,18 @@ public class TutorialManager : MonoBehaviour
 				if (step.useDarkMask) FocusMaskOnTarget(targetRect);
 				fingerPointer.gameObject.SetActive(true);
 
-				// 1. ���� ������ ����
+				// 1. Click step type
 				if (step.stepType == TutorialStepType.ClickOnly || step.stepType == TutorialStepType.DialogAndClick)
 				{
 					PlaceFingerAtTarget(targetRect, step.fingerOffset);
 					fingerPointer.localScale = Vector3.one;
 					fingerTween = fingerPointer.DOScale(1.15f, 0.4f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine).SetUpdate(true);
 
-					// ������������� �� �������� ���� ������
+					// Subscribe to the button click event
 					currentTrackedButton = targetRect.GetComponent<Button>();
 					if (currentTrackedButton != null) currentTrackedButton.onClick.AddListener(NextStep);
 				}
-				// 2. ���� �������������� (DRAG)
+				// 2. Drag step type
 				else if (step.stepType == TutorialStepType.DragAndDrop || step.stepType == TutorialStepType.DialogAndDrag)
 				{
 					PlaceFingerAtTarget(targetRect, step.fingerOffset);
@@ -232,29 +232,29 @@ public class TutorialManager : MonoBehaviour
 						endPos = GetWorldPositionOnFingerCanvas(dropRect);
 					}
 
-					// ��������: ����� -> ������� -> �������� -> ��������
+					// Animation: press -> drag -> release -> reset
 					Sequence dragSeq = DOTween.Sequence().SetUpdate(true);
-					dragSeq.Append(fingerPointer.DOScale(0.85f, 0.2f)); // �������� �������
-					dragSeq.Append(fingerPointer.DOMove(endPos, 1.2f).SetEase(Ease.InOutQuad)); // �����
-					dragSeq.Append(fingerPointer.DOScale(1.1f, 0.2f)); // ���������
+					dragSeq.Append(fingerPointer.DOScale(0.85f, 0.2f)); // press down
+					dragSeq.Append(fingerPointer.DOMove(endPos, 1.2f).SetEase(Ease.InOutQuad)); // drag
+					dragSeq.Append(fingerPointer.DOScale(1.1f, 0.2f)); // release
 					dragSeq.AppendInterval(0.2f);
-					dragSeq.Append(fingerPointer.DOMove(startPos, 0f)); // ���������� �������
+					dragSeq.Append(fingerPointer.DOMove(startPos, 0f)); // reset position
 					dragSeq.SetLoops(-1, LoopType.Restart);
 					fingerTween = dragSeq;
 
-					// �����: ��� DragAndDrop �� �� ���� Button click. ����� ��� ������� NextStep() �� ������� ��������.
+					// Note: DragAndDrop does not use Button click. NextStep() must be called externally from game logic.
 				}
 			}
 			else
 			{
-				Debug.Log($"[Tutorial] ���� ��������� ����: {step.targetId}...");
+				Debug.Log($"[Tutorial] Waiting for target: {step.targetId}...");
 				dialogPanel.SetActive(false);
 			}
 		}
 	}
 
-	// Позиционирует fingerPointer точно над targetRect через конвертацию screen space.
-	// Корректно работает даже когда target и fingerPointer на разных Canvas с разным Canvas Scaler.
+	// Positions the fingerPointer exactly over targetRect via screen space conversion.
+	// Works correctly even when target and fingerPointer are on different Canvases with different Canvas Scalers.
 	private void PlaceFingerAtTarget(RectTransform targetRect, Vector2 offset = default)
 	{
 		Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(null, targetRect.position);
@@ -330,7 +330,7 @@ public class TutorialManager : MonoBehaviour
 		}
 	}
 
-	// ���� ����� ���������! ��� ����� ������� �� ������ ������ �������.
+	// This method is public! It must be callable from any card button.
 	public void NextStep()
 	{
 		if (!isTutorialActive) return;
@@ -349,18 +349,18 @@ public class TutorialManager : MonoBehaviour
 		}
 	}
 
-	// ��� ������� ����������, ���������� �� ���� ������ �������� � ����
+	// Called from the raycast filter to determine whether a click should pass through the blocker
 	public bool ShouldBlockRaycast(Vector2 screenPosition, Camera eventCamera)
 	{
 		TutorialStep step = GetCurrentStep();
 		if (step == null || !isTutorialActive) return false;
 
-		if (step.stepType == TutorialStepType.DialogOnly) return true; // ��������� ��
+		if (step.stepType == TutorialStepType.DialogOnly) return true; // Always block
 
 		if (activeTargets.TryGetValue(step.targetId, out RectTransform targetRect) && targetRect != null)
 		{
 			bool inHole = RectTransformUtility.RectangleContainsScreenPoint(targetRect, screenPosition, eventCamera);
-			return !inHole; // ���� ���� ������ ����� - ���������� (false). ���� ������� - ��������� (true).
+			return !inHole; // Inside the hole — allow (false). Outside — block (true).
 		}
 
 		return true;
@@ -399,7 +399,7 @@ public class TutorialManager : MonoBehaviour
 	}
 }
 
-// ���������� �����: ����� ������ �����
+// Auxiliary class: transparent clickable overlay
 public class TutorialRaycastFilter : MonoBehaviour, ICanvasRaycastFilter, IPointerClickHandler
 {
 	public TutorialManager manager;

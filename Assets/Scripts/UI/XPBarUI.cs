@@ -25,7 +25,7 @@ public class XPBarUI : MonoBehaviour
         }
 
         if (levelText != null)
-            levelText.text = $"Ур. {session.CurrentRunLevel}";
+            levelText.text = $"Lv. {session.CurrentRunLevel}";
 
         if (xpText != null)
             xpText.text = $"{current} / {max}";

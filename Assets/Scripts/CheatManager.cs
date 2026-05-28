@@ -3,13 +3,13 @@ using UnityEngine.AI;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 
-// [ГДЕ ВИСИТ]: На пустом объекте GlobalCheatManager на самой первой сцене игры.
-// [ПОВЕДЕНИЕ]: Скрипт сам сделает себя бессмертным и будет доступен везде.
+// [WHERE IT LIVES]: On the GlobalCheatManager empty object in the very first game scene.
+// [BEHAVIOR]: The script makes itself persistent and accessible everywhere.
 public class CheatManager : MonoBehaviour
 {
 	public static CheatManager Instance;
 
-	[Header("Префабы для спавна")]
+	[Header("Spawn Prefabs")]
 	public GameObject humanPrefab;
 	public GameObject zombiePrefab;
 
@@ -24,41 +24,41 @@ public class CheatManager : MonoBehaviour
 
 	private void Awake()
 	{
-		// --- ЛОГИКА СИНГЛТОНА (БЕССМЕРТИЯ) ---
+		// --- SINGLETON LOGIC (PERSISTENCE) ---
 		if (Instance == null)
 		{
 			Instance = this;
-			DontDestroyOnLoad(gameObject); // Не уничтожать при смене сцен
+			DontDestroyOnLoad(gameObject); // Do not destroy on scene change
 		}
 		else
 		{
-			Destroy(gameObject); // Удалить дубликат, если он случайно появился
+			Destroy(gameObject); // Destroy duplicate if it accidentally appeared
 			return;
 		}
 	}
 
 	private void Update()
 	{
-		// Нам нужно обновлять ссылку на камеру на каждой новой сцене
+		// Update the camera reference on each new scene
 		if (mainCam == null) mainCam = Camera.main;
 
-		// Секретный анлок (5 тапов в левый верхний угол)
+		// Secret unlock (5 taps in the top-left corner)
 		HandleSecretUnlock();
 
-		// ПК-КНОПКИ (РАБОТАЮТ ВЕЗДЕ)
+		// PC HOTKEYS (WORK EVERYWHERE)
 		if (Input.GetKeyDown(KeyCode.F1)) GiveMaxResources();
 		if (Input.GetKeyDown(KeyCode.F7)) ResetSaves();
 		if (Input.GetKeyDown(KeyCode.F8)) GiveCardsCheat();
-		if (Input.GetKeyDown(KeyCode.F9)) AddHardCurrency(); // Чит на Ученых (Хард)
+		if (Input.GetKeyDown(KeyCode.F9)) AddHardCurrency(); // Cheat for Scientists (Hard currency)
 
-		// Остальные читы работают только если мы нашли GameManager (значит мы в бою)
+		// Other cheats only work when GameManager is found (i.e. we are in a battle)
 		if (GameManager.Instance != null)
 		{
 			if (Input.GetKeyDown(KeyCode.F2)) currentMode = SpawnMode.Human;
 			if (Input.GetKeyDown(KeyCode.F3)) currentMode = SpawnMode.Zombie;
 			if (Input.GetKeyDown(KeyCode.F4)) FillMana();
 			if (Input.GetKeyDown(KeyCode.F5)) CheatWin();
-			if (Input.GetKeyDown(KeyCode.F6)) AddCurrency(); // Чит на Людей (Софт)
+			if (Input.GetKeyDown(KeyCode.F6)) AddCurrency(); // Cheat for People (Soft currency)
 
 			if (currentMode != SpawnMode.None && Input.GetMouseButtonDown(0))
 			{
@@ -141,7 +141,7 @@ public class CheatManager : MonoBehaviour
 	private void ResetSaves()
 	{
 		if (PlayerProfile.Instance != null) PlayerProfile.Instance.ResetProfile();
-		Debug.Log("<color=red>СБРОС: Все данные стерты. Перезапуск...</color>");
+		Debug.Log("<color=red>RESET: All data erased. Restarting...</color>");
 		SceneManager.LoadScene(0);
 	}
 
@@ -152,7 +152,7 @@ public class CheatManager : MonoBehaviour
 		PlayerProfile.Instance.totalCurrency += 10000;
 		PlayerProfile.Instance.totalScientistsCurrency += 1000;
 
-		// --- НОВОЕ: Чит на энергию ---
+		// --- NEW: Energy cheat ---
 		PlayerProfile.Instance.currentEnergy = PlayerProfile.Instance.maxEnergy;
 
 		foreach (CardData card in PlayerProfile.Instance.allAvailableCards)
@@ -171,7 +171,7 @@ public class CheatManager : MonoBehaviour
 
 		PlayerProfile.Instance.totalCurrency += 5000;
 
-		// --- НОВОЕ: Чит на энергию ---
+		// --- NEW: Energy cheat ---
 		PlayerProfile.Instance.currentEnergy = PlayerProfile.Instance.maxEnergy;
 
 		foreach (CardData card in PlayerProfile.Instance.allAvailableCards)
@@ -189,7 +189,7 @@ public class CheatManager : MonoBehaviour
 
 		PlayerProfile.Instance.SaveProfile();
 		RefreshDeckMenu();
-		Debug.Log("<color=green>ЧИТ: Добавлено +100 дубликатов карт, 5000 людей и фулл энергия!</color>");
+		Debug.Log("<color=green>CHEAT: Added +100 card duplicates, 5000 people, and full energy!</color>");
 	}
 
 	private void RefreshDeckMenu()
