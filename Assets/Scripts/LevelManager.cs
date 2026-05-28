@@ -72,6 +72,8 @@ public class LevelManager : MonoBehaviour
 		ClearIndicators();
 		currentData = data;
 
+		AbilityManager.Instance?.Initialize(data);
+
 		if (currentLevelEnvironment != null)
 			Destroy(currentLevelEnvironment);
 

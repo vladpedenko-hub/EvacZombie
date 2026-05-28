@@ -17,6 +17,8 @@ public class LevelUpScreen : MonoBehaviour
     [Header("Настройки")]
     public CardManager.CardType heroType = CardManager.CardType.Helicopter;
 
+    public static bool IsShowing { get; private set; } = false;
+
     // ── внутреннее состояние ──────────────────────────────────────────────
     private bool _isShowing = false;
     private GameManager.GameState _stateBeforePause;
@@ -47,6 +49,34 @@ public class LevelUpScreen : MonoBehaviour
     {
         if (RunSessionData.Instance != null)
             RunSessionData.Instance.OnLevelUp -= ShowScreen;
+
+        TutorialManager.OnTutorialStarted -= HandleTutorialStarted;
+        TutorialManager.OnTutorialFinished -= HandleTutorialFinished;
+    }
+
+    private void OnEnable()
+    {
+        TutorialManager.OnTutorialStarted += HandleTutorialStarted;
+        TutorialManager.OnTutorialFinished += HandleTutorialFinished;
+    }
+
+    private void OnDisable()
+    {
+        TutorialManager.OnTutorialStarted -= HandleTutorialStarted;
+        TutorialManager.OnTutorialFinished -= HandleTutorialFinished;
+    }
+
+    // Туториал паузит мир через PauseTime() (timeScale=0).
+    // FreezeWorld() здесь НЕ нужен — Human/HelicopterController проверяют timeScale самостоятельно,
+    // а заморозка аниматоров ломает UI-карточки.
+    private void HandleTutorialStarted()
+    {
+        // LevelUp уже заморозил всё — нам ничего делать не нужно
+    }
+
+    private void HandleTutorialFinished()
+    {
+        // TimeScale восстановлен через ResumeTime() внутри TutorialManager.FinishTutorial()
     }
 
     private void TrySubscribe()
@@ -86,9 +116,14 @@ public class LevelUpScreen : MonoBehaviour
         if (options.Count == 0) return;
 
         _isShowing = true;
+        IsShowing = true;
+        AbilityManager.Instance?.OnLevelUpScreenOpened();
 
-        // ── 1. Полный тайм-стоп ───────────────────────────────────────────
-        Time.timeScale = 0f;
+        // ── 1. Полный тайм-стоп (через TimeManager, чтобы его Update() не восстанавливал timeScale) ──
+        if (TimeManager.Instance != null)
+            TimeManager.Instance.PauseTime();
+        else
+            Time.timeScale = 0f;
 
         // ── 2. Явно замораживаем весь мир (NavMesh, Animator, Helicopter) ──
         FreezeWorld();
@@ -142,6 +177,7 @@ public class LevelUpScreen : MonoBehaviour
     {
         if (!_isShowing) return;
         _isShowing = false;
+        IsShowing = false;
 
         if (screenRoot != null)
             screenRoot.SetActive(false);
@@ -159,7 +195,12 @@ public class LevelUpScreen : MonoBehaviour
         // Размораживаем мир ПЕРЕД возвратом времени
         UnfreezeWorld();
 
-        Time.timeScale = 1f;
+        if (TimeManager.Instance != null)
+            TimeManager.Instance.ResumeTime();
+        else
+            Time.timeScale = 1f;
+
+        AbilityManager.Instance?.OnLevelUpScreenClosed();
     }
 
     // ── заморозка / разморозка мира ───────────────────────────────────────

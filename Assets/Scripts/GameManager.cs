@@ -10,12 +10,12 @@ public class GameManager : MonoBehaviour
 	public enum GameState { Planning, Playing, SuddenDeath, GameOver, Lose }
 	public GameState State = GameState.Planning;
 
-	[Header("Статистика уровня")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public int totalHumans;
 	public int rescuedHumans;
 	public int requiredHumans;
 
-	[Header("Статистика учёных")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public int totalScientists;
 	public int rescuedScientists;
 
@@ -61,6 +61,7 @@ public class GameManager : MonoBehaviour
 		UIManager.Instance.SpawnFlyingText(transportWorldPos, total);
 
 		XPManager.Instance?.OnCivilianEvacuated(humans, scientists);
+		AbilityManager.Instance?.AddCharge(total);
 	}
 
 	public void AddRescuedHumans(int count, Vector3 transportWorldPos)
@@ -160,10 +161,10 @@ public class GameManager : MonoBehaviour
 	{
 		if (perfectClearStarted) return;
 
-		// Сначала убеждаемся, что таймлайн волн полностью отработал и больше спавнов не будет
+		// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 		if (LevelManager.Instance == null || !LevelManager.Instance.IsTimelineSpawningFinished) return;
 
-		// Если волны закончились и игрок добил последнего зомби — Идеальное прохождение
+		// пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 		if (Zombie.AllZombies.Count == 0 && GetAliveResidentsCount() > 0)
 		{
 			perfectClearStarted = true;

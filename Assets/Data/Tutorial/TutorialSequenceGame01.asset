@@ -31,4 +31,4 @@ MonoBehaviour:
     dialogText: "\u0422\u044B \u0433\u043E\u0442\u043E\u0432 \u0441\u043F\u0430\u0441\u0430\u0442\u044C
       \u043B\u044E\u0434\u0435\u0439? "
     characterIcon: {fileID: 9112743452827066768, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
-    dialogPosition: 2
+    dialogPosition: 0

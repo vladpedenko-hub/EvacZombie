@@ -6,64 +6,68 @@ public class LevelData : ScriptableObject
 {
 	public enum CameraType { Perspective, Orthographic }
 
-	[Header("Базовые настройки")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public GameObject levelPrefab;
 	public int humanCount = 25;
 	public float levelTimer = 60f;
 	public float suddenDeathSpawnRate = 0.3f;
 
-	[Header("Модификаторы уровня (Мутаторы)")]
-	[Tooltip("Множитель скорости всех зомби на этом уровне (1 = стандартная)")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)")]
+	[Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (1 = пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)")]
 	public float zombieSpeedMultiplier = 1.0f;
 
-	[Tooltip("Множитель здоровья всех зомби на этом уровне (1 = стандартное)")]
+	[Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (1 = пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)")]
 	public float zombieHealthMultiplier = 1.0f;
 
-	[Header("Таймлайн Волн")]
-	[Tooltip("Перетащи сюда модули волн в том порядке, в котором они должны сработать")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ")]
+	[Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public List<WaveData> waves = new List<WaveData>();
 
-	[Header("Условия победы")]
-	[Tooltip("Минимальное количество спасённых людей для победы")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")]
+	[Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public int requiredRescuedHumans = 10;
 
-	[Header("3 звезды")]
-	[Tooltip("1 звезда. Если 0, будет использоваться requiredRescuedHumans")]
+	[Header("3 пїЅпїЅпїЅпїЅпїЅпїЅ")]
+	[Tooltip("1 пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅ 0, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ requiredRescuedHumans")]
 	public int star1RequiredHumans = 0;
 
-	[Tooltip("2 звезды. Если 0, будет использоваться requiredRescuedHumans + 5")]
+	[Tooltip("2 пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅ 0, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ requiredRescuedHumans + 5")]
 	public int star2RequiredHumans = 0;
 
-	[Tooltip("Описание 3 звезды. Сама логика = perfect clear")]
-	public string star3Description = "Пройти идеально";
+	[Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 3 пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ = perfect clear")]
+	public string star3Description = "пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ";
 
-	[Header("Отображение на Mission Popup")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ Mission Popup")]
 	public string missionTitleOverride = "";
 	public Sprite missionIcon;
 
 	[TextArea(2, 4)]
 	public string missionDescription;
 
-	[Header("Настройки Камеры Уровня")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public CameraType cameraType = CameraType.Perspective;
 	public Vector3 cameraPosition = new Vector3(0, 20, -15);
 	public Vector3 cameraRotation = new Vector3(60, 0, 0);
 	public float cameraFieldOfView = 60f;
 	public float orthographicSize = 10f;
 
-	[Header("Награда за первое прохождение")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public int currencyReward = 50;
 	public LootboxData levelRewardLootbox;
 
-	[Header("Учёные на уровне")]
-	[Tooltip("Сколько учёных будет на уровне")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")]
+	[Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public int scientistCount = 0;
 
-	[Tooltip("Префаб учёного (Scientist) для этого уровня (если не задан — возьмём из LevelManager)")]
+	[Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (Scientist) пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ LevelManager)")]
 	public GameObject scientistPrefab;
 
-	[Header("Туториал уровня")]
-	[Tooltip("Этот туториал запустится АВТОМАТИЧЕСКИ, когда игрок начнет этот уровень")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
+	[Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
+	public bool abilityEnabled = false;
+
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ")]
+	[Tooltip("пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ")]
 	public TutorialSequence onStartTutorial;
 
 	public int GetStar1Target()

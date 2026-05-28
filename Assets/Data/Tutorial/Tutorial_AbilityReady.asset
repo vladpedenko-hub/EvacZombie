@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 332aa137affed994d871823fcc60d0d1, type: 3}
+  m_Name: Tutorial_AbilityReady
+  m_EditorClassIdentifier: 
+  tutorialId: Tutorial_Ability
+  steps:
+  - stepType: 2
+    targetId: ability_button
+    useDarkMask: 1
+    fingerOffset: {x: -50, y: 0}
+    dropTargetId: 
+    swipeOffset: {x: 0, y: 0}
+    dialogText: You saved enough people! Time to use ability to speed things up!
+    characterIcon: {fileID: -4020335626915314013, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
+    dialogPosition: 2

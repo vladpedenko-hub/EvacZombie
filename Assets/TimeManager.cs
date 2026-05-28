@@ -4,9 +4,9 @@ public class TimeManager : MonoBehaviour
 {
 	public static TimeManager Instance;
 
-	[Header("Настройки Slo-mo")]
-	[Range(0.1f, 1.0f)] public float slowMoScale = 0.3f; // Насколько сильно замедляем (0.3 = 30% скорости)
-	public float transitionSpeed = 10f; // Скорость входа и выхода из слоу-мо
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Slo-mo")]
+	[Range(0.1f, 1.0f)] public float slowMoScale = 0.3f; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (0.3 = 30% пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)
+	public float transitionSpeed = 10f; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ-пїЅпїЅ
 
 	private float targetTimeScale = 1f;
 	private float initialFixedDeltaTime;
@@ -19,7 +19,7 @@ public class TimeManager : MonoBehaviour
 
 	private void Update()
 	{
-		// Плавно меняем скорость времени для эффекта "вязкости"
+		// пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ"
 		if (Mathf.Abs(Time.timeScale - targetTimeScale) > 0.01f)
 		{
 			Time.timeScale = Mathf.Lerp(Time.timeScale, targetTimeScale, Time.unscaledDeltaTime * transitionSpeed);
@@ -37,8 +37,25 @@ public class TimeManager : MonoBehaviour
 		targetTimeScale = 1f;
 	}
 
-	// На случай завершения уровня или паузы
+	// пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 	public void ResetTimeInstant()
+	{
+		targetTimeScale = 1f;
+		Time.timeScale = 1f;
+		Time.fixedDeltaTime = initialFixedDeltaTime;
+	}
+
+	// РџРѕР»РЅР°СЏ РїР°СѓР·Р° вЂ” РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ С‚СѓС‚РѕСЂРёР°Р»РѕРј Рё LevelUpScreen
+	// Р’С‹СЃС‚Р°РІР»СЏРµС‚ targetTimeScale=0, С‡С‚РѕР±С‹ Update() РЅРµ РІРѕСЃСЃС‚Р°РЅР°РІР»РёРІР°Р» timeScale РѕР±СЂР°С‚РЅРѕ
+	public void PauseTime()
+	{
+		targetTimeScale = 0f;
+		Time.timeScale = 0f;
+		Time.fixedDeltaTime = 0f;
+	}
+
+	// Р’РѕР·РѕР±РЅРѕРІР»РµРЅРёРµ РїРѕСЃР»Рµ РїР°СѓР·С‹ вЂ” РјРіРЅРѕРІРµРЅРЅС‹Р№ РІРѕР·РІСЂР°С‚ Рє 1
+	public void ResumeTime()
 	{
 		targetTimeScale = 1f;
 		Time.timeScale = 1f;

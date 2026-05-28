@@ -37,3 +37,5 @@ MonoBehaviour:
   levelRewardLootbox: {fileID: 11400000, guid: a56196d1d79ba2a4c885f9a1f600b379, type: 2}
   scientistCount: 0
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
+  abilityEnabled: 1
+  onStartTutorial: {fileID: 0}

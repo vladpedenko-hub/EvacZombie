@@ -71,10 +71,12 @@ public class Scientist : MonoBehaviour
 
 		if (isBoarding) return;
 
+		float boost = AbilityManager.Instance != null ? AbilityManager.Instance.GetSpeedMultiplier() : 1f;
+
 		// ���� ������ � ������ � ������ ��� ���������
 		if (isPanicking)
 		{
-			agent.speed = runSpeed;
+			agent.speed = runSpeed * boost;
 
 			if (Time.time >= panicEndTime)
 			{
@@ -87,7 +89,7 @@ public class Scientist : MonoBehaviour
 		// --- ��������� 1: ��������� ---
 		if (isRescuing && rescueTarget != null)
 		{
-			agent.speed = runSpeed;
+			agent.speed = runSpeed * boost;
 
 			Vector3 targetPoint = hasRescueApproachPoint
 				? rescueApproachPoint
@@ -120,7 +122,7 @@ public class Scientist : MonoBehaviour
 
 		if (nearest != null)
 		{
-			agent.speed = runSpeed;
+			agent.speed = runSpeed * boost;
 
 			// ������ ������
 			if (ShouldPanic(minD))
@@ -148,7 +150,7 @@ public class Scientist : MonoBehaviour
 		}
 
 		// --- ��������� 3: ������ ����� ---
-		agent.speed = walkSpeed;
+		agent.speed = walkSpeed * boost;
 
 		if (!agent.pathPending)
 		{

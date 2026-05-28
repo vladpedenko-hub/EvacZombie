@@ -10,15 +10,18 @@ public class TutorialManager : MonoBehaviour
 {
 	public static TutorialManager Instance;
 
-	[Header("UI Ссылки (Оверлей)")]
-	[Tooltip("Объект FullScreenBlocker")]
+	public static event System.Action OnTutorialStarted;
+	public static event System.Action OnTutorialFinished;
+
+	[Header("UI пїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅпїЅпїЅ)")]
+	[Tooltip("пїЅпїЅпїЅпїЅпїЅпїЅ FullScreenBlocker")]
 	public GameObject fullScreenBlocker;
 	public GameObject dialogPanel;
 	public TextMeshProUGUI dialogText;
 	public Image dialogIcon;
 	public RectTransform fingerPointer;
 
-	[Header("Настройки Маски (Дырка)")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅпїЅпїЅ)")]
 	public RectTransform maskContainer;
 	public CanvasGroup maskCanvasGroup;
 	public RectTransform topMask;
@@ -27,7 +30,7 @@ public class TutorialManager : MonoBehaviour
 	public RectTransform rightMask;
 	public float maskPadding = 25f;
 
-	[Header("Сплошная маска (Для диалогов)")]
+	[Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ)")]
 	public GameObject solidDarkMask;
 
 	private Dictionary<string, RectTransform> activeTargets = new Dictionary<string, RectTransform>();
@@ -37,6 +40,7 @@ public class TutorialManager : MonoBehaviour
 
 	private Tween fingerTween;
 	private Button currentTrackedButton;
+	private bool _pausedTimeForTutorial = false;
 
 	private void Awake()
 	{
@@ -53,7 +57,7 @@ public class TutorialManager : MonoBehaviour
 
 		SceneManager.sceneUnloaded += OnSceneUnloaded;
 
-		// Удаляем стандартную кнопку с блокера, если она там есть, и вешаем наш умный фильтр
+		// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ, пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 		Button btn = fullScreenBlocker.GetComponent<Button>();
 		if (btn != null) Destroy(btn);
 
@@ -97,7 +101,22 @@ public class TutorialManager : MonoBehaviour
 		currentStepIndex = 0;
 		isTutorialActive = true;
 
-		Time.timeScale = 0f;
+		// РџР°СѓР·РёРј timeScale С‚РѕР»СЊРєРѕ РІРѕ РІСЂРµРјСЏ Р°РєС‚РёРІРЅРѕР№ РёРіСЂС‹.
+		// Р’ Planning-Рµ С‚Р°Р№РјРµСЂ Рё Р·РѕРјР±Рё Рё С‚Р°Рє РЅРµ СЂР°Р±РѕС‚Р°СЋС‚, Р° РєР°СЂРґРёРЅР°Р»СЊРЅР°СЏ РїР°СѓР·Р°
+		// Р±Р»РѕРєРёСЂСѓРµС‚ СЂРµРіРµРЅРµСЂР°С†РёСЋ СЌРЅРµСЂРіРёРё Рё РґРµР»Р°РµС‚ РєР°СЂС‚РѕС‡РєРё РЅРµРґРѕСЃС‚СѓРїРЅС‹РјРё.
+		_pausedTimeForTutorial = GameManager.Instance != null &&
+			(GameManager.Instance.State == GameManager.GameState.Playing ||
+			 GameManager.Instance.State == GameManager.GameState.SuddenDeath);
+
+		if (_pausedTimeForTutorial)
+		{
+			if (TimeManager.Instance != null)
+				TimeManager.Instance.PauseTime();
+			else
+				Time.timeScale = 0f;
+		}
+
+		OnTutorialStarted?.Invoke();
 		fullScreenBlocker.SetActive(true);
 		ShowStep(GetCurrentStep());
 	}
@@ -124,7 +143,7 @@ public class TutorialManager : MonoBehaviour
 		if (solidDarkMask != null) solidDarkMask.SetActive(false);
 		dialogPanel.SetActive(false);
 
-		// --- МАСКИ ---
+		// --- пїЅпїЅпїЅпїЅпїЅ ---
 		if (step.useDarkMask)
 		{
 			if (step.stepType == TutorialStepType.DialogOnly)
@@ -142,7 +161,7 @@ public class TutorialManager : MonoBehaviour
 			}
 		}
 
-		// --- ДИАЛОГ ---
+		// --- пїЅпїЅпїЅпїЅпїЅпїЅ ---
 		if (step.stepType == TutorialStepType.DialogOnly || step.stepType == TutorialStepType.DialogAndClick || step.stepType == TutorialStepType.DialogAndDrag)
 		{
 			dialogPanel.SetActive(true);
@@ -182,7 +201,7 @@ public class TutorialManager : MonoBehaviour
 			dialogPanel.transform.DOScale(1f, 0.4f).SetEase(Ease.OutBack).SetUpdate(true);
 		}
 
-		// --- ЛОГИКА ЦЕЛИ И ПАЛЬЦА ---
+		// --- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ---
 		if (step.stepType != TutorialStepType.DialogOnly)
 		{
 			if (activeTargets.TryGetValue(step.targetId, out RectTransform targetRect) && targetRect != null)
@@ -190,48 +209,71 @@ public class TutorialManager : MonoBehaviour
 				if (step.useDarkMask) FocusMaskOnTarget(targetRect);
 				fingerPointer.gameObject.SetActive(true);
 
-				// 1. ЕСЛИ ПРОСТО КЛИК
+				// 1. пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ
 				if (step.stepType == TutorialStepType.ClickOnly || step.stepType == TutorialStepType.DialogAndClick)
 				{
-					fingerPointer.position = targetRect.position;
+					PlaceFingerAtTarget(targetRect, step.fingerOffset);
 					fingerPointer.localScale = Vector3.one;
 					fingerTween = fingerPointer.DOScale(1.15f, 0.4f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine).SetUpdate(true);
 
-					// Подписываемся на реальный клик кнопки
+					// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
 					currentTrackedButton = targetRect.GetComponent<Button>();
 					if (currentTrackedButton != null) currentTrackedButton.onClick.AddListener(NextStep);
 				}
-				// 2. ЕСЛИ ПЕРЕТАСКИВАНИЕ (DRAG)
+				// 2. пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (DRAG)
 				else if (step.stepType == TutorialStepType.DragAndDrop || step.stepType == TutorialStepType.DialogAndDrag)
 				{
-					fingerPointer.position = targetRect.position;
-					Vector3 startPos = targetRect.position;
+					PlaceFingerAtTarget(targetRect, step.fingerOffset);
+					Vector3 startPos = fingerPointer.position;
 					Vector3 endPos = startPos + (Vector3)step.swipeOffset;
 
 					if (!string.IsNullOrEmpty(step.dropTargetId) && activeTargets.TryGetValue(step.dropTargetId, out RectTransform dropRect))
 					{
-						endPos = dropRect.position;
+						endPos = GetWorldPositionOnFingerCanvas(dropRect);
 					}
 
-					// Анимация: Нажал -> Потянул -> Отпустил -> Вернулся
+					// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅ -> пїЅпїЅпїЅпїЅпїЅпїЅпїЅ -> пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ -> пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 					Sequence dragSeq = DOTween.Sequence().SetUpdate(true);
-					dragSeq.Append(fingerPointer.DOScale(0.85f, 0.2f)); // Имитация нажатия
-					dragSeq.Append(fingerPointer.DOMove(endPos, 1.2f).SetEase(Ease.InOutQuad)); // Тянем
-					dragSeq.Append(fingerPointer.DOScale(1.1f, 0.2f)); // Отпускаем
+					dragSeq.Append(fingerPointer.DOScale(0.85f, 0.2f)); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
+					dragSeq.Append(fingerPointer.DOMove(endPos, 1.2f).SetEase(Ease.InOutQuad)); // пїЅпїЅпїЅпїЅпїЅ
+					dragSeq.Append(fingerPointer.DOScale(1.1f, 0.2f)); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 					dragSeq.AppendInterval(0.2f);
-					dragSeq.Append(fingerPointer.DOMove(startPos, 0f)); // Мгновенный возврат
+					dragSeq.Append(fingerPointer.DOMove(startPos, 0f)); // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 					dragSeq.SetLoops(-1, LoopType.Restart);
 					fingerTween = dragSeq;
 
-					// ВАЖНО: Для DragAndDrop мы не ждем Button click. Игрок сам вызовет NextStep() из скрипта карточки.
+					// пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅ DragAndDrop пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ Button click. пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ NextStep() пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 				}
 			}
 			else
 			{
-				Debug.Log($"[Tutorial] Ждем появления цели: {step.targetId}...");
+				Debug.Log($"[Tutorial] пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ: {step.targetId}...");
 				dialogPanel.SetActive(false);
 			}
 		}
+	}
+
+	// РџРѕР·РёС†РёРѕРЅРёСЂСѓРµС‚ fingerPointer С‚РѕС‡РЅРѕ РЅР°Рґ targetRect С‡РµСЂРµР· РєРѕРЅРІРµСЂС‚Р°С†РёСЋ screen space.
+	// РљРѕСЂСЂРµРєС‚РЅРѕ СЂР°Р±РѕС‚Р°РµС‚ РґР°Р¶Рµ РєРѕРіРґР° target Рё fingerPointer РЅР° СЂР°Р·РЅС‹С… Canvas СЃ СЂР°Р·РЅС‹Рј Canvas Scaler.
+	private void PlaceFingerAtTarget(RectTransform targetRect, Vector2 offset = default)
+	{
+		Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(null, targetRect.position);
+		if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+			fingerPointer.parent as RectTransform, screenPos, null, out Vector2 localPos))
+		{
+			fingerPointer.localPosition = localPos + offset;
+		}
+	}
+
+	private Vector3 GetWorldPositionOnFingerCanvas(RectTransform targetRect)
+	{
+		Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(null, targetRect.position);
+		if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+			fingerPointer.parent as RectTransform, screenPos, null, out Vector2 localPos))
+		{
+			return fingerPointer.parent.TransformPoint(localPos);
+		}
+		return targetRect.position;
 	}
 
 	private void SetupMaskRect(RectTransform rect)
@@ -288,7 +330,7 @@ public class TutorialManager : MonoBehaviour
 		}
 	}
 
-	// Этот метод публичный! Его можно вызвать из любого твоего скрипта.
+	// пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ! пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.
 	public void NextStep()
 	{
 		if (!isTutorialActive) return;
@@ -307,18 +349,18 @@ public class TutorialManager : MonoBehaviour
 		}
 	}
 
-	// Эта функция определяет, пропускать ли клик сквозь туториал в игру
+	// пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ
 	public bool ShouldBlockRaycast(Vector2 screenPosition, Camera eventCamera)
 	{
 		TutorialStep step = GetCurrentStep();
 		if (step == null || !isTutorialActive) return false;
 
-		if (step.stepType == TutorialStepType.DialogOnly) return true; // Блокируем всё
+		if (step.stepType == TutorialStepType.DialogOnly) return true; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ
 
 		if (activeTargets.TryGetValue(step.targetId, out RectTransform targetRect) && targetRect != null)
 		{
 			bool inHole = RectTransformUtility.RectangleContainsScreenPoint(targetRect, screenPosition, eventCamera);
-			return !inHole; // Если клик ВНУТРИ дырки - пропускаем (false). Если снаружи - блокируем (true).
+			return !inHole; // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (false). пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ - пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (true).
 		}
 
 		return true;
@@ -332,7 +374,15 @@ public class TutorialManager : MonoBehaviour
 			PlayerPrefs.Save();
 		}
 		CloseTutorialUI();
-		Time.timeScale = 1f; // Снимаем с паузы
+		if (_pausedTimeForTutorial)
+		{
+			_pausedTimeForTutorial = false;
+			if (TimeManager.Instance != null)
+				TimeManager.Instance.ResumeTime();
+			else
+				Time.timeScale = 1f;
+		}
+		OnTutorialFinished?.Invoke();
 	}
 
 	private void CloseTutorialUI()
@@ -349,7 +399,7 @@ public class TutorialManager : MonoBehaviour
 	}
 }
 
-// ВНУТРЕННИЙ КЛАСС: Умный фильтр лучей
+// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
 public class TutorialRaycastFilter : MonoBehaviour, ICanvasRaycastFilter, IPointerClickHandler
 {
 	public TutorialManager manager;
