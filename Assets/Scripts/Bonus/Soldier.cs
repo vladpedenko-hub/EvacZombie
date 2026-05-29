@@ -1,23 +1,23 @@
 using UnityEngine;
 using System.Collections;
 
-// [ГДЕ ВИСИТ]: На префабе Солдата.
-// [НАСТРОЙКИ]: Назначить только myCardData.
-// Для примитивов оружие не нужно: выстрел идёт из верхней передней части куба.
+// [File name]: Soldier (placed as a unit).
+// [Setup]: assign myCardData in the inspector.
+// For projectile visuals: uses a LineRenderer on the same object.
 [RequireComponent(typeof(LineRenderer))]
 public class Soldier : MonoBehaviour
 {
-	[Header("Связь с карточкой")]
+	[Header("Card & Settings")]
 	public CardData myCardData;
 
-	[Header("Визуал и стрельба")]
+	[Header("Shooting & Aiming")]
 	public LayerMask shootMask = ~0;
 	public float aimTurnSpeed = 10f;
 	public float tracerLifeTime = 0.08f;
 	public float shootOriginHeight = 0.9f;
 	public float shootOriginForwardOffset = 0.45f;
 
-	[Header("Точность")]
+	[Header("Targeting")]
 	public float targetHeightOffset = 0.7f;
 	public float aimForgivenessRadius = 0.3f;
 	public float retargetThreshold = 0.35f;

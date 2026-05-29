@@ -3,7 +3,7 @@ using UnityEngine;
 [RequireComponent(typeof(RectTransform))]
 public class TutorialTarget : MonoBehaviour
 {
-	[Tooltip("”никальное им€ кнопки дл€ туториала (например: 'Btn_Play' или 'Card_Heli')")]
+	[Tooltip("Unique ID used to look up this target (e.g. 'Btn_Play' or 'Card_Heli')")]
 	public string targetId;
 
 	private void OnEnable()

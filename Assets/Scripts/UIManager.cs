@@ -8,26 +8,26 @@ public class UIManager : MonoBehaviour
 {
 	public static UIManager Instance;
 
-	[Header("UI Элементы")]
+	[Header("UI References")]
 	[SerializeField] private TextMeshProUGUI timerText;
 	[SerializeField] private TextMeshProUGUI manaText;
 	[SerializeField] private Image manaFillBar;
 	[SerializeField] private ResultPopupUI resultPopup;
 
-	[Header("Счетчик спасенных")]
+	[Header("Rescue Counter")]
 	[SerializeField] private TextMeshProUGUI ingameRescuedText;
 	[SerializeField] private GameObject checkmarkIcon;
 	[SerializeField] private Color defaultColor = Color.white;
 	[SerializeField] private Color successColor = Color.green;
 
-	[Header("Эффект вылетающих цифр")]
+	[Header("Flying Text Prefab")]
 	[SerializeField] private GameObject flyingTextPrefab;
 	[SerializeField] private RectTransform counterTarget;
 
-	[Header("Окно Поражения")]
+	[Header("Lose Popup")]
 	[SerializeField] private GameObject losePopup;
 
-	[Header("Ночной Эффект")]
+	[Header("Night Popup")]
 	public TextMeshProUGUI centerNightText;
 	public AudioSource nightSound;
 
@@ -61,7 +61,7 @@ public class UIManager : MonoBehaviour
 	{
 		if (isPlanning)
 		{
-			timerText.text = "ПЛАНИРОВАНИЕ";
+			timerText.text = "Planning";
 			timerText.color = Color.white;
 			return;
 		}
@@ -71,7 +71,7 @@ public class UIManager : MonoBehaviour
 		if (seconds <= 5) timerText.color = Color.red;
 		else timerText.color = Color.white;
 
-		if (seconds <= 0) timerText.text = "НОЧЬ!";
+		if (seconds <= 0) timerText.text = "Night!";
 	}
 
 	public void UpdateRescuedCount(int rescued, int required, bool animate = true)

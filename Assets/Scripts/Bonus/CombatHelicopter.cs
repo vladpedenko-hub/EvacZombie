@@ -7,13 +7,13 @@ public class CombatHelicopter : MonoBehaviour
 	public enum State { FlyingIn, Loading, FlyingOut }
 	public State currentState;
 
-	[Header("Связь с карточкой")]
-	public CardData myCardData; // Перетащи сюда CardData Боевого Вертолета
+	[Header("Card & Settings")]
+	public CardData myCardData; // Assign the helicopter's CardData here
 
-	[Header("Технические настройки")]
-	public float pickupRadius = 6f; // Радиус подбора людей (не меняется с уровнем)
+	[Header("Runtime Parameters")]
+	public float pickupRadius = 6f; // Pickup radius for humans (tweakable in editor)
 
-	// СТАТЫ ИЗ CARD DATA
+	// Stats from CARD DATA
 	private float flySpeed;
 	private float loadTime;
 	private int maxCapacity;
@@ -42,12 +42,12 @@ public class CombatHelicopter : MonoBehaviour
 		}
 		else
 		{
-			Debug.LogWarning("У Combat Helicopter нет CardData! Берем базу.");
+			Debug.LogWarning("Combat Helicopter has no CardData! Using defaults.");
 			maxCapacity = 10; flySpeed = 25f; loadTime = 5f;
 			shootRadius = 20f; fireRate = 0.4f; sniperDamage = 15;
 		}
 
-		// Предохранители
+		// Fallback defaults
 		if (maxCapacity <= 0) maxCapacity = 10;
 		if (flySpeed <= 0) flySpeed = 25f;
 		if (loadTime <= 0) loadTime = 5f;
@@ -57,7 +57,7 @@ public class CombatHelicopter : MonoBehaviour
 
 	public void Launch(Vector3 target)
 	{
-		// Если Launch вызвался до Start - инициализируем вручную
+		// If Launch is called before Start - initialize manually
 		if (maxCapacity == 0) Start();
 
 		targetPos = target;

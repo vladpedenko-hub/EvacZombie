@@ -1,23 +1,23 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-// [ГДЕ ИСПОЛЬЗОВАТЬ]: В папке Data (наши ScriptableObjects)
+// [File location]: in the Data folder (alongside ScriptableObjects)
 [CreateAssetMenu(fileName = "NewRegion", menuName = "ZombieGame/RegionData")]
 public class RegionConfig : ScriptableObject
 {
-	[Header("Базовая информация")]
+	[Header("Region Settings")]
 	public string regionName = "Nevada";
 
-	[Tooltip("Префаб с визуалом карты (со скриптом RegionMapVisual)")]
+	[Tooltip("Prefab with visual map elements (used by RegionMapVisual)")]
 	public GameObject regionUIPrefab;
 
-	[Header("Старый региональный приз (можно оставить для совместимости)")]
+	[Header("Region Completion Reward (shown after all levels are cleared)")]
 	public LootboxData regionRewardLootbox;
 
-	[Header("Уровни региона")]
+	[Header("Level List")]
 	public List<LevelData> levels = new List<LevelData>();
 
 	[Header("Trophy Road")]
-	[Tooltip("Награды за прогресс региона. Обычно 3 штуки: 25%, 50%, 100%")]
+	[Tooltip("Rewards on the trophy road. Expects 3 entries: 25%, 50%, 100%")]
 	public RegionRewardData[] trophyRoadRewards = new RegionRewardData[3];
 }

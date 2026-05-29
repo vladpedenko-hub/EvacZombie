@@ -1,27 +1,27 @@
 using UnityEngine;
 
-// ЭТОТ СКРИПТ ВЕШАЕТСЯ НА ГЛАВНУЮ КАМЕРУ
+// This script lives on the main camera
 public class CameraRaycaster : MonoBehaviour
 {
-	[SerializeField] private Transform playerTransform; // Сюда в инспекторе перетащи трансформ Игрока (или фокусную точку)
-	[SerializeField] private LayerMask buildingLayer;    // Слой, на котором находятся здания (создай слой "Building")
+	[SerializeField] private Transform playerTransform; // Reference to the tracked object (e.g. center of the map)
+	[SerializeField] private LayerMask buildingLayer;    // Layer to raycast against (should be "Building")
 
 	void Update()
 	{
 		if (playerTransform == null) return;
 
-		// Считаем направление от камеры к игроку
+		// Cast a ray from camera toward the player
 		Vector3 direction = playerTransform.position - transform.position;
 		float distance = direction.magnitude;
 
-		// Пускаем луч. Если он пересекает объект на слое Buildings...
+		// Cast ray. If a building is hit on the Buildings layer...
 		if (Physics.Raycast(transform.position, direction, out RaycastHit hit, distance, buildingLayer))
 		{
-			// Ищем у объекта компонент BuildingFader
+			// Check if the hit object has a BuildingFader
 			BuildingFader fader = hit.collider.GetComponent<BuildingFader>();
 			if (fader != null)
 			{
-				fader.FadeOut(); // Приказываем дому стать прозрачным
+				fader.FadeOut(); // Make the building transparent
 			}
 		}
 	}

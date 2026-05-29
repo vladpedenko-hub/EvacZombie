@@ -3,13 +3,13 @@ using System.Collections.Generic;
 
 public class Bomb : MonoBehaviour
 {
-	[Header("Связь с карточкой")]
-	public CardData myCardData; // Перетащи сюда CardData Бомбы
+	[Header("Card & Settings")]
+	public CardData myCardData; // Assign the bomb's CardData here
 
-	[Header("Визуал")]
+	[Header("Effects")]
 	public GameObject explosionPrefab;
 
-	// Скрытые статы (берутся из CardData)
+	// Runtime stats (read from CardData)
 	private float damageRadius;
 	private int damage;
 	private float fallSpeed = 30f;
@@ -34,7 +34,7 @@ public class Bomb : MonoBehaviour
 		}
 		else
 		{
-			Debug.LogWarning("У Бомбы не назначен CardData! Используем базовые значения.");
+			Debug.LogWarning("Bomb has no CardData assigned! Using fallback values.");
 			damageRadius = 6f;
 			damage = 1000;
 		}

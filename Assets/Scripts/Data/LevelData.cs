@@ -6,68 +6,68 @@ public class LevelData : ScriptableObject
 {
 	public enum CameraType { Perspective, Orthographic }
 
-	[Header("������� ���������")]
+	[Header("Basic Settings")]
 	public GameObject levelPrefab;
 	public int humanCount = 25;
 	public float levelTimer = 60f;
 	public float suddenDeathSpawnRate = 0.3f;
 
-	[Header("������������ ������ (��������)")]
-	[Tooltip("��������� �������� ���� ����� �� ���� ������ (1 = �����������)")]
+	[Header("Zombie Multipliers (Optional)")]
+	[Tooltip("Speed multiplier for all zombies in this level (1 = normal)")]
 	public float zombieSpeedMultiplier = 1.0f;
 
-	[Tooltip("��������� �������� ���� ����� �� ���� ������ (1 = �����������)")]
+	[Tooltip("Health multiplier for all zombies in this level (1 = normal)")]
 	public float zombieHealthMultiplier = 1.0f;
 
-	[Header("�������� ����")]
-	[Tooltip("�������� ���� ������ ���� � ��� �������, � ������� ��� ������ ���������")]
+	[Header("Wave Data")]
+	[Tooltip("Wave data defining what spawns and when in this level")]
 	public List<WaveData> waves = new List<WaveData>();
 
-	[Header("������� ������")]
-	[Tooltip("����������� ���������� �������� ����� ��� ������")]
+	[Header("Victory Condition")]
+	[Tooltip("Minimum number of humans that must be rescued to win")]
 	public int requiredRescuedHumans = 10;
 
-	[Header("3 ������")]
-	[Tooltip("1 ������. ���� 0, ����� �������������� requiredRescuedHumans")]
+	[Header("3 Stars")]
+	[Tooltip("1 star. If 0, uses requiredRescuedHumans")]
 	public int star1RequiredHumans = 0;
 
-	[Tooltip("2 ������. ���� 0, ����� �������������� requiredRescuedHumans + 5")]
+	[Tooltip("2 stars. If 0, uses requiredRescuedHumans + 5")]
 	public int star2RequiredHumans = 0;
 
-	[Tooltip("�������� 3 ������. ���� ������ = perfect clear")]
-	public string star3Description = "������ ��������";
+	[Tooltip("Condition for 3 stars. If empty = perfect clear")]
+	public string star3Description = "Save everyone";
 
-	[Header("����������� �� Mission Popup")]
+	[Header("Display on Mission Popup")]
 	public string missionTitleOverride = "";
 	public Sprite missionIcon;
 
 	[TextArea(2, 4)]
 	public string missionDescription;
 
-	[Header("��������� ������ ������")]
+	[Header("Camera Settings")]
 	public CameraType cameraType = CameraType.Perspective;
 	public Vector3 cameraPosition = new Vector3(0, 20, -15);
 	public Vector3 cameraRotation = new Vector3(60, 0, 0);
 	public float cameraFieldOfView = 60f;
 	public float orthographicSize = 10f;
 
-	[Header("������� �� ������ �����������")]
+	[Header("Reward for Level Completion")]
 	public int currencyReward = 50;
 	public LootboxData levelRewardLootbox;
 
-	[Header("������ �� ������")]
-	[Tooltip("������� ������ ����� �� ������")]
+	[Header("Scientist on Level")]
+	[Tooltip("Number of scientists placed on the level")]
 	public int scientistCount = 0;
 
-	[Tooltip("������ ������� (Scientist) ��� ����� ������ (���� �� ����� � ������ �� LevelManager)")]
+	[Tooltip("Scientist prefab to spawn (if not placed in the scene by LevelManager)")]
 	public GameObject scientistPrefab;
 
-	[Header("�������")]
-	[Tooltip("���������, ���������� �� ������ ������ ������ �������")]
+	[Header("Ability")]
+	[Tooltip("Whether the ability is available during this level")]
 	public bool abilityEnabled = false;
 
-	[Header("�������� ������")]
-	[Tooltip("���� �������� ���������� �������������, ����� ����� ������ ���� �������")]
+	[Header("Tutorial Sequence")]
+	[Tooltip("If a sequence is assigned, it will play at the start of the level")]
 	public TutorialSequence onStartTutorial;
 
 	public int GetStar1Target()

@@ -5,18 +5,18 @@ public class RegionRewardData
 {
 	public TrophyRewardType rewardType = TrophyRewardType.SoftCurrency;
 
-	[Header("Порог прогресса")]
+	[Header("Unlock Threshold")]
 	[Range(0f, 1f)]
-	[Tooltip("На каком проценте прогресса региона открывается награда. 0.25 = четверть, 0.5 = половина, 1 = полный бар.")]
+	[Tooltip("At what progress percentage this reward becomes available. 0.25 = quarter, 0.5 = halfway, 1 = all done.")]
 	public float progressThreshold = 0.25f;
 
-	[Header("Софт валюта")]
+	[Header("Soft Currency")]
 	public int softCurrencyAmount = 0;
 
-	[Header("Лутбокс")]
+	[Header("Lootbox")]
 	public LootboxData lootboxReward;
 
-	[Header("Будущая гибкость")]
+	[Header("Specific Reward")]
 	public CardData cardReward;
 	public Sprite skinRewardIcon;
 	public string customRewardId;

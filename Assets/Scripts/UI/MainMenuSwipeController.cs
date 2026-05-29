@@ -3,27 +3,27 @@ using UnityEngine.EventSystems;
 using DG.Tweening;
 using UnityEngine.UI;
 
-// [ГДЕ ВИСИТ]: На объекте TabsContainer (внутри Container/SafeArea).
+// [WHERE IT LIVES]: On the TabsContainer object (child of Container/SafeArea).
 public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
 	public static bool IsSwipeLocked = false;
 
-	[Header("Ссылки")]
+	[Header("Tabs")]
 	[SerializeField] private RectTransform[] navButtons;
 	[SerializeField] private RectTransform deckPanel;
 	[SerializeField] private RectTransform mapPanel;
 	[SerializeField] private RectTransform metaPanel;
-	[SerializeField] private MapController mapController; // <-- сюда перетянешь MapPanel (MapController)
+	[SerializeField] private MapController mapController; // <-- Reference to MapPanel (MapController)
 
-	[Header("Настройки пружины (горизонталь)")]
+	[Header("Snap Settings (Horizontal)")]
 	[SerializeField] private float snapDuration = 0.4f;
 	[SerializeField] private float swipeThreshold = 0.15f;
 	[Range(0.05f, 0.4f)]
 	[SerializeField] private float elasticity = 0.25f;
 
-	[Header("Настройки вертикального свайпа карты")]
+	[Header("Vertical Swipe Detection Settings")]
 	[SerializeField] private float minVerticalSwipe = 120f;
-	[SerializeField] private float verticalDominance = 1.5f; // вертикаль должна быть в X раз больше горизонтали
+	[SerializeField] private float verticalDominance = 1.5f; // vertical must exceed X times horizontal to count as vertical
 
 	private int currentTab = 1;               // 0 = Deck, 1 = Map, 2 = Meta
 	private RectTransform rectTransform;
@@ -39,7 +39,7 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 		rectTransform = GetComponent<RectTransform>();
 		parentRect = transform.parent.GetComponent<RectTransform>();
 
-		// Собираем все вкладки
+		// Collect all child tabs
 		tabs = new RectTransform[transform.childCount];
 		for (int i = 0; i < transform.childCount; i++)
 		{
@@ -51,7 +51,7 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 		}
 
 		AlignTabs();
-		GoToTab(1, true); // MapPanel по центру по умолчанию
+		GoToTab(1, true); // MapPanel is in the center by default
 	}
 
 	private void AlignTabs()
@@ -75,7 +75,7 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 		rectTransform.DOKill();
 		startPosition = rectTransform.anchoredPosition.x;
 
-		// Фикс: закрываем контекстное меню карт
+		// Close card popup when drag starts
 		if (CardPopupManager.Instance != null)
 			CardPopupManager.Instance.CloseContextMenu();
 	}
@@ -88,14 +88,14 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 		float absX = Mathf.Abs(delta.x);
 		float absY = Mathf.Abs(delta.y);
 
-		// 1) Если вертикаль явно доминирует и мы на вкладке карты — НЕ двигаем TabsContainer
+		// 1) If vertical clearly dominates and we're on Map tab - do NOT move TabsContainer
 		if (currentTab == 1 && absY > absX * verticalDominance && absY >= minVerticalSwipe * 0.3f)
 		{
-			// Ничего не двигаем – пусть решение примем в OnEndDrag (vertical swipe)
+			// Do not drag tabs - handle vertical swipe in OnEndDrag
 			return;
 		}
 
-		// 2) Иначе считаем жест горизонтальным и двигаем TabsContainer
+		// 2) Otherwise treat as horizontal and drag TabsContainer
 		float width = parentRect.rect.width;
 		float dragDelta = delta.x;
 
@@ -132,7 +132,7 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 		float absY = Mathf.Abs(delta.y);
 		float width = parentRect.rect.width;
 
-		// 1) Проверяем вертикальный свайп карты (только когда мы на вкладке Map)
+		// 1) Check for vertical region swipe (only when on the Map tab)
 		bool isVerticalSwipe = currentTab == 1
 							   && mapController != null
 							   && absY >= minVerticalSwipe
@@ -145,12 +145,12 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 			else
 				mapController.TryPreviewNextRegion();
 
-			// Позицию TabsContainer не меняем, остаёмся на MapPanel
+			// Snap TabsContainer back so we stay on MapPanel
 			GoToTab(currentTab, false);
 			return;
 		}
 
-		// 2) Иначе обрабатываем как горизонтальный свайп между панелями
+		// 2) Otherwise handle as horizontal swipe between panels
 		float dragDelta = delta.x;
 
 		if (Mathf.Abs(dragDelta) > width * swipeThreshold)

@@ -10,20 +10,20 @@ public class CarController : MonoBehaviour
 	public enum CarState { DrivingToTarget, Loading, Leaving }
 	public CarState currentState;
 
-	[Header("Связь с карточкой")]
+	[Header("Card & Settings")]
 	public CardData myCardData;
 
-	[Header("Технические настройки")]
+	[Header("Runtime Parameters")]
 	public float crushRadius = 2.5f;
 	public float boardingRadius = 1.8f;
 	public int boardPerTick = 1;
 	public float dangerRadius = 2.0f;
 
-	[Header("Посадка")]
+	[Header("Animation")]
 	public float boardingAnimDuration = 0.28f;
 	public float boardingLiftHeight = 0.8f;
 
-	[Header("UI и Визуал")]
+	[Header("UI & Effects")]
 	public TextMeshProUGUI loadText;
 	public float textHeight = 2f;
 	public GameObject hotWarning;

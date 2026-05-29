@@ -3,28 +3,28 @@ using UnityEngine.SceneManagement;
 using TMPro;
 using UnityEngine.UI;
 
-// [ГДЕ ВИСИТ]: На объекте MenuManager в главной сцене
+// [WHERE IT LIVES]: On the MenuManager object in the main menu scene
 public class MenuManager : MonoBehaviour
 {
-	[Header("UI Элементы")]
-	[SerializeField] private TextMeshProUGUI globalCurrencyText;   // Люди (Софта)
-	[SerializeField] private TextMeshProUGUI scientistsCurrencyText; // Ученые (Харда)
+	[Header("UI References")]
+	[SerializeField] private TextMeshProUGUI globalCurrencyText;   // People (soft currency)
+	[SerializeField] private TextMeshProUGUI scientistsCurrencyText; // Scientists (hard currency)
 
-	[Header("UI Энергии")]
+	[Header("UI Energy")]
 	[SerializeField] private TextMeshProUGUI energyAmountText;
 	[SerializeField] private TextMeshProUGUI energyTimerText;
 	[SerializeField] private Slider energyProgressBar;
 
-	[Header("Магазин")]
+	[Header("Popup")]
 	[SerializeField] private EnergyStorePopupUI energyStorePopup;
 
-	[Header("Туториал")]
-	[Tooltip("Сюда перетащи ассет TutorialSequence для Главного Меню")]
+	[Header("Tutorial")]
+	[Tooltip("Assign a TutorialSequence to play at the start of the main menu")]
 	[SerializeField] private TutorialSequence mainMenuTutorial;
 
 	private void Start()
 	{
-		// 1. Подписываемся на обновления профиля
+		// 1. Subscribe to profile update events
 		if (PlayerProfile.Instance != null)
 		{
 			PlayerProfile.Instance.OnProfileUpdated += RefreshUI;
@@ -32,8 +32,8 @@ public class MenuManager : MonoBehaviour
 			RefreshUI();
 		}
 
-		// 2. БЕЗОПАСНЫЙ ЗАПУСК ТУТОРИАЛА
-		// Вызываем в Start, потому что PlayerProfile точно загрузился в Awake.
+		// 2. Launch the main menu tutorial
+		// Done in Start because PlayerProfile initializes in Awake.
 		if (mainMenuTutorial != null && TutorialManager.Instance != null)
 		{
 			TutorialManager.Instance.StartTutorial(mainMenuTutorial);
@@ -102,7 +102,7 @@ public class MenuManager : MonoBehaviour
 		}
 		else
 		{
-			Debug.LogWarning("Popup магазина энергии не привязан к MenuManager!");
+			Debug.LogWarning("Energy store popup is not assigned in MenuManager!");
 		}
 	}
 }

@@ -2,26 +2,26 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
-// [ГДЕ ВИСИТ]: На префабе Снайпера (спавнится только на зданиях).
-// [НАСТРОЙКИ]: В инспекторе нужно назначить myCardData.
+// [File name]: Sniper (stationary unit placed on a building).
+// [Setup]: assign myCardData in the inspector.
 public class Sniper : MonoBehaviour
 {
-	[Header("Связь с карточкой")]
+	[Header("Card & Settings")]
 	public CardData myCardData;
 
-	[Header("Технические настройки")]
-	public float aimDuration = 1.5f;       // базовое время прицеливания
-	public float firstShotAimFactor = 0.4f; // во сколько раз первый выстрел быстрее (0.4 = 60% быстрее)
+	[Header("Runtime Parameters")]
+	public float aimDuration = 1.5f;       // Time spent aiming before firing
+	public float firstShotAimFactor = 0.4f; // Aim time reduction for the first shot (0.4 = 60% faster)
 	public float muzzleHeight = 1.5f;
 	public float targetHeight = 1.0f;
 
-	[Header("Пробивание по линии")]
-	public int maxPierceTargets = 3;      // максимум зомбей, которых можно задеть одним выстрелом
-	public float pierceDamageFalloff = 0.5f; // коэффициент урона для каждого следующего (1, 0.5, 0.25 и т.д.)
+	[Header("Piercing")]
+	public int maxPierceTargets = 3;      // Maximum targets the bullet can pass through
+	public float pierceDamageFalloff = 0.5f; // Damage multiplier per pierced target (1, 0.5, 0.25, etc.)
 
-	[Header("Приоритет спасения")]
-	public float civilianThreatRadius = 6f; // если зомби дальше этого расстояния от мирных, он не считается срочной угрозой
-	public float progressBias = 0.05f;      // лёгкий бонус тем, кто дальше продвинулся по Z
+	[Header("Civilian Safety")]
+	public float civilianThreatRadius = 6f; // If a zombie is this close to a civilian, it becomes a priority target
+	public float progressBias = 0.05f;      // Slight preference for zombies further along the Z axis
 
 	private float cooldownDelay;
 	private float attackRange;
@@ -205,8 +205,8 @@ public class Sniper : MonoBehaviour
 		}
 	}
 
-	// Находим зомби, который ближе всего к любому человеку/учёному.
-	// Если рядом с мирными никого нет, fallback = самый дальний по Z в радиусе и с LOS.
+	// Find a target that poses a threat to nearby civilians/scientists.
+	// If no threat target exists, fallback = closest zombie by Z progress within LOS.
 	private Zombie FindTarget()
 	{
 		CollectCivilians();
@@ -227,7 +227,7 @@ public class Sniper : MonoBehaviour
 			if (d > attackRange) continue;
 			if (!HasLineOfSight(z.transform)) continue;
 
-			// fallback-цель: как раньше, самый дальний по Z
+			// Fallback candidate: best zombie by Z progress
 			float progressScore = z.transform.position.z;
 			if (progressScore > bestFallbackProgress)
 			{
@@ -235,7 +235,7 @@ public class Sniper : MonoBehaviour
 				bestFallbackTarget = z;
 			}
 
-			// основной приоритет: зомби рядом с мирными
+			// Priority check: zombie near a civilian
 			float nearestCivilianDistSq = GetNearestCivilianDistanceSq(z.transform.position);
 			if (nearestCivilianDistSq > threatRadiusSq) continue;
 
@@ -286,7 +286,7 @@ public class Sniper : MonoBehaviour
 			if (civ == null) continue;
 
 			Vector3 delta = civ.position - zombiePos;
-			delta.y = 0f; // считаем только по земле
+			delta.y = 0f; // ignore vertical difference
 
 			float distSq = delta.sqrMagnitude;
 			if (distSq < bestDistSq)

@@ -3,12 +3,12 @@ using System.Collections.Generic;
 
 public class CardManager : MonoBehaviour
 {
-	// ��������� CardType ����� ��� ����� ������ �������� �������� (���� �� ��� ������������)
+	// Note: CardType enum is here so that upgrade definitions can reference specific card types
 	public enum CardType { None, Helicopter, Soldier, Bait, Bomb, Car, Sniper, CombatHelicopter, Barricade };
 
 	public static CardManager Instance;
 
-	[Header("���� �������� �����?")]
+	[Header("Where to spawn cards?")]
 	public Transform cardsPanel;
 
 	private void Awake() => Instance = this;
@@ -20,7 +20,7 @@ public class CardManager : MonoBehaviour
 
 	private void SpawnDeck()
 	{
-		// 1. ������� ������
+		// 1. Clear existing cards
 		foreach (Transform child in cardsPanel)
 		{
 			Destroy(child.gameObject);
@@ -28,11 +28,11 @@ public class CardManager : MonoBehaviour
 
 		if (PlayerProfile.Instance == null)
 		{
-			Debug.LogError("PlayerProfile �� ������! ������� ��������� ������� ����.");
+			Debug.LogError("PlayerProfile not found! Cannot spawn cards for the deck.");
 			return;
 		}
 
-		// 2. ������� ����� �� ������ (������ �� ���������� CardData)
+		// 2. Spawn cards from the player's deck (using CardData references)
 		foreach (CardData card in PlayerProfile.Instance.currentDeck)
 		{
 			if (card != null && card.uiButtonPrefab != null)
@@ -41,7 +41,7 @@ public class CardManager : MonoBehaviour
 			}
 			else if (card != null && card.uiButtonPrefab == null)
 			{
-				Debug.LogWarning($"� ����� {card.cardName} �� �������� UI ������ ������!");
+				Debug.LogWarning($"Card {card.cardName} has no UI button prefab assigned!");
 			}
 		}
 	}

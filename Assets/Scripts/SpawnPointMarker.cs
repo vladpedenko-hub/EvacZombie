@@ -2,8 +2,8 @@ using UnityEngine;
 
 public enum SpawnGroup
 {
-	Any,       // Выберет ровно ОДНУ случайную точку
-	All,       // Задействует ВСЕ доступные дневные точки
+	Any,       // Zombies can spawn from any group point
+	All,       // All group points are used simultaneously
 	North,
 	South,
 	East,
@@ -14,10 +14,10 @@ public enum SpawnGroup
 
 public class SpawnPointMarker : MonoBehaviour
 {
-	[Tooltip("К какой группе относится эта точка. Позволяет направлять волны с конкретных сторон.")]
+	[Tooltip("Which group this spawn point belongs to. LevelManager selects points by group.")]
 	public SpawnGroup group = SpawnGroup.Any;
 
-	[Tooltip("Использовать ли эту точку для Судного Дня (внезапная смерть)?")]
+	[Tooltip("Is this point only used during Sudden Death (night phase)?")]
 	public bool isNightSpawn = false;
 
 	private void OnDrawGizmos()

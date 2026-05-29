@@ -10,12 +10,12 @@ public class GameManager : MonoBehaviour
 	public enum GameState { Planning, Playing, SuddenDeath, GameOver, Lose }
 	public GameState State = GameState.Planning;
 
-	[Header("���������� ������")]
+	[Header("Human Counters")]
 	public int totalHumans;
 	public int rescuedHumans;
 	public int requiredHumans;
 
-	[Header("���������� ������")]
+	[Header("Scientist Counters")]
 	public int totalScientists;
 	public int rescuedScientists;
 
@@ -161,10 +161,10 @@ public class GameManager : MonoBehaviour
 	{
 		if (perfectClearStarted) return;
 
-		// ������� ����������, ��� �������� ���� ��������� ��������� � ������ ������� �� �����
+		// Ensure timeline spawning is complete before checking for perfect clear
 		if (LevelManager.Instance == null || !LevelManager.Instance.IsTimelineSpawningFinished) return;
 
-		// ���� ����� ����������� � ����� ����� ���������� ����� � ��������� �����������
+		// Perfect clear: all zombies are dead and survivors still remain on the map
 		if (Zombie.AllZombies.Count == 0 && GetAliveResidentsCount() > 0)
 		{
 			perfectClearStarted = true;

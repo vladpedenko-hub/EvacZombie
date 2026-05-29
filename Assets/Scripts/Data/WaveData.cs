@@ -1,42 +1,42 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-// Паттерны появления толпы
+// Zombie spawn patterns
 public enum SpawnPattern
 {
-	Linear,         // Строго друг за другом с равным интервалом
-	Burst,          // Все появляются почти мгновенно (взрыв толпы)
-	RandomInterval  // Хаотичные паузы между зомби (эффект неровной орды)
+	Linear,         // One zombie at a time at a fixed interval
+	Burst,          // All zombies spawn at once (mini-wave)
+	RandomInterval  // Random delay between spawns (irregular spawn feel)
 }
 
 [System.Serializable]
 public class WaveAction
 {
-	[Header("Хореография")]
-	[Tooltip("Задержка перед стартом именно этой пачки (относительно старта самой волны)")]
+	[Header("Timing")]
+	[Tooltip("Delay before this action starts (measured from wave start time)")]
 	public float delayBeforeStart = 0f;
 
-	[Tooltip("Префаб зомби. Если пусто - возьмется дефолтный из LevelManager")]
+	[Tooltip("Zombie prefab. If null, uses the default prefab from LevelManager")]
 	public GameObject zombiePrefab;
 
-	[Header("Количество (Рандом)")]
-	[Tooltip("Минимальное количество зомби")]
+	[Header("Count (range)")]
+	[Tooltip("Minimum number of zombies to spawn")]
 	public int minCount = 5;
 
-	[Tooltip("Максимальное количество зомби (если равно minCount - рандома нет)")]
+	[Tooltip("Maximum number of zombies to spawn (if equal to minCount, exact count)")]
 	public int maxCount = 5;
 
-	[Header("Настройки поведения")]
-	[Tooltip("Как именно будет выходить эта толпа")]
+	[Header("Spawn Pattern")]
+	[Tooltip("How zombies are spawned in this action")]
 	public SpawnPattern pattern = SpawnPattern.Linear;
 
-	[Tooltip("Базовый интервал (для Linear) или максимальный интервал (для RandomInterval)")]
+	[Tooltip("Fixed interval (for Linear) or max random interval (for RandomInterval)")]
 	public float spawnInterval = 0.5f;
 
-	[Tooltip("Из какой группы точек спавнить эту пачку")]
+	[Tooltip("Which spawn group point to use for this action")]
 	public SpawnGroup spawnGroup = SpawnGroup.Any;
 
-	// Помощник для получения финального числа зомби
+	// Returns a random count between min and max (inclusive)
 	public int GetRandomCount()
 	{
 		return Random.Range(minCount, maxCount + 1);
@@ -46,14 +46,14 @@ public class WaveAction
 [CreateAssetMenu(fileName = "NewWave", menuName = "ZombieGame/WaveData")]
 public class WaveData : ScriptableObject
 {
-	[Header("Тайминг Волны")]
-	[Tooltip("Секунда от начала уровня, когда начнется спавн")]
+	[Header("Wave Timing")]
+	[Tooltip("Seconds from level start when this wave triggers")]
 	public float startTime = 10f;
 
-	[Tooltip("За сколько секунд до старта показать UI-предупреждение над точкой спавна")]
+	[Tooltip("How many seconds before the wave starts to show the UI warning")]
 	public float warningDuration = 3f;
 
-	[Header("Действия волны")]
-	[Tooltip("Список пачек зомби, которые появятся в эту волну")]
+	[Header("Wave Actions")]
+	[Tooltip("List of spawn actions that make up this wave")]
 	public List<WaveAction> actions = new List<WaveAction>();
 }

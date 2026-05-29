@@ -1,7 +1,7 @@
 using UnityEngine;
 
-// [ГДЕ ВИСИТ]: Прямо на объекте Main Camera на игровой сцене.
-// [НАСТРОЙКИ]: Никаких ссылок перетаскивать не нужно, он сам возьмет компонент Camera.
+// [WHERE IT LIVES]: On the Main Camera in the gameplay scene.
+// [REQUIREMENT]: The object must have a Camera component attached.
 [RequireComponent(typeof(Camera))]
 public class CameraController : MonoBehaviour
 {
@@ -14,19 +14,19 @@ public class CameraController : MonoBehaviour
 		cam = GetComponent<Camera>();
 	}
 
-	// Этот метод мы вызовем из LevelManager при загрузке уровня
+	// Called from LevelManager when setting up the level
 	public void SetupCamera(LevelData data)
 	{
 		if (data == null || cam == null) return;
 
-		// Ставим позицию и поворот
+		// Set position and rotation
 		transform.position = data.cameraPosition;
 		transform.rotation = Quaternion.Euler(data.cameraRotation);
 
-		// Включаем нужный режим
+		// Set projection mode
 		cam.orthographic = (data.cameraType == LevelData.CameraType.Orthographic);
 
-		// Применяем зум в зависимости от режима
+		// Apply size or FOV depending on projection
 		if (cam.orthographic)
 		{
 			cam.orthographicSize = data.orthographicSize;

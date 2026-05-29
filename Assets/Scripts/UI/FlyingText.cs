@@ -2,7 +2,7 @@ using UnityEngine;
 using TMPro;
 using DG.Tweening;
 
-// [ГДЕ ВИСИТ]: На префабе летящего текста (UI Canvas -> TextMeshPro).
+// [WHERE IT LIVES]: On the flying text prefab (UI Canvas -> TextMeshPro).
 public class FlyingText : MonoBehaviour
 {
 	[SerializeField] private TextMeshProUGUI textComponent;

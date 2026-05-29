@@ -12,7 +12,7 @@ public class SirenEffect : MonoBehaviour
 		sr = GetComponent<SpriteRenderer>();
 		targetRadius = radius;
 		duration = time;
-		transform.localScale = Vector3.zero; // Начинаем с нуля
+		transform.localScale = Vector3.zero; // Start invisible
 	}
 
 	private void Update()
@@ -20,10 +20,10 @@ public class SirenEffect : MonoBehaviour
 		timer += Time.deltaTime;
 		float progress = timer / duration;
 
-		// Расширяем круг ровно до того радиуса, который в машине
+		// Instantly expand to full size - the fade handles the visual reveal
 		transform.localScale = new Vector3(targetRadius * 2, targetRadius * 2, 1);
 
-		// Плавное исчезновение
+		// Fade out over time
 		if (sr != null)
 		{
 			Color c = sr.color;

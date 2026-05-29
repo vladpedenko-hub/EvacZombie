@@ -5,14 +5,14 @@ public class EnergyManager : MonoBehaviour
 {
 	public static EnergyManager Instance;
 
-	[Header("Настройки Энергии")]
+	[Header("Energy Settings")]
 	public float maxEnergy = 10f;
-	public float energyRegenPerSecond = 1f; // +1 мана в секунду
-	public float startingEnergy = 3f; // Даем чуть-чуть маны на старте уровня
+	public float energyRegenPerSecond = 1f; // +1 energy per second
+	public float startingEnergy = 3f; // Energy at the start of each level
 
 	public float CurrentEnergy { get; private set; }
 
-	// Событие для обновления UI
+	// Event for UI updates
 	public Action<float, float> OnEnergyChanged;
 
 	private void Awake()
@@ -28,7 +28,7 @@ public class EnergyManager : MonoBehaviour
 
 	private void Update()
 	{
-		// Энергия копится только когда идет игра (или стадия планирования)
+		// Regenerate energy only while the game is in an active state (not during menus)
 		if (GameManager.Instance.State == GameManager.GameState.Playing ||
 			GameManager.Instance.State == GameManager.GameState.SuddenDeath ||
 			GameManager.Instance.State == GameManager.GameState.Planning)
@@ -42,7 +42,7 @@ public class EnergyManager : MonoBehaviour
 		}
 	}
 
-	// Метод для покупки карты
+	// Try to spend energy; returns false if insufficient
 	public bool TrySpendEnergy(float cost)
 	{
 		if (CurrentEnergy >= cost)
@@ -51,7 +51,7 @@ public class EnergyManager : MonoBehaviour
 			UpdateUI();
 			return true;
 		}
-		return false; // Не хватает маны!
+		return false; // Not enough energy!
 	}
 
 	private void UpdateUI()
@@ -61,9 +61,9 @@ public class EnergyManager : MonoBehaviour
 
 	public void CheatFillEnergy()
 	{
-		CurrentEnergy = 100f; // Если у тебя есть переменная максимальной маны (типа maxEnergy), напиши её сюда вместо 100f
+		CurrentEnergy = 100f; // Note: intentionally ignores maxEnergy for cheat purposes
 
-		// Дергаем событие, чтобы UI-полоска маны сразу обновилась на экране!
+		// Invoke manually so UI widgets can display the cheat value correctly!
 		OnEnergyChanged?.Invoke(CurrentEnergy, 100f);
 	}
 

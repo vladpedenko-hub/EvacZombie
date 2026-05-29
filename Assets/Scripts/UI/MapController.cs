@@ -5,10 +5,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 
-// [ГДЕ ВИСИТ]: На объекте MapPanel в меню.
+// [WHERE IT LIVES]: On the MapPanel object in the scene.
 public class MapController : MonoBehaviour
 {
-	[Header("Ссылки на UI Карты")]
+	[Header("UI References")]
 	[SerializeField] private RectTransform mapSpawnContainer;
 	[SerializeField] private RectTransform playerToken;
 	[SerializeField] private ParticleSystem confettiFX;
@@ -20,10 +20,10 @@ public class MapController : MonoBehaviour
 	[SerializeField] private GameObject[] rewardClaimedMarks;
 	[SerializeField] private GameObject[] rewardReadyMarks;
 
-	[Header("Автопозиция milestone")]
+	[Header("Milestone Offset")]
 	[SerializeField] private float milestoneYOffset = 0f;
 
-	[Header("Дизайн (Цвета и Позиция)")]
+	[Header("Colors and Token")]
 	[SerializeField] private Color lockedColor = new Color(0.5f, 0.5f, 0.5f);
 	[SerializeField] private Color currentColor = new Color(1f, 0.8f, 0f);
 	[SerializeField] private Color completedColor = new Color(0.2f, 0.8f, 0.2f);

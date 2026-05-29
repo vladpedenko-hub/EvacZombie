@@ -3,18 +3,18 @@ using UnityEngine.UI;
 using TMPro;
 using UnityEngine.Events;
 
-// [ГДЕ ВИСИТ]: На твоем префабе MetaCardPrefab (в папке Prefabs).
+// [WHERE IT LIVES]: On each MetaCardPrefab instance (in the Prefabs folder).
 public class MetaCardUI : MonoBehaviour
 {
-	[Header("Ссылки на UI")]
+	[Header("UI References")]
 	[SerializeField] private Image cardIcon;
 	[SerializeField] private TextMeshProUGUI levelText;
 	[SerializeField] private TextMeshProUGUI progressText;
 	[SerializeField] private Image progressBarFill;
 
-	[Header("Цвета бара")]
-	[SerializeField] private Color colorNotEnough = new Color(0.2f, 0.6f, 1f); // Синий
-	[SerializeField] private Color colorEnough = Color.green; // Зеленый
+	[Header("Progress Colors")]
+	[SerializeField] private Color colorNotEnough = new Color(0.2f, 0.6f, 1f); // Blue
+	[SerializeField] private Color colorEnough = Color.green; // Green
 
 	private Button btn;
 	private Image cardBackground;
@@ -24,7 +24,7 @@ public class MetaCardUI : MonoBehaviour
 		if (btn == null) btn = GetComponent<Button>();
 		if (cardBackground == null) cardBackground = GetComponent<Image>();
 
-		// Возвращаем нормальные цвета
+		// Restore card to normal state
 		cardIcon.color = Color.white;
 		cardBackground.color = Color.white;
 		btn.interactable = true;
@@ -72,15 +72,15 @@ public class MetaCardUI : MonoBehaviour
 		btn.interactable = false;
 	}
 
-	// --- НОВОЕ: Метод для пустого слота колоды ---
+	// --- Empty: shown when a deck slot is empty ---
 	public void SetupEmpty()
 	{
 		if (btn == null) btn = GetComponent<Button>();
 		if (cardBackground == null) cardBackground = GetComponent<Image>();
 
 		cardIcon.sprite = null;
-		cardIcon.color = new Color(0, 0, 0, 0f); // Делаем иконку полностью прозрачной
-		cardBackground.color = new Color(0, 0, 0, 0.3f); // Делаем сам слот полупрозрачным черным
+		cardIcon.color = new Color(0, 0, 0, 0f); // Fully transparent icon
+		cardBackground.color = new Color(0, 0, 0, 0.3f); // Dim background for empty slot
 
 		levelText.text = "";
 		progressText.text = "";

@@ -4,35 +4,35 @@ using System.Collections.Generic;
 
 public class ZombieBoss : Zombie
 {
-	[Header("Настройки босса")]
-	[Tooltip("Через сколько секунд босс входит в ярость")]
+	[Header("Boss Settings")]
+	[Tooltip("How many seconds between each rage attack")]
 	public float rageInterval = 8f;
 
-	[Tooltip("Сколько секунд длится ярость")]
+	[Tooltip("Duration of each rage attack")]
 	public float rageDuration = 2.5f;
 
-	[Tooltip("Радиус, в котором босс ломает здания во время ярости")]
+	[Tooltip("Radius within which the boss destroys buildings during rage")]
 	public float rageBreakRadius = 4f;
 
-	[Tooltip("Сколько максимум зданий может сломать за одну ярость")]
+	[Tooltip("Maximum number of buildings destroyed per rage attack")]
 	public int maxBuildingsPerRage = 1;
 
-	[Tooltip("Насколько высоко подпрыгивает визуально")]
+	[Tooltip("Bounce height of the visual during rage")]
 	public float rageBounceHeight = 0.6f;
 
-	[Tooltip("Скорость подпрыгивания")]
+	[Tooltip("Bounce animation speed")]
 	public float rageBounceSpeed = 9f;
 
-	[Tooltip("Ломать здание целиком, даже если на нём нет IDamageable")]
+	[Tooltip("Destroy the building outright if it has no IDamageable component")]
 	public bool destroyBuildingIfNoDamageable = true;
 
-	[Tooltip("Урон зданию, если у него есть IDamageable")]
+	[Tooltip("Damage dealt to buildings with an IDamageable component")]
 	public int buildingDamage = 999;
 
-	[Tooltip("Тег зданий, которые можно ломать")]
+	[Tooltip("Tag of objects that the boss can destroy")]
 	public string buildingTag = "Building";
 
-	[Tooltip("Объект, который будет визуально прыгать. Лучше сделать дочерний объект Visual")]
+	[Tooltip("Child transform used for the bounce animation. Typically named Visual")]
 	public Transform visualRoot;
 
 	private bool isRaging = false;
@@ -57,7 +57,7 @@ public class ZombieBoss : Zombie
 		}
 		else
 		{
-			Debug.LogWarning("[Boss] Не найден visualRoot. Босс будет ломать здания, но без подпрыгивания.");
+			Debug.LogWarning("[Boss] visualRoot not found. Boss will still rage, but without the bounce animation.");
 		}
 
 		StartCoroutine(RageLoop());
@@ -76,7 +76,7 @@ public class ZombieBoss : Zombie
 			yield return new WaitForSeconds(rageInterval);
 
 			isRaging = true;
-			Debug.Log("[Boss] ВОШЁЛ В ЯРОСТЬ");
+			Debug.Log("[Boss] ENTERING RAGE");
 
 			BreakBuildingsAround();
 
@@ -87,7 +87,7 @@ public class ZombieBoss : Zombie
 			if (canBounce)
 				ResetVisualPosition();
 
-			Debug.Log("[Boss] ЯРОСТЬ ЗАКОНЧИЛАСЬ");
+			Debug.Log("[Boss] RAGE ENDED");
 		}
 	}
 
@@ -172,7 +172,7 @@ public class ZombieBoss : Zombie
 			}
 		}
 
-		Debug.Log("[Boss] Сломал зданий: " + brokenCount + " / " + maxBuildingsPerRage);
+		Debug.Log("[Boss] Buildings destroyed: " + brokenCount + " / " + maxBuildingsPerRage);
 	}
 
 	private void OnDrawGizmosSelected()

@@ -1,9 +1,9 @@
 using UnityEngine;
 
-// [ГДЕ ВИСИТ]: Создай пустой RectTransform внутри Canvas (назови SafeAreaContainer). 
-// Растяни его на весь экран (Stretch/Stretch, по нулям). 
-// Закинь ВЕСЬ свой UI (Карту, Меню, Попапы) ВНУТРЬ этого SafeAreaContainer. 
-// Повесь этот скрипт на SafeAreaContainer.
+// [WHERE IT LIVES]: Create an empty RectTransform inside the Canvas (call it SafeAreaContainer).
+// Stretch it to fill the whole screen (Stretch/Stretch, all zeroes).
+// Place ALL your UI (Map, Menus, Popups) INSIDE SafeAreaContainer.
+// Attach this script to SafeAreaContainer.
 [RequireComponent(typeof(RectTransform))]
 public class SafeArea : MonoBehaviour
 {
@@ -18,7 +18,7 @@ public class SafeArea : MonoBehaviour
 
 	private void Update()
 	{
-		// Проверяем, не перевернул ли игрок экран или не изменилась ли челка (бывает на Android)
+		// Check if the safe area changed at runtime (can happen on Android when rotating)
 		if (Screen.safeArea != lastSafeArea)
 		{
 			ApplySafeArea();
@@ -29,7 +29,7 @@ public class SafeArea : MonoBehaviour
 	{
 		lastSafeArea = Screen.safeArea;
 
-		// Преобразуем пиксели экрана в нормализованные координаты для Anchor
+		// Convert safe area rect to normalized anchor coordinates
 		Vector2 anchorMin = lastSafeArea.position;
 		Vector2 anchorMax = lastSafeArea.position + lastSafeArea.size;
 

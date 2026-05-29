@@ -4,7 +4,7 @@ using System.Collections.Generic;
 public enum CardCategory { Evacuation, Combat, Utility }
 public enum CardRarity { Common, Rare, Epic, Legendary }
 
-// �����: ����������� ���� ������ ��� ����� � �����
+// Note: unified stat types used across cards and upgrades
 public enum StatType
 {
 	None,
@@ -22,10 +22,10 @@ public enum StatType
 [System.Serializable]
 public class CardStat
 {
-	[Tooltip("��� ���� (������ ��� �����)")]
+	[Tooltip("Stat type (used for logic and upgrades)")]
 	public StatType statType;
 
-	[Tooltip("��� UI (��������: '�����������')")]
+	[Tooltip("Display name in UI (e.g. 'Capacity')")]
 	public string statName;
 
 	public float baseValue;
@@ -54,26 +54,26 @@ public class UpgradeRequirements
 [CreateAssetMenu(fileName = "NewCardData", menuName = "ZombieGame/Card Data")]
 public class CardData : ScriptableObject
 {
-	[Header("������� ������")]
+	[Header("Card Identity")]
 	public CardManager.CardType cardType;
 	public string cardName;
 	[TextArea] public string description;
 	public Sprite icon;
 	public GameObject cardPrefab;
 
-	[Header("���� � UI")]
+	[Header("Look & UI")]
 	public CardCategory category;
 	public CardRarity rarity;
 	public GameObject uiButtonPrefab;
 
-	[Header("���� � ��������")]
+	[Header("Level & Upgrades")]
 	public int maxLevel = 5;
 	public List<UpgradeRequirements> upgradeCosts;
 
-	[Header("��������������")]
+	[Header("Stats")]
 	public List<CardStat> stats;
 
-	// ����� �����: ��� ������ �������� ���, ����� �������� ������� �����
+	// Helper: use this to get the computed stat value at a given level
 	public float GetCalculatedStat(StatType type, int currentLevel)
 	{
 		CardStat foundStat = stats.Find(s => s.statType == type);
@@ -82,7 +82,7 @@ public class CardData : ScriptableObject
 			return foundStat.GetFloatValue(currentLevel);
 		}
 
-		Debug.LogWarning($"���� {type} �� ������ � �������� {cardName}!");
+		Debug.LogWarning($"Stat {type} not found in card {cardName}!");
 		return 0f;
 	}
 }

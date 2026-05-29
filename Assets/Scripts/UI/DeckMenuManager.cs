@@ -1,13 +1,13 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-// [ГДЕ ВИСИТ]: На объекте DeckPanel.
+// [WHERE IT LIVES]: On the DeckPanel object.
 public class DeckMenuManager : MonoBehaviour
 {
-	[Header("Колода")]
-	[SerializeField] private MetaCardUI[] deckSlots; // ИЗМЕНЕНО: Теперь здесь MetaCardUI
+	[Header("Deck Slots")]
+	[SerializeField] private MetaCardUI[] deckSlots; // Array of MetaCardUI slot references
 
-	[Header("Инвентарь")]
+	[Header("Inventory")]
 	[SerializeField] private Transform inventoryPanel;
 	[SerializeField] private Transform lockedCardsPanel;
 	[SerializeField] private GameObject inventoryCardPrefab;
@@ -26,7 +26,7 @@ public class DeckMenuManager : MonoBehaviour
 	{
 		if (PlayerProfile.Instance == null) return;
 
-		// 1. Рисуем активную колоду через наши полноценные префабы
+		// 1. Fill deck slots with currently equipped cards
 		for (int i = 0; i < deckSlots.Length; i++)
 		{
 			CardData cardInSlot = PlayerProfile.Instance.currentDeck[i];
@@ -36,24 +36,24 @@ public class DeckMenuManager : MonoBehaviour
 				CardProgress prog = PlayerProfile.Instance.ownedCardsProgress.Find(p => p.cardId == cardInSlot.name);
 				Transform slotTransform = deckSlots[i].transform;
 
-				// Настраиваем слот как полноценную карту
+				// Capture transform for the lambda callback
 				deckSlots[i].Setup(cardInSlot, prog, () => CardPopupManager.Instance.OpenContextMenu(cardInSlot, prog, true, slotTransform));
 			}
 			else
 			{
-				// Если пусто - превращаем в серый слот
+				// Empty slot - show empty state
 				deckSlots[i].SetupEmpty();
 			}
 		}
 
-		// 2. Очищаем старые карты в инвентаре
+		// 2. Clear existing cards in inventory
 		foreach (Transform child in inventoryPanel) Destroy(child.gameObject);
 		if (lockedCardsPanel != null)
 		{
 			foreach (Transform child in lockedCardsPanel) Destroy(child.gameObject);
 		}
 
-		// 3. Рисуем карты в инвентаре
+		// 3. Populate inventory with owned cards
 		foreach (CardData cardData in PlayerProfile.Instance.allAvailableCards)
 		{
 			if (cardData == null) continue;

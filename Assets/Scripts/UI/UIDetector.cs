@@ -2,12 +2,12 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using System.Collections.Generic;
 
-// Повесь этот скрипт на любой объект на сцене (например, на Manager)
+// Attach this script to any scene object (e.g. a Manager) for UI click debugging
 public class UIDetector : MonoBehaviour
 {
 	void Update()
 	{
-		// Если нажали левую кнопку мыши или коснулись экрана
+		// Detect left mouse button click or screen touch
 		if (Input.GetMouseButtonDown(0))
 		{
 			PointerEventData eventData = new PointerEventData(EventSystem.current);
@@ -16,14 +16,14 @@ public class UIDetector : MonoBehaviour
 			List<RaycastResult> results = new List<RaycastResult>();
 			EventSystem.current.RaycastAll(eventData, results);
 
-			// Пишем в консоль, кто перехватил клик
+			// Log which UI element intercepted the click
 			if (results.Count > 0)
 			{
-				Debug.Log("Клик поймал объект: " + results[0].gameObject.name, results[0].gameObject);
+				Debug.Log("Click hit UI: " + results[0].gameObject.name, results[0].gameObject);
 			}
 			else
 			{
-				Debug.Log("Клик улетел в пустоту (EventSystem не видит UI)");
+				Debug.Log("Click missed UI (EventSystem found no UI elements)");
 			}
 		}
 	}

@@ -8,43 +8,43 @@ public class PlayerProfile : MonoBehaviour
 	public static PlayerProfile Instance;
 
 	public Action OnProfileUpdated;
-	public Action OnEnergyUpdated; // Ивент для UI энергии
+	public Action OnEnergyUpdated; // Event for UI energy widgets
 
-	[Header("Данные игрока")]
+	[Header("Currency")]
 	public int totalCurrency = 0;
 	public int totalScientistsCurrency = 0;
 
-	[Header("Энергия (Новое)")]
+	[Header("Energy (Meta)")]
 	public int currentEnergy = 20;
 	public int maxEnergy = 20;
-	public int secondsToRegenOneEnergy = 300; // 5 минут на 1 единицу
+	public int secondsToRegenOneEnergy = 300; // 5 minutes per 1 energy
 	private DateTime lastEnergyUpdateTime;
 
-	[Header("Прогресс карты (Saga)")]
+	[Header("Map Progress (Saga)")]
 	public int currentRegionIndex = 0;
 	public int currentLevelIndex = 0;
 	public bool hasPendingMapAnimation = false;
 	public bool hasPendingRegionAnimation = false;
 
-	[Header("Ожидающая анимация звёзд")]
+	[Header("Pending Star Animation")]
 	public bool hasPendingStarAnimation = false;
 	public string pendingStarLevelId = "";
 	public int pendingStarOldValue = 0;
 	public int pendingStarNewValue = 0;
 
-	[Header("База Регионов")]
+	[Header("Region Data")]
 	public List<RegionConfig> allRegions = new List<RegionConfig>();
 
-	[Header("Коллекция и Колода")]
+	[Header("Cards and Deck")]
 	public List<CardData> allAvailableCards = new List<CardData>();
 	public List<CardData> starterCards = new List<CardData>();
 	public List<CardProgress> ownedCardsProgress = new List<CardProgress>();
 	public CardData[] currentDeck = new CardData[5];
 
-	[Header("Сохранённые звёзды")]
+	[Header("Level Stars Progress")]
 	public List<LevelStarsProgress> levelStarsProgress = new List<LevelStarsProgress>();
 
-	[Header("Сохранённые награды регионов")]
+	[Header("Region Reward Claims")]
 	public List<RegionRewardClaimState> regionRewardClaims = new List<RegionRewardClaimState>();
 
 	private void Awake()
@@ -60,7 +60,7 @@ public class PlayerProfile : MonoBehaviour
 
 	private void Update()
 	{
-		// Оффлайн/онлайн реген энергии
+		// Real-time energy regeneration
 		if (currentEnergy < maxEnergy)
 		{
 			TimeSpan timePassed = DateTime.UtcNow - lastEnergyUpdateTime;
@@ -81,7 +81,7 @@ public class PlayerProfile : MonoBehaviour
 		totalCurrency = PlayerPrefs.GetInt("TotalCurrency", 0);
 		totalScientistsCurrency = PlayerPrefs.GetInt("TotalScientistsCurrency", 0);
 
-		// Загрузка энергии
+		// Load energy
 		currentEnergy = PlayerPrefs.GetInt("CurrentEnergy", maxEnergy);
 		long tempTime = Convert.ToInt64(PlayerPrefs.GetString("LastEnergyTime", DateTime.UtcNow.ToBinary().ToString()));
 		lastEnergyUpdateTime = DateTime.FromBinary(tempTime);
@@ -137,7 +137,7 @@ public class PlayerProfile : MonoBehaviour
 		PlayerPrefs.SetInt("TotalCurrency", totalCurrency);
 		PlayerPrefs.SetInt("TotalScientistsCurrency", totalScientistsCurrency);
 
-		// Сохранение энергии
+		// Save energy
 		PlayerPrefs.SetInt("CurrentEnergy", currentEnergy);
 		PlayerPrefs.SetString("LastEnergyTime", lastEnergyUpdateTime.ToBinary().ToString());
 
@@ -170,7 +170,7 @@ public class PlayerProfile : MonoBehaviour
 		OnProfileUpdated?.Invoke();
 	}
 
-	// --- МЕТОДЫ ДЛЯ ЭНЕРГИИ ---
+	// --- Helpers for offline regeneration ---
 	private void RecalculateOfflineEnergy()
 	{
 		if (currentEnergy >= maxEnergy) return;
@@ -215,7 +215,7 @@ public class PlayerProfile : MonoBehaviour
 		return Mathf.Max(0, secondsToRegenOneEnergy - (float)timePassed.TotalSeconds);
 	}
 
-	// --- ОРИГИНАЛЬНАЯ ЛОГИКА ИГРЫ (ВОССТАНОВЛЕНО) ---
+	// --- Saga map progression (level completion) ---
 	public void CompleteCurrentLevel()
 	{
 		if (currentRegionIndex >= allRegions.Count) return;
@@ -400,7 +400,7 @@ public class PlayerProfile : MonoBehaviour
 		SaveProfile();
 	}
 
-	[ContextMenu("Сбросить весь прогресс (Очистить сохранения)")]
+	[ContextMenu("Reset All Progress (WARNING: deletes all saves)")]
 	public void ResetProfile()
 	{
 		PlayerPrefs.DeleteAll();
@@ -413,7 +413,7 @@ public class PlayerProfile : MonoBehaviour
 
 		totalCurrency = 0;
 		totalScientistsCurrency = 0;
-		currentEnergy = maxEnergy; // Сброс энергии
+		currentEnergy = maxEnergy; // Restore full energy
 
 		currentRegionIndex = 0;
 		currentLevelIndex = 0;
@@ -427,7 +427,7 @@ public class PlayerProfile : MonoBehaviour
 	}
 }
 
-// Классы сериализации из оригинального файла
+// Helper wrapper for serializing lists via JsonUtility
 [System.Serializable]
 public class SerializationWrapper<T>
 {

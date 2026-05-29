@@ -12,10 +12,10 @@ public class Bait : MonoBehaviour
 	[HideInInspector] public Vector3 attractPoint;
 	[HideInInspector] public bool hasValidAttractPoint;
 
-	[Header("Связь с карточкой")]
+	[Header("Card & Settings")]
 	public CardData myCardData;
 
-	[Header("Кольцо радиуса")]
+	[Header("Radius Ring")]
 	public float ringYOffset = 0.08f;
 	public float ringWidth = 0.15f;
 	public int ringSegments = 48;
@@ -23,17 +23,17 @@ public class Bait : MonoBehaviour
 	public float pulseScaleMultiplier = 1.12f;
 	public float pulseDuration = 0.75f;
 
-	[Header("Точка притяжения")]
+	[Header("Attract Point Visual")]
 	public Transform attractPointVisual;
 
-	[Header("Звук")]
+	[Header("Audio")]
 	public AudioSource audioSource;
 	public AudioClip[] pingClips;
 	public int pingCount = 3;
 	public float pingInterval = 0.8f;
 	public float pingVolume = 1f;
 
-	[Header("Прочее")]
+	[Header("Debug")]
 	public float navMeshSearchRadius = 6f;
 	public bool drawGizmos = true;
 
@@ -82,7 +82,7 @@ public class Bait : MonoBehaviour
 		}
 		else
 		{
-			Debug.LogWarning("У приманки не назначен CardData! Используем базовые значения.");
+			Debug.LogWarning("Bait has no CardData assigned! Using fallback values.");
 			attractRadius = 10f;
 			lifeTime = 5f;
 		}

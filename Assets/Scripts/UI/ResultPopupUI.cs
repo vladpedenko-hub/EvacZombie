@@ -7,31 +7,31 @@ using UnityEngine.UI;
 
 public class ResultPopupUI : MonoBehaviour
 {
-	[Header("Тексты результатов")]
+	[Header("Result Text Fields")]
 	[SerializeField] private TextMeshProUGUI totalResultText;
 	[SerializeField] private TextMeshProUGUI humansResultText;
 	[SerializeField] private TextMeshProUGUI scientistsResultText;
 
-	[Header("Идеальное прохождение")]
-	[Tooltip("Перетащи сюда UI-объект плашки ИДЕАЛЬНО! (Сделай его выключенным по умолчанию)")]
+	[Header("Perfect Clear Badge")]
+	[Tooltip("Keep this UI object always inactive! (activated only when perfect clear)")]
 	public GameObject perfectBadge;
 
-	[Header("Звезды результата")]
+	[Header("Stars Display")]
 	[SerializeField] private Image[] resultStars;
 	[SerializeField] private Sprite emptyStarSprite;
 	[SerializeField] private Sprite filledStarSprite;
 	[SerializeField] private float starAppearDelay = 0.18f;
 
-	[Header("Кнопки")]
+	[Header("Buttons")]
 	[SerializeField] private Transform btnX2;
 	[SerializeField] private GameObject btnNoThanks;
 
-	[Header("Настройки анимаций")]
+	[Header("Animation Settings")]
 	[SerializeField] private float noThanksDelay = 1.5f;
 	[SerializeField] private float pulseSpeed = 5f;
 	[SerializeField] private float pulseMagnitude = 0.05f;
 
-	[Header("Окно Лутбокса (Награда)")]
+	[Header("Card Reward Panel")]
 	[SerializeField] private GameObject rewardPanel;
 	[SerializeField] private Image rewardCardIcon;
 	[SerializeField] private TextMeshProUGUI rewardCardName;
@@ -63,10 +63,10 @@ public class ResultPopupUI : MonoBehaviour
 		shownPreviousStars = Mathf.Clamp(previousBestStars, 0, 3);
 
 		if (totalResultText != null)
-			totalResultText.text = $"ВСЕГО СПАСЕНО:\n{rescuedTotal}";
+			totalResultText.text = $"Total rescued:\n{rescuedTotal}";
 
 		if (humansResultText != null)
-			humansResultText.text = $"ЛЮДИ:\n{rescuedHumans}";
+			humansResultText.text = $"People:\n{rescuedHumans}";
 
 		bool levelHasScientists = GameManager.Instance != null && GameManager.Instance.totalScientists > 0;
 
@@ -75,7 +75,7 @@ public class ResultPopupUI : MonoBehaviour
 			scientistsResultText.gameObject.SetActive(levelHasScientists);
 
 			if (levelHasScientists)
-				scientistsResultText.text = $"УЧЁНЫЕ:\n{rescuedScientists}";
+				scientistsResultText.text = $"Scientists:\n{rescuedScientists}";
 		}
 
 		if (perfectBadge != null)
@@ -122,9 +122,9 @@ public class ResultPopupUI : MonoBehaviour
 			if (rewardCardName != null)
 			{
 				if (isNew)
-					rewardCardName.text = $"НОВАЯ КАРТА!\n<color=yellow>{rewardCard.cardName}</color>";
+					rewardCardName.text = $"New card!\n<color=yellow>{rewardCard.cardName}</color>";
 				else
-					rewardCardName.text = $"ОСКОЛОК!\n<color=orange>{rewardCard.cardName}</color>";
+					rewardCardName.text = $"Duplicate!\n<color=orange>{rewardCard.cardName}</color>";
 			}
 
 			StartCoroutine(AnimateRewardPopup());

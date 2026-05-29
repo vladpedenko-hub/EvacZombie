@@ -1,15 +1,15 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-// [ГДЕ ВИСИТ]: На корневом объекте префаба визуальной карты региона (например, RegionMap_Nevada)
+// [WHERE IT LIVES]: On the root prefab of each region visual map (e.g. RegionMap_Nevada)
 public class RegionMapVisual : MonoBehaviour
 {
-	[Header("Визуал Региона")]
+	[Header("Level Nodes")]
 	public Button[] levelNodes;
 	public Image[] lines;
 	public Image[] sectors;
 	public GameObject bossIcon;
 
-	[Header("Звезды уровней")]
+	[Header("Stars Views")]
 	public LevelNodeStarsView[] levelStarsViews;
 }

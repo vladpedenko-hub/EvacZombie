@@ -3,32 +3,32 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "ChaosSettings", menuName = "Game/Chaos Settings")]
 public class ChaosSettings : ScriptableObject
 {
-	[Header("Глобально")]
+	[Header("General")]
 	public bool chaosEnabled = true;
 
-	[Header("Зомби")]
+	[Header("Zombies")]
 	[Range(0f, 1f)]
 	public float zombieLoseTargetChance = 0.03f;
 
-	[Tooltip("Как часто зомби может проверять, не затупить ли (в секундах)")]
+	[Tooltip("How often a zombie checks whether to lose its target (in seconds)")]
 	public float zombieLoseTargetCheckInterval = 0.75f;
 
-	[Tooltip("На сколько секунд зомби теряет цель")]
+	[Tooltip("How long a zombie wanders aimlessly after losing its target")]
 	public float zombieLoseTargetDuration = 0.6f;
 
-	[Header("Люди")]
+	[Header("Humans")]
 	[Range(0f, 1f)]
 	public float humanPanicChance = 0.05f;
 
-	[Tooltip("Как часто человек может проверять, не запаниковать ли")]
+	[Tooltip("How often a human checks whether to panic (in seconds)")]
 	public float humanPanicCheckInterval = 1.0f;
 
-	[Tooltip("На сколько секунд человек делает странный рывок")]
+	[Tooltip("How long a human runs in a random direction during panic")]
 	public float humanPanicDuration = 0.4f;
 
-	[Tooltip("Насколько сильно человек отклоняется в панике")]
+	[Tooltip("Distance a human moves during a panic sprint")]
 	public float humanPanicMoveDistance = 3.0f;
 
-	[Tooltip("Паника срабатывает, только если зомби ближе этого радиуса")]
+	[Tooltip("Zombie must be within this radius to trigger human panic")]
 	public float humanPanicTriggerRadius = 4.5f;
 }

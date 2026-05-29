@@ -1,12 +1,12 @@
 using UnityEngine;
 
-// ЭТОТ СКРИПТ ВЕШАЕТСЯ НА ДОМ (ЗДАНИЕ)
-// У здания должен быть коллайдер (BoxCollider) и MeshRenderer.
-// Для работы прозрачности материал здания должен поддерживать Rendering Mode: Transparent или Fade.
+// This script lives on a building object (house).
+// The object needs a BoxCollider and MeshRenderer.
+// The material must use Rendering Mode: Transparent or Fade.
 public class BuildingFader : MonoBehaviour
 {
-	[SerializeField] private float transparentAlpha = 0.3f; // Насколько прозрачным станет дом (0 - невидим, 1 - плотный)
-	[SerializeField] private float fadeSpeed = 5f;          // Скорость ухода в прозрачность
+	[SerializeField] private float transparentAlpha = 0.3f; // Target alpha when faded (0 = invisible, 1 = opaque)
+	[SerializeField] private float fadeSpeed = 5f;          // Speed of fade in/out
 
 	private MeshRenderer meshRenderer;
 	private Color originalColor;
@@ -27,15 +27,15 @@ public class BuildingFader : MonoBehaviour
 	{
 		if (meshRenderer == null) return;
 
-		// Плавно меняем цвет материала к целевому (прозрачному или обычному)
+		// Smoothly interpolate toward target color (transparent or opaque)
 		meshRenderer.material.color = Color.Lerp(meshRenderer.material.color, targetColor, Time.deltaTime * fadeSpeed);
 
-		// Сбрасываем флаг каждый кадр, камера должна подтверждать его заново
+		// Reset every frame; FadeOut() must be called again to keep faded
 		isBlocking = false;
 		targetColor = originalColor;
 	}
 
-	// Этот метод будет вызывать скрипт камеры, если луч попал в этот дом
+	// Call this method every frame while the building is blocking the camera view
 	public void FadeOut()
 	{
 		isBlocking = true;

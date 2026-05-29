@@ -5,34 +5,34 @@ using System.Collections.Generic;
 public class DropRate
 {
 	public CardData card;
-	[Range(1, 100)] public int weight; // "Вес" карточки для рулетки
+	[Range(1, 100)] public int weight; // "weight" relative to other drops
 }
 
 [CreateAssetMenu(fileName = "NewLootbox", menuName = "ZombieGame/Lootbox Data")]
 public class LootboxData : ScriptableObject
 {
-	public string boxName = "Обычный Ящик";
+	public string boxName = "Standard Box";
 	public Sprite boxIcon;
 
-	[Header("Туториал / Сюжет")]
-	public bool isTutorialBox = false;     // Если true - рандом отключается
-	public CardData guaranteedCard;        // Карта, которая выпадет 100%
+	[Header("Tutorial / Guaranteed")]
+	public bool isTutorialBox = false;     // If true, always drops the guaranteed card
+	public CardData guaranteedCard;        // Card dropped 100% of the time
 
-	[Header("Рулетка (для обычных)")]
-	public List<DropRate> possibleDrops;   // Список карт и шанс их выпадения
+	[Header("Drop Pool (weighted)")]
+	public List<DropRate> possibleDrops;   // List of cards with weighted drop chances
 
-	// Метод, который сама игра будет вызывать, чтобы узнать, что выпало
+	// Call this to open the box and receive a card
 	public CardData OpenBox()
 	{
 		if (isTutorialBox && guaranteedCard != null) return guaranteedCard;
 
 		if (possibleDrops == null || possibleDrops.Count == 0) return null;
 
-		// Считаем общую сумму всех "весов"
+		// Sum all "weights" in the pool
 		int totalWeight = 0;
 		foreach (var drop in possibleDrops) totalWeight += drop.weight;
 
-		// Кидаем кубик
+		// Roll a random value
 		int randomValue = Random.Range(0, totalWeight);
 		int currentWeight = 0;
 
@@ -41,10 +41,10 @@ public class LootboxData : ScriptableObject
 			currentWeight += drop.weight;
 			if (randomValue < currentWeight)
 			{
-				return drop.card; // Выпала эта карта!
+				return drop.card; // This card wins!
 			}
 		}
 
-		return possibleDrops[0].card; // Заглушка на всякий случай
+		return possibleDrops[0].card; // Fallback to first entry
 	}
 }

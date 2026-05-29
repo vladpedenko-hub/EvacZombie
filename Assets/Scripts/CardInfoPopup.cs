@@ -2,12 +2,12 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-// [ГДЕ ВИСИТ]: На объекте CardInfoPopup (в корне Canvas).
+// [WHERE IT LIVES]: On the CardInfoPopup object (inside a Canvas).
 public class CardInfoPopup : MonoBehaviour
 {
 	public static CardInfoPopup Instance;
 
-	[Header("UI Элементы")]
+	[Header("UI References")]
 	[SerializeField] private GameObject windowPanel;
 	[SerializeField] private Image cardIcon;
 	[SerializeField] private TextMeshProUGUI cardNameText;
@@ -18,20 +18,20 @@ public class CardInfoPopup : MonoBehaviour
 	[SerializeField] private Button closeBtn;
 	[SerializeField] private Button backgroundCloseBtn;
 
-	[Header("Новые поля для меты")]
+	[Header("Rarity and Category")]
 	[SerializeField] private TextMeshProUGUI rarityText;
 	[SerializeField] private TextMeshProUGUI categoryText;
 
-	[Header("Прогресс-бар карточек")]
+	[Header("Shard Progress Bar")]
 	[SerializeField] private TextMeshProUGUI progressText;
 	[SerializeField] private Image progressBarFill;
 	[SerializeField] private Color progressColorEnough = Color.green;
-	[SerializeField] private Color progressColorNotEnough = new Color(0.2f, 0.6f, 1f); // Синий
+	[SerializeField] private Color progressColorNotEnough = new Color(0.2f, 0.6f, 1f); // Blue
 
-	[Header("Связь")]
+	[Header("Deck Manager")]
 	[SerializeField] private DeckMenuManager deckManager;
 
-	[Header("Настройки цветов кнопки")]
+	[Header("Upgrade Button Colors")]
 	[SerializeField] private Color colorReady = new Color(0.2f, 0.8f, 0.2f);
 	[SerializeField] private Color colorNoMoney = new Color(0.8f, 0.2f, 0.2f);
 	[SerializeField] private Color colorNoShards = new Color(0.5f, 0.5f, 0.5f);
@@ -55,7 +55,7 @@ public class CardInfoPopup : MonoBehaviour
 		cardIcon.sprite = data.icon;
 		cardNameText.text = data.cardName;
 
-		if (categoryText != null) categoryText.text = $"Тип: {data.category}";
+		if (categoryText != null) categoryText.text = $"Type: {data.category}";
 
 		if (rarityText != null)
 		{
@@ -71,11 +71,11 @@ public class CardInfoPopup : MonoBehaviour
 
 		int lvl = progress != null ? progress.currentLevel : 1;
 		int shards = progress != null ? progress.collectedShards : 0;
-		levelText.text = $"Уровень {lvl}";
+		levelText.text = $"Level {lvl}";
 
 		bool isMaxLevel = lvl >= data.maxLevel || data.upgradeCosts.Count == 0;
 
-		// Вывод статов
+		// Build stats list
 		statsText.text = "";
 		foreach (var stat in data.stats)
 		{
@@ -105,7 +105,7 @@ public class CardInfoPopup : MonoBehaviour
 			int requiredShards = data.upgradeCosts[costIndex].duplicateCardsNeeded;
 			int upgradeCost = data.upgradeCosts[costIndex].currencyCost;
 
-			// --- ЛОГИКА ПРОГРЕСС-БАРА ---
+			// --- Shard progress display ---
 			if (progressText != null) progressText.text = $"{shards} / {requiredShards}";
 			if (progressBarFill != null)
 			{
@@ -113,26 +113,26 @@ public class CardInfoPopup : MonoBehaviour
 				progressBarFill.color = (shards >= requiredShards) ? progressColorEnough : progressColorNotEnough;
 			}
 
-			// --- ЛОГИКА КНОПКИ ---
+			// --- Upgrade button state ---
 			if (shards >= requiredShards)
 			{
 				if (PlayerProfile.Instance.totalCurrency >= upgradeCost)
 				{
-					upgradeCostText.text = $"Улучшить ({upgradeCost}$)";
+					upgradeCostText.text = $"Upgrade ({upgradeCost}$)";
 					btnImage.color = colorReady;
 					upgradeBtn.interactable = true;
 					upgradeBtn.onClick.AddListener(() => PerformUpgrade(upgradeCost, requiredShards));
 				}
 				else
 				{
-					upgradeCostText.text = $"Нужно {upgradeCost}$";
+					upgradeCostText.text = $"Need {upgradeCost}$";
 					btnImage.color = colorNoMoney;
 					upgradeBtn.interactable = false;
 				}
 			}
 			else
 			{
-				upgradeCostText.text = $"Соберите карточки";
+				upgradeCostText.text = $"Collect shards";
 				btnImage.color = colorNoShards;
 				upgradeBtn.interactable = false;
 			}
@@ -140,7 +140,7 @@ public class CardInfoPopup : MonoBehaviour
 		}
 		else
 		{
-			// --- МАКС УРОВЕНЬ ---
+			// --- Max level reached ---
 			if (progressText != null) progressText.text = "MAX";
 			if (progressBarFill != null)
 			{

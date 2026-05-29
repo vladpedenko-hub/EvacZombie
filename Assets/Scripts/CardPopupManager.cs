@@ -2,21 +2,21 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-// [ГДЕ ВИСИТ]: На объекте CardPopupManager (в корне Canvas).
-// [ЧТО НАСТРОИТЬ]: Закинь ссылки на панельку и кнопки из Шага 1.
-// Не забудь перетащить ссылку на DeckPanelManager!
+// [WHERE IT LIVES]: On the CardPopupManager object (inside a Canvas).
+// [HOW IT WORKS]: A context menu pops up when a card is tapped in the collection UI.
+// Do not confuse this with DeckPanelManager!
 public class CardPopupManager : MonoBehaviour
 {
 	public static CardPopupManager Instance;
 
-	[Header("Ссылки на UI")]
+	[Header("UI References")]
 	[SerializeField] private GameObject contextMenuPanel;
 	[SerializeField] private Button infoUpgradeBtn;
 	[SerializeField] private TextMeshProUGUI infoUpgradeText;
 	[SerializeField] private Button equipRemoveBtn;
 	[SerializeField] private TextMeshProUGUI equipRemoveText;
 
-	[Header("Связь с колодой")]
+	[Header("Manager Reference")]
 	[SerializeField] private DeckMenuManager deckManager;
 
 	private CardData selectedCard;
@@ -31,46 +31,46 @@ public class CardPopupManager : MonoBehaviour
 		contextMenuPanel.SetActive(false);
 	}
 
-	// Вызываем этот метод при клике на любую карту
+	// Open the context menu when a card is tapped in the collection
 	public void OpenContextMenu(CardData data, CardProgress progress, bool inDeck, Transform cardTransform)
 	{
 		selectedCard = data;
 		selectedProgress = progress;
 		isCardInDeck = inDeck;
 
-		// 1. Включаем меню ДО расчетов координат, иначе Unity может криво посчитать размеры
+		// 1. Activate the panel so Unity can compute layout sizes
 		contextMenuPanel.SetActive(true);
 
 		RectTransform cardRect = cardTransform.GetComponent<RectTransform>();
 		RectTransform menuRect = contextMenuPanel.GetComponent<RectTransform>();
 
-		// 2. Делаем ширину меню точно такой же, как у карты (стиль Clash Royale)
-		// Высоту (y) оставляем как есть, чтобы кнопки влезли
+		// 2. Match the menu width to the card width (similar to Clash Royale style)
+		// Height (y) is left unchanged so the buttons fit
 		menuRect.sizeDelta = new Vector2(cardRect.rect.width, menuRect.sizeDelta.y);
 
-		// 3. Достаем мировые координаты 4-х углов карточки
+		// 3. Get all 4 world corners of the card
 		Vector3[] cardCorners = new Vector3[4];
 		cardRect.GetWorldCorners(cardCorners);
 
-		// Индексы Unity: 0 - нижний левый, 1 - верхний левый, 2 - верхний правый, 3 - нижний правый.
-		// Нам нужен центр нижней грани: складываем нижние углы и делим пополам.
+		// Unity corner order: 0 = bottom-left, 1 = top-left, 2 = top-right, 3 = bottom-right.
+		// We want the bottom-center: average of the two bottom corners.
 		Vector3 bottomCenter = (cardCorners[0] + cardCorners[3]) / 2f;
 
-		// 4. Ставим меню ровно под карту (спасибо нашему Pivot Y=1)
-		// Добавим микро-отступ в 5 пикселей вверх (+Vector3.up * 5), чтобы оно прям визуально сливалось с картой
+		// 4. Place the menu just below the card (Pivot Y=1 means top of the menu anchors here)
+		// Shift slightly upward by 5 pixels so the menu overlaps the bottom edge of the card
 		menuRect.position = bottomCenter + (Vector3.up * 5f);
 
-		// 5. Перерисовываем тексты и логику кнопок
+		// 5. Configure button listeners and labels
 		SetupButtons();
 	}
 
 	private void SetupButtons()
 	{
-		// 1. Сбрасываем старые подписки, чтобы кнопки не выполняли 10 действий за раз
+		// 1. Clear listeners first to avoid duplicate calls accumulating over time
 		infoUpgradeBtn.onClick.RemoveAllListeners();
 		equipRemoveBtn.onClick.RemoveAllListeners();
 
-		// 2. Настраиваем кнопку "Use / Remove"
+		// 2. Configure the "Use / Remove" button
 		if (isCardInDeck)
 		{
 			equipRemoveText.text = "Remove";
@@ -82,24 +82,24 @@ public class CardPopupManager : MonoBehaviour
 			equipRemoveBtn.onClick.AddListener(EquipSelectedCard);
 		}
 
-		// 3. Настраиваем кнопку "Info / Upgrade"
+		// 3. Configure the "Info / Upgrade" button
 		int lvl = selectedProgress != null ? selectedProgress.currentLevel : 1;
 		int shards = selectedProgress != null ? selectedProgress.collectedShards : 0;
 
-		// Проверяем, не уперлись ли мы в максимальный уровень
+		// Check whether the card is already at maximum level
 		bool isMaxLevel = lvl >= selectedCard.maxLevel || selectedCard.upgradeCosts.Count == 0;
 
 		if (!isMaxLevel)
 		{
-			// Берем требования для текущего уровня из твоего конфига
+			// Get upgrade cost for the current level
 			int costIndex = Mathf.Clamp(lvl - 1, 0, selectedCard.upgradeCosts.Count - 1);
 			int requiredShards = selectedCard.upgradeCosts[costIndex].duplicateCardsNeeded;
 			int upgradeCost = selectedCard.upgradeCosts[costIndex].currencyCost;
 
-			// Если хватает и карточек, и валюты:
+			// If enough shards and currency, show the upgrade button:
 			if (shards >= requiredShards && PlayerProfile.Instance.totalCurrency >= upgradeCost)
 			{
-				// Показываем цену прям на кнопке
+				// Show the upgrade cost on the button
 				infoUpgradeText.text = $"Upgrade\n{upgradeCost}$";
 				infoUpgradeBtn.onClick.AddListener(UpgradeSelectedCard);
 			}
@@ -115,12 +115,12 @@ public class CardPopupManager : MonoBehaviour
 			infoUpgradeBtn.onClick.AddListener(OpenInfoPopup);
 		}
 
-		// Любой клик по кнопке закрывает меню
+		// Always close the menu after either button is pressed
 		infoUpgradeBtn.onClick.AddListener(() => contextMenuPanel.SetActive(false));
 		equipRemoveBtn.onClick.AddListener(() => contextMenuPanel.SetActive(false));
 	}
 
-	// --- ЛОГИКА ДЕЙСТВИЙ ---
+	// --- Action handlers ---
 
 	private void EquipSelectedCard()
 	{
@@ -130,11 +130,11 @@ public class CardPopupManager : MonoBehaviour
 			{
 				PlayerProfile.Instance.currentDeck[i] = selectedCard;
 				PlayerProfile.Instance.SaveProfile();
-				deckManager.RefreshUI(); // Перерисовываем экран
+				deckManager.RefreshUI(); // Refresh deck UI
 				return;
 			}
 		}
-		Debug.LogWarning("Колода заполнена! Сначала удали карту.");
+		Debug.LogWarning("Deck is full! Remove a card first.");
 	}
 
 	private void RemoveSelectedCard()
@@ -153,17 +153,17 @@ public class CardPopupManager : MonoBehaviour
 
 	private void UpgradeSelectedCard()
 	{
-		// Вместо того чтобы писать тут сложную логику списывания денег,
-		// мы просто говорим скрипту: "А открой-ка нам большое окно с инфой!"
+		// We could upgrade here directly, but it's cleaner to open the full info popup
+		// so the player can see the upgrade details: "Oh, so I already had enough shards!"
 		OpenInfoPopup();
 	}
 
 	private void OpenInfoPopup()
 	{
-		// Прячем маленькое меню
+		// Close the context menu first
 		contextMenuPanel.SetActive(false);
 
-		// Открываем большое окно!
+		// Open the full card info popup
 		CardInfoPopup.Instance.Show(selectedCard, selectedProgress);
 	}
 	public void CloseContextMenu()

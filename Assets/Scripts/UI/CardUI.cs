@@ -6,14 +6,14 @@ using TMPro;
 [RequireComponent(typeof(CanvasGroup))]
 public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
-	[Header("Связь с карточкой")]
-	public CardData myCardData; // ТЕПЕРЬ СЮДА ПЕРЕДАЕМ CARD DATA, А НЕ ENUM
+	[Header("Card & Settings")]
+	public CardData myCardData; // Always assign CARD DATA here, not an ENUM
 
-	[Header("Настройки")]
+	[Header("Gameplay")]
 	public float cost;
 	public float cooldownTime = 3f;
 
-	[Header("Ссылки")]
+	[Header("Visuals")]
 	public Image cardImage;
 	public Image cooldownFill;
 	public TextMeshProUGUI timerText;
@@ -39,7 +39,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		if (cooldownFill != null) cooldownFill.fillAmount = 0;
 		if (timerText != null) timerText.text = "";
 
-		// АВТОМАТИЗАЦИЯ: Сами ставим иконку из базы, если она есть
+		// Initialization: if card data is assigned and the image field exists, set the icon
 		if (myCardData != null && cardImage != null)
 		{
 			cardImage.sprite = myCardData.icon;
@@ -76,7 +76,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 
 	public void OnBeginDrag(PointerEventData eventData)
 	{
-		// Проверяем, что CardData вообще назначена
+		// Verify that CardData is properly assigned
 		if (isOnCooldown || EnergyManager.Instance.CurrentEnergy < cost || myCardData == null) return;
 
 		originalParent = transform.parent;
@@ -89,7 +89,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 
 		isCurrentlyDragging = true;
 
-		// ПЕРЕДАЕМ CARD DATA В INPUT MANAGER!
+		// Pass CARD DATA to INPUT MANAGER!
 		InputManager.Instance.StartDragging(myCardData);
 	}
 
