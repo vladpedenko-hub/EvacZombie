@@ -19,10 +19,11 @@ public class FlyingText : MonoBehaviour
 
 		transform.SetAsLastSibling();
 
-		transform.DOMove(target.position, flyDuration).SetEase(Ease.InOutQuad);
+		transform.DOMove(target.position, flyDuration).SetEase(Ease.InOutQuad).SetUpdate(true);
 
 		transform.DOScale(Vector3.zero, flyDuration)
 			.SetEase(Ease.InBack)
+			.SetUpdate(true)
 			.OnComplete(OnArrived);
 	}
 
