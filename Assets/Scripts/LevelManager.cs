@@ -19,6 +19,10 @@ public class LevelManager : MonoBehaviour
 	[SerializeField] private GameObject indicatorPrefab;
 	[SerializeField] private float indicatorHeight = 1.5f;
 
+	[Header("Human Spawn Settings")]
+	[SerializeField] private float minDistanceFromSpawnPoints = 8f;
+	[SerializeField] private int maxSpawnAttempts = 30;
+
 	[Header("Lighting")]
 	public Light sunLight;
 	public Color nightColor = new Color(0.1f, 0.1f, 0.3f);
@@ -138,15 +142,32 @@ public class LevelManager : MonoBehaviour
 		activeIndicators.Clear();
 	}
 
+	private bool IsTooCloseToSpawnPoints(Vector3 pos)
+	{
+		foreach (var sp in allSpawnPoints)
+		{
+			if (sp.isNightSpawn) continue;
+			if (Vector3.Distance(pos, sp.transform.position) < minDistanceFromSpawnPoints)
+				return true;
+		}
+		return false;
+	}
+
 	private void SpawnHumans(int count)
 	{
 		for (int i = 0; i < count; i++)
 		{
-			Vector3 randomPos = Random.insideUnitSphere * 20f;
-			randomPos.y = 0;
+			for (int attempt = 0; attempt < maxSpawnAttempts; attempt++)
+			{
+				Vector3 randomPos = Random.insideUnitSphere * 20f;
+				randomPos.y = 0;
 
-			if (NavMesh.SamplePosition(randomPos, out NavMeshHit hit, 20f, NavMesh.AllAreas))
-				Instantiate(humanPrefab, hit.position, Quaternion.identity);
+				if (NavMesh.SamplePosition(randomPos, out NavMeshHit hit, 20f, NavMesh.AllAreas) && !IsTooCloseToSpawnPoints(hit.position))
+				{
+					Instantiate(humanPrefab, hit.position, Quaternion.identity);
+					break;
+				}
+			}
 		}
 	}
 
@@ -163,11 +184,17 @@ public class LevelManager : MonoBehaviour
 
 		for (int i = 0; i < count; i++)
 		{
-			Vector3 randomPos = Random.insideUnitSphere * 20f;
-			randomPos.y = 0;
+			for (int attempt = 0; attempt < maxSpawnAttempts; attempt++)
+			{
+				Vector3 randomPos = Random.insideUnitSphere * 20f;
+				randomPos.y = 0;
 
-			if (NavMesh.SamplePosition(randomPos, out NavMeshHit hit, 20f, NavMesh.AllAreas))
-				Instantiate(prefabToUse, hit.position, Quaternion.identity);
+				if (NavMesh.SamplePosition(randomPos, out NavMeshHit hit, 20f, NavMesh.AllAreas) && !IsTooCloseToSpawnPoints(hit.position))
+				{
+					Instantiate(prefabToUse, hit.position, Quaternion.identity);
+					break;
+				}
+			}
 		}
 	}
 

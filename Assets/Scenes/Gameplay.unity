@@ -5467,6 +5467,8 @@ MonoBehaviour:
   defaultScientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
   indicatorPrefab: {fileID: 6257564150766856418, guid: 463fd29ce62a33c47aa871ae0fbbef1d, type: 3}
   indicatorHeight: 1.5
+  minDistanceFromSpawnPoints: 3
+  maxSpawnAttempts: 30
   sunLight: {fileID: 410087040}
   nightColor: {r: 0.1986917, g: 0.1986917, b: 0.4433962, a: 1}
   nightIntensity: 0.5
