@@ -271,6 +271,10 @@ public class HelicopterController : MonoBehaviour
 					if (Vector2.Distance(heliPos2D, humanPos2D) < boardingRadius)
 					{
 						yield return StartCoroutine(hum.PlayBoardingAnimation(transform.position, boardingAnimDuration, boardingLiftHeight));
+
+						// Human may have been infected/destroyed mid-animation — skip if so
+						if (hum == null) break;
+
 						loadedUnits.Add(hum.gameObject);
 
 						currentLoad++;
@@ -292,6 +296,10 @@ public class HelicopterController : MonoBehaviour
 						if (Vector2.Distance(heliPos2D, scientistPos2D) < boardingRadius)
 						{
 							yield return StartCoroutine(sci.PlayBoardingAnimation(transform.position, boardingAnimDuration, boardingLiftHeight));
+
+							// Scientist may have been infected/destroyed mid-animation — skip if so
+							if (sci == null) break;
+
 							loadedUnits.Add(sci.gameObject);
 
 							currentLoad++;

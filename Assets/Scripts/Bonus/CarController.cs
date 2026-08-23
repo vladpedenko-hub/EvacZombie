@@ -242,6 +242,10 @@ public class CarController : MonoBehaviour
 					if (human != null && !loadedUnits.Contains(human.gameObject))
 					{
 						yield return StartCoroutine(human.PlayBoardingAnimation(transform.position, boardingAnimDuration, boardingLiftHeight));
+
+						// Human may have been infected/destroyed mid-animation — skip if so
+						if (human == null) continue;
+
 						loadedUnits.Add(human.gameObject);
 
 						currentLoad++;
@@ -254,6 +258,10 @@ public class CarController : MonoBehaviour
 					if (scientist != null && !loadedUnits.Contains(scientist.gameObject))
 					{
 						yield return StartCoroutine(scientist.PlayBoardingAnimation(transform.position, boardingAnimDuration, boardingLiftHeight));
+
+						// Scientist may have been infected/destroyed mid-animation — skip if so
+						if (scientist == null) continue;
+
 						loadedUnits.Add(scientist.gameObject);
 
 						currentLoad++;

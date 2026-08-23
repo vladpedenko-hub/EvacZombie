@@ -257,6 +257,9 @@ public class Human : MonoBehaviour
 
 	public IEnumerator PlayBoardingAnimation(Vector3 boardCenter, float duration, float liftHeight = 0.6f)
 	{
+		// Safety: object already destroyed
+		if (this == null || gameObject == null) yield break;
+
 		isBoarding = true;
 		isRescuing = false;
 		hasRescueApproachPoint = false;
@@ -276,6 +279,12 @@ public class Human : MonoBehaviour
 		float t = 0f;
 		while (t < 1f)
 		{
+			// Safety: stop if the object was destroyed mid-animation
+			if (this == null || gameObject == null || transform == null)
+			{
+				yield break;
+			}
+
 			t += Time.deltaTime / Mathf.Max(0.01f, duration);
 			float eased = Mathf.SmoothStep(0f, 1f, t);
 
@@ -285,8 +294,12 @@ public class Human : MonoBehaviour
 			yield return null;
 		}
 
-		transform.position = endPos;
-		transform.localScale = endScale;
+		// Safety: final assignment
+		if (this != null && gameObject != null && transform != null)
+		{
+			transform.position = endPos;
+			transform.localScale = endScale;
+		}
 	}
 
 	private void SetRandomDest()
