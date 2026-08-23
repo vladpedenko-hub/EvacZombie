@@ -77,7 +77,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 	public void OnBeginDrag(PointerEventData eventData)
 	{
 		// Verify that CardData is properly assigned
-		if (isOnCooldown || EnergyManager.Instance.CurrentEnergy < cost || myCardData == null) return;
+		if (isOnCooldown || myCardData == null) return;
 
 		originalParent = transform.parent;
 		originalSiblingIndex = transform.GetSiblingIndex();
@@ -117,7 +117,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 
 		if (success)
 		{
-			EnergyManager.Instance.TrySpendEnergy(cost);
+			// EnergyManager.Instance.TrySpendEnergy(cost); ← убрано
 			StartCooldown();
 		}
 	}
