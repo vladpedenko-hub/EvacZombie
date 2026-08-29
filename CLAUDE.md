@@ -23,7 +23,13 @@ Core loop реализован и работает: `GameManager`, `LevelManager
 
 ## Известные незакрытые баги
 
-- **Drag-reflow HUD**: `CardUI.OnBeginDrag` (`Assets/Scripts/UI/CardUI.cs`, `transform.SetParent(transform.root, false)`) вырывает перетаскиваемую карту из Layout Group `cardsPanel`, из-за чего остальные карты визуально "прыгают". Не исправлено. Фикс: не репарентить в root, использовать `LayoutElement.ignoreLayout = true` на перетаскиваемой карте либо поднимать через sibling index.
+*(На 29.08.2026 открытых пунктов нет — единственный известный баг ниже уже исправлен.)*
+
+- ~~**Drag-reflow HUD**~~ — ИСПРАВЛЕНО в `f47e1762` (29.08.2026). `CardUI.OnBeginDrag` больше не делает `transform.SetParent(transform.root, false)`. Вместо этого: `LayoutElement.ignoreLayout = true` на перетаскиваемой карте + собственный `Canvas` с `overrideSorting=true` на время драга (поднимает карту визуально без реродителинга). `cardsPanel` Layout Group не видит изменения количества детей — остальные карты не "прыгают".
+
+## Незавершённые ручные шаги в Unity Editor (не код — не забыть сделать руками)
+
+- Тот же коммит `f47e1762` добавил поля `rarityBorder` (`Image`) в `CardUI.cs` и `MetaCardUI.cs` — рамка карты по редкости через новый `CardVisuals.GetRarityColor()`. Поля null-guarded, так что ничего не сломается, но рамка не появится на экране, пока не назначишь Image-компонент рамки на это поле в инспекторе — в HUD-префабе карты (`CardUI`) и в плитке колоды (`MetaCardUI`). Claude Code не может сделать это за тебя — это чисто ручной шаг в Unity Editor.
 
 ## Намеренные риск-механики (НЕ баги — не чинить без явного запроса)
 

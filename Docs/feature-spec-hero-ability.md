@@ -1,7 +1,7 @@
 # Feature Spec: Hero Ability — Civilian Speed Boost
 
-**Статус:** Design-ready, не начата  
-**Приоритет:** High (MVP feature)  
+**Статус:** ✅ РЕАЛИЗОВАНО (обнаружено при аудите 29.08.2026 — фича собрана ещё в мае 2026, коммиты "Ultimate Ability"/"All in English"; эта спека написана позже и не знала о существующей реализации). `AbilityManager.cs` (151 строк) и `AbilityButtonUI.cs` (164 строк) существуют, подключены в `GameManager.cs`/`Human.cs`/`Scientist.cs`, GameObject живёт в `Assets/Scenes/Gameplay.unity`, `Assets/Data/Tutorial/Tutorial_AbilityReady.asset` существует. Документ ниже — историческая спека замысла, сверяй с фактическим кодом, не считай источником истины по актуальному состоянию.  
+**Приоритет:** N/A — уже сделано.  
 **Зависимости:** TutorialManager, GameManager, Human.cs, Scientist.cs
 
 ---
