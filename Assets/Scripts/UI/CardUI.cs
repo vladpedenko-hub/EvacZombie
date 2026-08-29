@@ -17,12 +17,12 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 	public Image cardImage;
 	public Image cooldownFill;
 	public TextMeshProUGUI timerText;
+	public Image rarityBorder; // NEW — assign in prefab
 
 	private CanvasGroup canvasGroup;
-	private Transform originalParent;
-	private int originalSiblingIndex;
-	private Vector2 originalAnchoredPos;
 	private RectTransform rectTransform;
+	private LayoutElement layoutElement;
+	private Canvas dragSortCanvas;
 
 	private bool isOnCooldown = false;
 	private float currentCooldown = 0f;
@@ -32,6 +32,16 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 	{
 		canvasGroup = GetComponent<CanvasGroup>();
 		rectTransform = GetComponent<RectTransform>();
+
+		layoutElement = GetComponent<LayoutElement>();
+		if (layoutElement == null) layoutElement = gameObject.AddComponent<LayoutElement>();
+
+		dragSortCanvas = GetComponent<Canvas>();
+		if (dragSortCanvas == null) dragSortCanvas = gameObject.AddComponent<Canvas>();
+		dragSortCanvas.overrideSorting = false; // off by default, only on while dragging
+
+		if (GetComponent<GraphicRaycaster>() == null)
+			gameObject.AddComponent<GraphicRaycaster>();
 	}
 
 	private void Start()
@@ -43,6 +53,11 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		if (myCardData != null && cardImage != null)
 		{
 			cardImage.sprite = myCardData.icon;
+		}
+
+		if (myCardData != null && rarityBorder != null)
+		{
+			rarityBorder.color = CardVisuals.GetRarityColor(myCardData.rarity);
 		}
 	}
 
@@ -79,11 +94,14 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		// Verify that CardData is properly assigned
 		if (isOnCooldown || myCardData == null) return;
 
-		originalParent = transform.parent;
-		originalSiblingIndex = transform.GetSiblingIndex();
-		originalAnchoredPos = rectTransform.anchoredPosition;
+		// Exclude from the Layout Group's arrangement WITHOUT leaving cardsPanel —
+		// this is what stops the other cards from reflowing.
+		layoutElement.ignoreLayout = true;
 
-		transform.SetParent(transform.root, false);
+		// Render above siblings/HUD without reparenting.
+		dragSortCanvas.overrideSorting = true;
+		dragSortCanvas.sortingOrder = 1000;
+
 		canvasGroup.blocksRaycasts = false;
 		if (cardImage != null) cardImage.color = new Color(1, 1, 1, 0.5f);
 
@@ -106,9 +124,8 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		if (!isCurrentlyDragging) return;
 		isCurrentlyDragging = false;
 
-		transform.SetParent(originalParent, false);
-		transform.SetSiblingIndex(originalSiblingIndex);
-		rectTransform.anchoredPosition = originalAnchoredPos;
+		layoutElement.ignoreLayout = false;
+		dragSortCanvas.overrideSorting = false;
 
 		canvasGroup.blocksRaycasts = true;
 		if (cardImage != null) cardImage.color = Color.white;

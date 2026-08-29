@@ -11,6 +11,7 @@ public class CardInfoPopup : MonoBehaviour
 	[SerializeField] private GameObject windowPanel;
 	[SerializeField] private Image cardIcon;
 	[SerializeField] private TextMeshProUGUI cardNameText;
+	[SerializeField] private TextMeshProUGUI descriptionText;
 	[SerializeField] private TextMeshProUGUI levelText;
 	[SerializeField] private TextMeshProUGUI statsText;
 	[SerializeField] private Button upgradeBtn;
@@ -54,19 +55,14 @@ public class CardInfoPopup : MonoBehaviour
 
 		cardIcon.sprite = data.icon;
 		cardNameText.text = data.cardName;
+		if (descriptionText != null) descriptionText.text = data.description;
 
 		if (categoryText != null) categoryText.text = $"Type: {data.category}";
 
 		if (rarityText != null)
 		{
 			rarityText.text = data.rarity.ToString();
-			switch (data.rarity)
-			{
-				case CardRarity.Common: rarityText.color = Color.white; break;
-				case CardRarity.Rare: rarityText.color = new Color(0.2f, 0.6f, 1f); break;
-				case CardRarity.Epic: rarityText.color = new Color(0.7f, 0.2f, 1f); break;
-				case CardRarity.Legendary: rarityText.color = new Color(1f, 0.6f, 0f); break;
-			}
+			rarityText.color = CardVisuals.GetRarityColor(data.rarity);
 		}
 
 		int lvl = progress != null ? progress.currentLevel : 1;

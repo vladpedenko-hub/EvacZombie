@@ -11,6 +11,7 @@ public class MetaCardUI : MonoBehaviour
 	[SerializeField] private TextMeshProUGUI levelText;
 	[SerializeField] private TextMeshProUGUI progressText;
 	[SerializeField] private Image progressBarFill;
+	[SerializeField] private Image rarityBorder; // NEW — assign in prefab
 
 	[Header("Progress Colors")]
 	[SerializeField] private Color colorNotEnough = new Color(0.2f, 0.6f, 1f); // Blue
@@ -30,6 +31,7 @@ public class MetaCardUI : MonoBehaviour
 		btn.interactable = true;
 
 		cardIcon.sprite = data.icon;
+		if (rarityBorder != null) rarityBorder.color = CardVisuals.GetRarityColor(data.rarity);
 
 		int lvl = progress != null ? progress.currentLevel : 1;
 		int shards = progress != null ? progress.collectedShards : 0;
@@ -64,6 +66,7 @@ public class MetaCardUI : MonoBehaviour
 		cardIcon.sprite = data.icon;
 		cardIcon.color = Color.black;
 		cardBackground.color = new Color(0.5f, 0.5f, 0.5f, 0.8f);
+		if (rarityBorder != null) rarityBorder.color = Color.black;
 
 		levelText.text = "???";
 		progressText.text = "LOCKED";
