@@ -273,8 +273,7 @@ public class InputManager : MonoBehaviour
 				return true;
 
 			case CardManager.CardType.Barricade:
-				// Only on objects tagged "BarricadeSurface"
-				return hit.collider.CompareTag("BarricadeSurface");
+				return !isBuilding;
 
 			default:
 				return !isBuilding;
