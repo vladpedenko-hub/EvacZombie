@@ -23,6 +23,10 @@ public class Zombie : MonoBehaviour
 	[Header("Chaos")]
 	public ChaosSettings chaosSettings;
 
+	[Header("Line of Sight")]
+	[Tooltip("Layers treated as vision-blocking obstacles (e.g. buildings). Leave as Nothing to skip the raycast check and rely on NavMesh path distance alone.")]
+	public LayerMask lineOfSightObstacles = 0;
+
 	[Header("Barricades")]
 	[Tooltip("Radius within which the zombie switches to attacking the barricade instead of walking around it")]
 	public float barricadeCheckRadius = 3.5f;
@@ -68,6 +72,7 @@ public class Zombie : MonoBehaviour
 
 	private Vector3 initialScale;
 	private Collider cachedCollider;
+	private NavMeshPath cachedPath;
 
 	public bool IsDead => isDead;
 
@@ -77,6 +82,7 @@ public class Zombie : MonoBehaviour
 		cachedCollider = GetComponent<Collider>();
 		currentHealth = maxHealth;
 		initialScale = transform.localScale;
+		cachedPath = new NavMeshPath();
 
 		allRenderers = GetComponentsInChildren<Renderer>();
 		propertyBlock = new MaterialPropertyBlock();
@@ -282,9 +288,10 @@ public class Zombie : MonoBehaviour
 				}
 
 				Vector3 targetPos = overrideDestination ?? target.position;
-				float dist = Vector3.Distance(transform.position, targetPos);
+				float dist = GetPathDistance(targetPos);
+				bool hasLOS = HasLineOfSight(targetPos);
 
-				if (dist > attackDistance)
+				if (dist > attackDistance || !hasLOS)
 				{
 					if (agent != null && agent.enabled && agent.isOnNavMesh)
 					{
@@ -431,6 +438,42 @@ public class Zombie : MonoBehaviour
 		return null;
 	}
 
+	/// Real distance to a point, measured along the NavMesh path rather than a straight line.
+	/// A barricade carves a hole in the NavMesh, so the path to its exact center is often
+	/// PathPartial (unreachable) — in that case we fall back to straight-line distance,
+	/// which is what the barricade's existing effectiveRange allowance was tuned against.
+	protected float GetPathDistance(Vector3 targetPos)
+	{
+		if (agent != null && agent.enabled && agent.isOnNavMesh &&
+			agent.CalculatePath(targetPos, cachedPath) &&
+			cachedPath.status == NavMeshPathStatus.PathComplete)
+		{
+			float dist = 0f;
+			Vector3[] corners = cachedPath.corners;
+			for (int i = 1; i < corners.Length; i++)
+			{
+				dist += Vector3.Distance(corners[i - 1], corners[i]);
+			}
+			return dist;
+		}
+
+		return Vector3.Distance(transform.position, targetPos);
+	}
+
+	protected bool HasLineOfSight(Vector3 targetPos)
+	{
+		if (lineOfSightObstacles.value == 0) return true;
+
+		Vector3 origin = transform.position + Vector3.up * 0.5f;
+		Vector3 destination = targetPos + Vector3.up * 0.5f;
+		Vector3 delta = destination - origin;
+		float distance = delta.magnitude;
+
+		if (distance <= 0.01f) return true;
+
+		return !Physics.Raycast(origin, delta / distance, distance, lineOfSightObstacles, QueryTriggerInteraction.Ignore);
+	}
+
 	private bool TryFindNearestBarricade(out Barricade result)
 	{
 		result = null;
@@ -459,7 +502,7 @@ public class Zombie : MonoBehaviour
 
 		if (target != null && !isDead)
 		{
-			float dist = Vector3.Distance(transform.position, target.position);
+			float dist = GetPathDistance(target.position);
 
 			// Barricades carve NavMesh, so the zombie stops slightly past the center —
 			// give extra distance allowance
@@ -468,7 +511,7 @@ public class Zombie : MonoBehaviour
 				? attackDistance + 1.5f
 				: attackDistance + 0.25f;
 
-			if (dist <= effectiveRange)
+			if (dist <= effectiveRange && HasLineOfSight(target.position))
 			{
 				InfectTarget(target.gameObject);
 			}
