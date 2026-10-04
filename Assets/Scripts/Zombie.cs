@@ -556,6 +556,7 @@ public class Zombie : MonoBehaviour
 
 		Vector3 pos = human.transform.position;
 		Quaternion rot = human.transform.rotation;
+		Feedback.Play(FeedbackEvent.ZombieInfect, pos + Vector3.up * 0.5f);
 
 		Human.AllHumans.Remove(human);
 		Destroy(human.gameObject);
@@ -576,6 +577,7 @@ public class Zombie : MonoBehaviour
 
 		Vector3 pos = scientist.transform.position;
 		Quaternion rot = scientist.transform.rotation;
+		Feedback.Play(FeedbackEvent.ZombieInfect, pos + Vector3.up * 0.5f);
 
 		Scientist.AllScientists.Remove(scientist);
 		Destroy(scientist.gameObject);
@@ -660,6 +662,8 @@ public class Zombie : MonoBehaviour
 			return;
 		}
 
+		Feedback.Play(FeedbackEvent.ZombieHit, transform.position + Vector3.up * 0.8f);
+
 		if (hitFlashRoutine != null)
 		{
 			StopCoroutine(hitFlashRoutine);
@@ -714,6 +718,7 @@ public class Zombie : MonoBehaviour
 		if (isDead) return;
 		isDead = true;
 
+		Feedback.Play(FeedbackEvent.ZombieDeath, transform.position + Vector3.up * 0.5f);
 		XPManager.Instance?.OnZombieKilled(false);
 
 		if (brainRoutine != null)

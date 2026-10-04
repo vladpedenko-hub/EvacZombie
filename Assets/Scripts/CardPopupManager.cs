@@ -131,9 +131,11 @@ public class CardPopupManager : MonoBehaviour
 				PlayerProfile.Instance.currentDeck[i] = selectedCard;
 				PlayerProfile.Instance.SaveProfile();
 				deckManager.RefreshUI(); // Refresh deck UI
+				Feedback.Play(FeedbackEvent.UiEquip);
 				return;
 			}
 		}
+		Feedback.Play(FeedbackEvent.UiError);
 		Debug.LogWarning("Deck is full! Remove a card first.");
 	}
 
@@ -146,6 +148,7 @@ public class CardPopupManager : MonoBehaviour
 				PlayerProfile.Instance.currentDeck[i] = null;
 				PlayerProfile.Instance.SaveProfile();
 				deckManager.RefreshUI();
+				Feedback.Play(FeedbackEvent.UiEquip);
 				return;
 			}
 		}

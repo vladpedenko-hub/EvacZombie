@@ -31,6 +31,9 @@ public class UIManager : MonoBehaviour
 	public TextMeshProUGUI centerNightText;
 	public AudioSource nightSound;
 
+	// Feedback: fire the goal sound/haptic only once per level
+	private bool goalFeedbackPlayed;
+
 	private void Awake() => Instance = this;
 
 	private void Start()
@@ -82,6 +85,7 @@ public class UIManager : MonoBehaviour
 
 			if (animate)
 			{
+				Feedback.Play(FeedbackEvent.RescueTick);
 				ingameRescuedText.transform.DOKill(true);
 				ingameRescuedText.transform.DOPunchScale(Vector3.one * 0.2f, 0.3f, 10, 1f);
 			}
@@ -89,11 +93,17 @@ public class UIManager : MonoBehaviour
 			if (rescued >= required)
 			{
 				ingameRescuedText.color = successColor;
+				if (animate && !goalFeedbackPlayed)
+				{
+					goalFeedbackPlayed = true;
+					Feedback.Play(FeedbackEvent.GoalReached);
+				}
 				if (checkmarkIcon != null) checkmarkIcon.SetActive(true);
 			}
 			else
 			{
 				ingameRescuedText.color = defaultColor;
+				goalFeedbackPlayed = false;
 				if (checkmarkIcon != null) checkmarkIcon.SetActive(false);
 			}
 		}
@@ -101,6 +111,8 @@ public class UIManager : MonoBehaviour
 
 	public void SpawnFlyingText(Vector3 worldPosition, int amount)
 	{
+		Feedback.Play(FeedbackEvent.RescueDeparted, worldPosition);
+
 		if (flyingTextPrefab == null || counterTarget == null)
 		{
 			GameManager.Instance.OnFlyingTextReached(amount);
@@ -130,7 +142,8 @@ public class UIManager : MonoBehaviour
 
 	public void ShowNightPopup()
 	{
-		if (nightSound != null) nightSound.Play();
+		if (nightSound != null && AudioManager.SfxAllowed) nightSound.Play();
+		Feedback.Play(FeedbackEvent.NightStart);
 		if (centerNightText != null) StartCoroutine(NightTextRoutine());
 	}
 
@@ -158,6 +171,7 @@ public class UIManager : MonoBehaviour
 
 	public void ShowLosePopup()
 	{
+		Feedback.Play(FeedbackEvent.Lose);
 		if (losePopup != null) losePopup.SetActive(true);
 	}
 
@@ -170,6 +184,8 @@ public class UIManager : MonoBehaviour
 	int earnedStars = 0,
 	int previousBestStars = 0)
 	{
+		Feedback.Play(isPerfect ? FeedbackEvent.PerfectClear : FeedbackEvent.Win);
+
 		if (resultPopup != null)
 		{
 			resultPopup.Show(

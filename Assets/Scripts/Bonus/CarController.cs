@@ -127,6 +127,7 @@ public class CarController : MonoBehaviour
 		agent.Warp(entryWaypoint.position);
 		currentState = CarState.DrivingToTarget;
 		agent.SetDestination(targetPos);
+		Feedback.Play(FeedbackEvent.CarArrive);
 
 		StartCoroutine(CarRoutine());
 	}

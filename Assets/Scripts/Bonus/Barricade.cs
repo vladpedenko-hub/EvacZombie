@@ -153,6 +153,8 @@ public class Barricade : MonoBehaviour, IDamageable
             return;
         }
 
+        Feedback.Play(FeedbackEvent.BarricadeHit, transform.position + Vector3.up * 0.5f);
+
         if (hitFlashRoutine != null) StopCoroutine(hitFlashRoutine);
         hitFlashRoutine = StartCoroutine(HitFlashRoutine());
     }
@@ -163,6 +165,8 @@ public class Barricade : MonoBehaviour, IDamageable
     {
         if (isDead) return;
         isDead = true;
+
+        Feedback.Play(FeedbackEvent.BarricadeBreak, transform.position + Vector3.up * 0.5f);
 
         if (hitFlashRoutine != null)
         {

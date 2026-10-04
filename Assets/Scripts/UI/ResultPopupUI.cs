@@ -127,6 +127,7 @@ public class ResultPopupUI : MonoBehaviour
 					rewardCardName.text = $"Duplicate!\n<color=orange>{rewardCard.cardName}</color>";
 			}
 
+			Feedback.Play(FeedbackEvent.UiReward);
 			StartCoroutine(AnimateRewardPopup());
 		}
 		else if (rewardPanel != null)
@@ -196,6 +197,7 @@ public class ResultPopupUI : MonoBehaviour
 					if (resultStars[starIndex] == null) return;
 					if (filledStarSprite != null)
 						resultStars[starIndex].sprite = filledStarSprite;
+					Feedback.Play(FeedbackEvent.UiStar);
 				});
 
 				starsSequence.Append(resultStars[starIndex].transform.DOScale(1.2f, 0.18f).SetEase(Ease.OutBack));

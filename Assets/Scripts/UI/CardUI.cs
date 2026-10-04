@@ -85,6 +85,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 				if (cooldownFill != null) cooldownFill.fillAmount = 0;
 				if (timerText != null) timerText.text = "";
 				if (cardImage != null) cardImage.color = Color.white;
+				Feedback.Play(FeedbackEvent.CardReady);
 			}
 		}
 	}
@@ -106,6 +107,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		if (cardImage != null) cardImage.color = new Color(1, 1, 1, 0.5f);
 
 		isCurrentlyDragging = true;
+		Feedback.Play(FeedbackEvent.CardPickUp);
 
 		// Pass CARD DATA to INPUT MANAGER!
 		InputManager.Instance.StartDragging(myCardData);
@@ -136,6 +138,11 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		{
 			// EnergyManager.Instance.TrySpendEnergy(cost); ← убрано
 			StartCooldown();
+		}
+		else if (Input.mousePosition.y >= Screen.height * 0.25f)
+		{
+			// Released in the play area but placement was rejected (released in the card tray = plain cancel, stay silent)
+			Feedback.Play(FeedbackEvent.CardPlaceInvalid);
 		}
 	}
 

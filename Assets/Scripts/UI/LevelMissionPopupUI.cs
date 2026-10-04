@@ -138,10 +138,12 @@ public class LevelMissionPopupUI : MonoBehaviour
 		if (PlayerProfile.Instance.TryConsumeEnergy(levelEnergyCost))
 		{
 			PlayerPrefs.SetInt("SelectedLevelToPlay", selectedLevelIndex);
+			Feedback.Play(FeedbackEvent.UiLevelStart);
 			SceneManager.LoadScene("Gameplay");
 		}
 		else
 		{
+			Feedback.Play(FeedbackEvent.UiError);
 			if (energyStorePopup != null)
 				energyStorePopup.Show();
 		}

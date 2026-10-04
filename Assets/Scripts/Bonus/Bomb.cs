@@ -130,6 +130,7 @@ public class Bomb : MonoBehaviour
 			Human human = target.GetComponent<Human>();
 			if (human != null)
 			{
+				Feedback.Play(FeedbackEvent.CivilianLost, human.transform.position + Vector3.up * 0.5f);
 				Destroy(human.gameObject);
 				continue;
 			}
@@ -142,10 +143,13 @@ public class Bomb : MonoBehaviour
 
 			if (target.CompareTag("Soldier") || target.CompareTag("Sniper"))
 			{
+				Feedback.Play(FeedbackEvent.CivilianLost, target.transform.position + Vector3.up * 0.5f);
 				Destroy(target);
 				continue;
 			}
 		}
+
+		Feedback.Play(FeedbackEvent.BombExplosion, targetPos);
 
 		if (explosionPrefab != null)
 		{

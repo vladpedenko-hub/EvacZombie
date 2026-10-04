@@ -138,6 +138,7 @@ public class InputManager : MonoBehaviour
 		{
 			bool placed = ExecuteSniperLogic(cardToPlay);
 			ClearBuildingOutline();
+			if (placed) Feedback.Play(FeedbackEvent.CardPlaceOk);
 
 			if (placed && GameManager.Instance.State == GameManager.GameState.Planning)
 				GameManager.Instance.StartGame();
@@ -168,6 +169,7 @@ public class InputManager : MonoBehaviour
 			}
 
 			ExecuteCardLogic(cardToPlay, hit);
+			Feedback.Play(FeedbackEvent.CardPlaceOk, hit.point);
 			ClearBuildingOutline();
 
 			if (GameManager.Instance.State == GameManager.GameState.Planning)

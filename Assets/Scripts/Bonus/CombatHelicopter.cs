@@ -63,6 +63,7 @@ public class CombatHelicopter : MonoBehaviour
 		targetPos = target;
 		transform.position = targetPos + new Vector3(0, 40f, -30f);
 		currentState = State.FlyingIn;
+		Feedback.Play(FeedbackEvent.HeliArrive);
 		StartCoroutine(HelicopterRoutine());
 	}
 
@@ -119,6 +120,7 @@ public class CombatHelicopter : MonoBehaviour
 			if (targetZombie != null)
 			{
 				targetZombie.TakeDamage(sniperDamage);
+				Feedback.Play(FeedbackEvent.HeliGun, transform.position);
 				shootTimer = 0f;
 				StartCoroutine(DrawTracer(transform.position, targetZombie.transform.position + Vector3.up));
 			}
