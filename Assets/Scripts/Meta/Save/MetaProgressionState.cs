@@ -27,4 +27,23 @@ public class MetaProgressionState
 	public int ClearedLevelMetric => highestClearedLevel;
 
 	public MetaProgressionState Clone() => JsonUtility.FromJson<MetaProgressionState>(JsonUtility.ToJson(this));
+
+	// Back to a fresh save. Currency is not part of this state, so it is not touched here.
+	public void ResetProgress()
+	{
+		CopyFrom(new MetaProgressionState());
+	}
+
+	public void CopyFrom(MetaProgressionState other)
+	{
+		version = other.version;
+		highestClearedLevel = other.highestClearedLevel;
+		clearedLevelIds = new List<string>(other.clearedLevelIds);
+		restoredBuildings = new List<string>(other.restoredBuildings);
+		purchasedNodes = new List<string>(other.purchasedNodes);
+		unlockedCharacters = new List<string>(other.unlockedCharacters);
+		unlockedTrees = new List<string>(other.unlockedTrees);
+		pendingFocusBuildingId = other.pendingFocusBuildingId;
+		metaIntroSeen = other.metaIntroSeen;
+	}
 }

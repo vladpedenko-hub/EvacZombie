@@ -214,6 +214,53 @@ public class MetaService : IMetaRewardSink
 		return true;
 	}
 
+	// --- Debug panel only (dev builds). Not called by gameplay code. ---
+
+	public void DebugSetHighestCleared(int level)
+	{
+		State.highestClearedLevel = Mathf.Max(0, level);
+		OnChanged?.Invoke();
+	}
+
+	// Undoes a restore: the building becomes restorable again, its tree locks, and its purchased nodes are forgotten.
+	// Currency is not refunded and characters/dialogue flags are left as they are.
+	public void DebugResetBuilding(string buildingId)
+	{
+		BuildingDefinition building = content.FindBuilding(buildingId);
+		if (building == null) return;
+
+		State.restoredBuildings.Remove(buildingId);
+		SkillTreeDefinition tree = FindTreeForBuilding(buildingId);
+		if (tree != null)
+		{
+			State.unlockedTrees.Remove(tree.id);
+			foreach (SkillNodeDefinition node in tree.nodes)
+			{
+				if (node != null) State.purchasedNodes.Remove(node.id);
+			}
+		}
+		OnChanged?.Invoke();
+	}
+
+	public void DebugClearFlags()
+	{
+		State.pendingFocusBuildingId = "";
+		State.metaIntroSeen = false;
+		OnChanged?.Invoke();
+	}
+
+	public void DebugResetAll()
+	{
+		State.ResetProgress();
+		OnChanged?.Invoke();
+	}
+
+	public void DebugReplaceState(MetaProgressionState snapshot)
+	{
+		State.CopyFrom(snapshot);
+		OnChanged?.Invoke();
+	}
+
 	// --- Reward sink (called by Reward.Apply) ---
 
 	void IMetaRewardSink.UnlockCharacter(string characterId)

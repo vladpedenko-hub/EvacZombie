@@ -11,7 +11,7 @@ Branch: `feature/meta-city`. Spec: the Meta Layer brief (Base city, stages a–f
 | c | Research overlay in MainMenu, battle hook | Overlay in MainMenu above the tab bar, Android Back closes it. Battle hook done (stage C). Not yet verified in Play (needs a restored Laboratory) |
 | d | Post-level routing (pending focus, intro) | Done. Routes on MainMenu entry, verified in Play |
 | e | Tutorial and dialogue content, tutorial extension | Not started |
-| f | Debug panel | Not started |
+| f | Debug panel | Done. Verified in Play (see verification notes below) |
 
 ## Done in stage (a)
 
@@ -46,6 +46,24 @@ Branch: `feature/meta-city`. Spec: the Meta Layer brief (Base city, stages a–f
 - Android Back (Escape): closes research, then the info sheet. Only while the Base tab is visible.
 - Routing on MainMenu entry, one frame after the tab controller starts: pending focus switches to Base, centers the house, and consumes the pending value. Intro switches to Base once (`metaIntroSeen`).
 - The result popup lives in the Gameplay scene and loads MainMenu on continue, so routing runs after the rewards are done.
+
+## Done in stage (f): debug panel (dev builds only)
+
+- Opened from a DEV button under the settings gear in MainMenu. Compiled out of release builds (`UNITY_EDITOR || DEBUG`).
+- Actions: +100 People, +10 Scientists, simulate clear level 2 / 5, set highest cleared = 0, restore Laboratory (normal rules), fast-forward Laboratory restored, reset Laboratory, clear pending focus and intro flag, reset all meta progress, save snapshot, restore snapshot.
+- Snapshot stores the meta save plus People and Scientists in PlayerPrefs (`MetaDebugSnapshot`). Take one before testing; restore it afterwards.
+- Fixed during testing: the panel stayed subscribed to MetaService.OnChanged after its scene unloaded. A stale handler threw, which stopped the event before the other subscribers ran. The panel now unsubscribes itself.
+
+### Verified in Play (debug panel, real button handlers)
+
+- Restore refused without enough People: the Restore button is disabled with "Need 20 People (5/20)".
+- Restore with enough People: People 105 -> 85, Laboratory Restored, Lab_Tree_01 unlocked, fog deactivates after the fade, sheet switches to "Open Research".
+- Rewards: UnlockSkillTree applied. No character or dialogue reward exists yet (none authored).
+- Research overlay: opened from the sheet, buy enabled at 10 Scientists, first node bought (Scientists 10 -> 9, node state Purchased).
+- Research BACK button: closes the overlay and returns to the Base tab.
+- Routing: simulate clear 2, reload MainMenu -> Base tab, pending focus consumed, intro flag set.
+- Snapshot restore: returned the save to its state from before the test session.
+- Not verified: the Android Back key itself. The CLI cannot inject key presses, so this needs a manual check.
 
 ## Open items
 
