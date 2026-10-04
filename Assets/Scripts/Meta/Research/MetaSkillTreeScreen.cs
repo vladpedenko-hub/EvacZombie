@@ -109,7 +109,16 @@ public class MetaSkillTreeScreen : MonoBehaviour
 		// Start at the bottom, where the first node is.
 		scroll.verticalNormalizedPosition = 0f;
 		Refresh();
+		Opened?.Invoke();
 	}
+
+	// Tutorial targets. Nodes are rebuilt on every Open, so read them after Opened fires.
+	public event System.Action Opened;
+
+	public RectTransform NodeRect(int index) =>
+		index >= 0 && index < bodies.Count ? bodies[index].rectTransform : null;
+
+	public RectTransform BuyRect => buy != null ? (RectTransform)buy.transform : null;
 
 	// Raised on every close (BACK button, Android Back, or code), so the dock and the Base tab can update.
 	public event System.Action Closed;

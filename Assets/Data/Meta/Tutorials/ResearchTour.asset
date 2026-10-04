@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 332aa137affed994d871823fcc60d0d1, type: 3}
+  m_Name: ResearchTour
+  m_EditorClassIdentifier: Assembly-CSharp::TutorialSequence
+  tutorialId: meta_research_tour
+  steps:
+  - stepType: 2
+    targetId: dock_research
+    useDarkMask: 1
+    fingerOffset: {x: 0, y: 0}
+    dropTargetId: 
+    swipeOffset: {x: 0, y: 400}
+    dialogText: This is Research. Tap the R.
+    characterIcon: {fileID: 0}
+    dialogPosition: 0
+    missingTargetTimeout: 8
+    wideDialogText: 1
+  - stepType: 2
+    targetId: research_node_1
+    useDarkMask: 1
+    fingerOffset: {x: 0, y: 0}
+    dropTargetId: 
+    swipeOffset: {x: 0, y: 400}
+    dialogText: Nodes unlock in order. Diamonds are milestones with big bonuses. Start with this one.
+    characterIcon: {fileID: 0}
+    dialogPosition: 0
+    missingTargetTimeout: 8
+    wideDialogText: 1
+  - stepType: 2
+    targetId: research_buy
+    useDarkMask: 1
+    fingerOffset: {x: 0, y: 0}
+    dropTargetId: 
+    swipeOffset: {x: 0, y: 400}
+    dialogText: Buy it.
+    characterIcon: {fileID: 0}
+    dialogPosition: 0
+    missingTargetTimeout: 8
+    wideDialogText: 1
+  - stepType: 0
+    targetId: 
+    useDarkMask: 1
+    fingerOffset: {x: 0, y: 0}
+    dropTargetId: 
+    swipeOffset: {x: 0, y: 400}
+    dialogText: Research is yours now. Scientists buy nodes, and nodes unlock in order. The lab hums.
+    characterIcon: {fileID: 0}
+    dialogPosition: 1
+    missingTargetTimeout: 0
+    wideDialogText: 1
+  allowSkip: 1
+  resumable: 1

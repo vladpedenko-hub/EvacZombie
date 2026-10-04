@@ -176,6 +176,8 @@ public class MetaService : IMetaRewardSink
 
 	public IReadOnlyList<DockShortcutDefinition> DockShortcuts => content.dockShortcuts;
 
+	public TutorialSequence FindSequence(string id) => content.FindSequence(id);
+
 	// Buildings whose conditions were not all met at previousClearedLevel but are met at newClearedLevel.
 	public List<BuildingDefinition> GetNewlyAvailableBuildings(int previousClearedLevel, int newClearedLevel)
 	{

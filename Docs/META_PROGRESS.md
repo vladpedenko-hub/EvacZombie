@@ -10,7 +10,7 @@ Branch: `feature/meta-city`. Spec: the Meta Layer brief (Base city, stages a–f
 | b | BaseView in MainMenu (houses, fog, info sheet, tab badge, top bar) | Done. Verified in Play: tab switch, house tap, sheet above tab bar, badge |
 | c | Research overlay in MainMenu, battle hook | Overlay in MainMenu above the tab bar, Android Back closes it. Battle hook done (stage C). Not yet verified in Play (needs a restored Laboratory) |
 | d | Post-level routing (pending focus, intro) | Done. Routes on MainMenu entry, verified in Play |
-| e | Tutorial and dialogue content, tutorial extension | Not started |
+| e | Tutorial and dialogue content, tutorial extension | Done for the Laboratory chain (dialogue + research tour). Intro steps from the first brief not done (see open items) |
 | f | Debug panel | Done. Verified in Play (see verification notes below) |
 
 ## Done in stage (a)
@@ -86,12 +86,41 @@ Branch: `feature/meta-city`. Spec: the Meta Layer brief (Base city, stages a–f
 - Screenshots on Deck, Map and Base at 16:9 (1280x720): no overlap with cards, nodes, or houses. A corner of the island on Map is touched.
 - Not verified: 9:16 and 9:21 layouts (the CLI captures 16:9 only), and the Android Back key itself.
 
+## Done in stage (E): Laboratory dialogue and research tour
+
+- Extension to TutorialManager (separate commit, all opt-in): Skip, missing-target timeout, release on app pause / scene change, step resume. Details in that commit message.
+- `MetaTutorialDirector` (runtime, MainMenu): starts, resumes, or skips the chain from the save.
+  - `meta_lab_freed`: Mad Scientist dialogue, started by the Laboratory's TriggerDialogueReward. Skippable, resumable.
+  - `meta_research_tour`: dock icon -> first node -> Buy -> closing line. Skippable, resumable, every target step has an 8 s timeout.
+  - Players who already bought a node skip the tour. A tour step that points into research resumes at the dock step if the overlay is closed.
+- The dock hides during blocking steps and stays up when the step targets the icon.
+- Research overlay and dock moved to sort 90, under the tutorial canvas (100), so tutorial masks cover them.
+- Buy step is skipped when the first node is not affordable (the Buy button is disabled, and its tap would never advance).
+- Wide dialog text for meta steps (the original text box is 200 px and wraps badly).
+- Debug panel: "Reset meta tutorials" action.
+
+### Verified in Play
+
+- Freed dialogue starts on the Laboratory restore.
+- Pause mid-dialogue: screen released, dock back, step saved (1). Relaunch resumes at step 1.
+- Freed dialogue finished -> tour starts at the dock step.
+- Full tour with Scientists: dock -> node -> Buy -> closing. Node bought (Scientists 10 -> 9), tour done.
+- Tour with no Scientists: Buy step skipped automatically, tour completes.
+- Back during the node step: screen released, dock back, step saved (1). Relaunch resumes at the dock step.
+- Missing target (inactive): step advances after 8 s ("Target missing for 8s; skipping step.").
+- Pause during the closing step: saved (3). Relaunch resumes at step 3.
+- Skip on the freed dialogue: done, tour starts. Skip on the tour: done, screen released.
+- Not verified: a real OS backgrounding (simulated with OnApplicationPause), real Android Back, and battle tutorials in a real battle (defaults are guarded by EditMode tests only).
+
 ## Open items
 
 - `MetaCity.unity` is still in Build Settings and references deleted scripts. Remove it with the owner's confirmation.
 - Swipe across the city pans the city; it does not change tabs. Tab buttons work.
 - Research overlay sits under the bottom tab bar; fix in stage (c).
 - `TutorialManager` soft-lock risk: if a step's target never appears, the blocker stays up. The fix (skip, timeout, abandon on pause) belongs in stage (e).
+- Intro steps from the first brief (radio dialogue after level 1, highlight house 1) are not implemented. Ask before building them.
+- No character unlock: Lab rewards are the tree and the dialogue only. The Mad Scientist CharacterDefinition does not exist yet.
+- Existing bug, not part of this work: PlayerProfile.Update throws ArgumentOutOfRangeException at PlayerProfile.cs:71 (AddSeconds on the energy timestamp). It appears in the console while energy is below max.
 - `CurrencyService.Add` accepts `sourceType` and `sourceId` but does not store them yet. Analytics hookup is later.
 
 ## To test in editor (stage a)

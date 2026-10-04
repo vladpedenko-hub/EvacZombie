@@ -21,6 +21,8 @@ MonoBehaviour:
   skillTrees:
   - {fileID: 11400000, guid: 394d07a55ba0fd440bdb8aacafbd6868, type: 2}
   characters: []
-  sequences: []
+  sequences:
+  - {fileID: 11400000, guid: ec4fac1d61875924ca558e93ba570280, type: 2}
+  - {fileID: 11400000, guid: 5b2edde9b1c562e4799fcfa081102b92, type: 2}
   dockShortcuts:
   - {fileID: 11400000, guid: 4d4228ec12fa14142a304460ae1e700f, type: 2}

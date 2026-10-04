@@ -74,12 +74,13 @@ public class MetaDebugPanel
 			("Reset Laboratory (undo restore)", () => Service?.DebugResetBuilding("lab")),
 			("Clear pending focus + intro flag", () => Service?.DebugClearFlags()),
 			("Reset ALL meta progress", () => Service?.DebugResetAll()),
+			("Reset meta tutorials (dialogue + tour)", ResetMetaTutorials),
 			("Save snapshot", SaveSnapshot),
 			("Restore snapshot", RestoreSnapshot),
 		};
 
-		const float rowHeight = 0.044f;
-		float top = 0.58f;
+		const float rowHeight = 0.04f;
+		float top = 0.6f;
 		for (int i = 0; i < actions.Length; i++)
 		{
 			Action run = actions[i].run;
@@ -173,6 +174,14 @@ public class MetaDebugPanel
 		int shortfall = lab.restorationCostPeople - MetaRuntime.Currency.Get(CurrencyType.People);
 		if (shortfall > 0) MetaRuntime.Currency.Add(CurrencyType.People, shortfall, CurrencySourceType.Debug);
 		Log("Fast-forward Laboratory", service.TryRestoreBuilding("lab"));
+	}
+
+	// Forgets both meta tutorials. Reopen the MainMenu (or restore the Laboratory) to run them again.
+	private static void ResetMetaTutorials()
+	{
+		TutorialProgress.Reset(MetaTutorialDirector.LabFreedId);
+		TutorialProgress.Reset(MetaTutorialDirector.ResearchTourId);
+		Debug.Log("[MetaDebug] Meta tutorials reset.");
 	}
 
 	private static void SaveSnapshot()

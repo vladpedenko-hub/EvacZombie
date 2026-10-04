@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Laboratory
   description: The Mad Scientist lab. He is trapped nearby, talking over the radio.
   cityPosition: {x: -600, y: 400}
+  cityLayoutSize: {x: 300, y: 300}
   fogRadius: 260
   ruinedVisual: {fileID: 0}
   restoredVisual: {fileID: 0}
@@ -25,3 +26,4 @@ MonoBehaviour:
   restorationCostPeople: 20
   rewardsOnRestore:
   - {fileID: 11400000, guid: 8044228930da677478d029a3c759284d, type: 2}
+  - {fileID: 11400000, guid: 190f1ed4f34fd0c4e973c60bc45f28ed, type: 2}

@@ -88,13 +88,18 @@ public class SideDock : MonoBehaviour
 	private void OnDisable() => Unsubscribe();
 
 	// Both sources go through here, so a disabled dock never keeps a handler alive on a shared object.
+	// Tutorial target that keeps the dock visible while a tutorial is running (the icon is the highlight).
+	public const string TutorialTargetId = "dock_research";
+
 	// Currency is listened to too: a Scientists change can make a node purchasable without any meta change.
+	// The tutorial's step events are static, so they are also removed on disable.
 	private void Subscribe()
 	{
 		if (subscribed || service == null) return;
 		service.OnChanged += Refresh;
 		if (MetaRuntime.Currency != null) MetaRuntime.Currency.OnChanged += OnCurrencyChanged;
 		if (view != null) view.ResearchStateChanged += Refresh;
+		TutorialManager.OnStepChanged += Refresh;
 		subscribed = true;
 	}
 
@@ -104,7 +109,15 @@ public class SideDock : MonoBehaviour
 		service.OnChanged -= Refresh;
 		if (MetaRuntime.Currency != null) MetaRuntime.Currency.OnChanged -= OnCurrencyChanged;
 		if (view != null) view.ResearchStateChanged -= Refresh;
+		TutorialManager.OnStepChanged -= Refresh;
 		subscribed = false;
+	}
+
+	// Hidden during a blocking tutorial step (dialogue or any step that is not pointing at the icon).
+	private static bool TutorialBlocksDock()
+	{
+		TutorialManager tutorial = TutorialManager.Instance;
+		return tutorial != null && tutorial.IsActive && tutorial.CurrentTargetId != TutorialTargetId;
 	}
 
 	private void OnCurrencyChanged(CurrencyType type, int value) => Refresh();
@@ -115,9 +128,10 @@ public class SideDock : MonoBehaviour
 		if (service == null) return;
 
 		bool overlayOpen = view != null && view.IsResearchOpen;
+		bool blocked = TutorialBlocksDock();
 		foreach (Entry entry in entries)
 		{
-			bool shown = !overlayOpen && IsVisible(entry.definition);
+			bool shown = !overlayOpen && !blocked && IsVisible(entry.definition);
 			if (entry.root.activeSelf != shown) entry.root.SetActive(shown);
 			entry.badge.SetActive(shown && HasBadge(entry.definition));
 		}

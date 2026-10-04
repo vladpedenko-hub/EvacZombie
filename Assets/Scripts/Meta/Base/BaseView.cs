@@ -26,6 +26,10 @@ public class BaseView : MonoBehaviour
 	public event System.Action ResearchStateChanged;
 	public bool IsResearchOpen => research != null && research.IsOpen;
 
+	// Tutorial targets inside the research overlay (null while the overlay has not been built).
+	public RectTransform ResearchNodeRect(int index) => research != null ? research.NodeRect(index) : null;
+	public RectTransform ResearchBuyRect => research != null ? research.BuyRect : null;
+
 	private MetaService service;
 	private RectTransform content;
 	private ScrollRect scroll;
@@ -196,7 +200,7 @@ public class BaseView : MonoBehaviour
 
 		// Research lives on its own overlay canvas, so it opens from any tab (the side dock).
 		// Its bottom inset keeps the tab bar visible.
-		Canvas researchCanvas = MetaUI.CreateOverlayCanvas("[MetaResearch]", 2000);
+		Canvas researchCanvas = MetaUI.CreateOverlayCanvas("[MetaResearch]", 90); // under the tutorial canvas (100), so tutorial masks cover it
 		research = gameObject.AddComponent<MetaSkillTreeScreen>();
 		research.Build(researchCanvas.transform, service, MetaRuntime.Modifiers, tabBarHeight);
 		research.Closed += () => ResearchStateChanged?.Invoke();
