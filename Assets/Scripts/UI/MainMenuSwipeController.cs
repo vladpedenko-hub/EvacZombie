@@ -26,6 +26,11 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 	[SerializeField] private float verticalDominance = 1.5f; // vertical must exceed X times horizontal to count as vertical
 
 	private int currentTab = 1;               // 0 = Deck, 1 = Map, 2 = Meta
+
+	// Raised whenever the tab settles on a new position (drag end, button, or programmatic).
+	public event System.Action<int> OnTabChanged;
+	public int CurrentTab => currentTab;
+
 	private RectTransform rectTransform;
 	private RectTransform parentRect;
 	private RectTransform[] tabs;
@@ -187,6 +192,7 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 			rectTransform.DOAnchorPosX(targetX, snapDuration).SetEase(Ease.OutBack, 0.6f);
 
 		UpdateButtonsUI();
+		OnTabChanged?.Invoke(currentTab);
 	}
 
 	private void UpdateButtonsUI()

@@ -22,12 +22,13 @@ public class MetaBuildingPanel : MonoBehaviour
 
 	public bool IsOpen => root != null && root.activeSelf;
 
-	public void Build(Transform parent, MetaService metaService)
+	// bottomInset keeps the sheet above the tab bar when it sits on the Base tab.
+	public void Build(Transform parent, MetaService metaService, float bottomInset = 0f)
 	{
 		service = metaService;
 
 		RectTransform panel = MetaUI.Rect("BuildingPanel", parent,
-			new Vector2(0f, 0f), new Vector2(1f, 0.42f), new Vector2(24f, 24f), new Vector2(-24f, 0f));
+			new Vector2(0f, 0f), new Vector2(1f, 0.42f), new Vector2(24f, 24f + bottomInset), new Vector2(-24f, 0f));
 		root = panel.gameObject;
 		MetaUI.ImageBox("Background", panel, MetaUI.Panel, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 

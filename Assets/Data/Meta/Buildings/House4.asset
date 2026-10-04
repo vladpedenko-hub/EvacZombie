@@ -15,8 +15,8 @@ MonoBehaviour:
   id: house_04
   displayName: House 4
   description: A small clinic. Placeholder unlock level.
-  worldPosition: {x: 6, y: -6}
-  zoneRadius: 6
+  cityPosition: {x: 600, y: -600}
+  fogRadius: 260
   ruinedVisual: {fileID: 0}
   restoredVisual: {fileID: 0}
   conditions:

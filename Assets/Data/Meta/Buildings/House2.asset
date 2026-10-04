@@ -15,8 +15,8 @@ MonoBehaviour:
   id: house_02
   displayName: House 2
   description: A two-storey house on the east side of the block.
-  worldPosition: {x: 6, y: 4}
-  zoneRadius: 6
+  cityPosition: {x: 600, y: 400}
+  fogRadius: 260
   ruinedVisual: {fileID: 0}
   restoredVisual: {fileID: 0}
   conditions:

@@ -7,7 +7,7 @@ Branch: `feature/meta-city`. Spec: the Meta Layer brief (Base city, stages a–f
 | Stage | Scope | Status |
 |---|---|---|
 | a | Data, save, currency, services | Done (commit A + stage-a follow-up) |
-| b | BaseView in MainMenu (houses, fog, info sheet, tab badge, top bar) | Not started. Blocked: `MainMenu.unity` has uncommitted edits |
+| b | BaseView in MainMenu (houses, fog, info sheet, tab badge, top bar) | Done. Verified in Play: tab switch, house tap, sheet above tab bar, badge |
 | c | Research overlay in MainMenu, battle hook | Tree screen exists as a scene-bound screen; port pending. Battle hook done |
 | d | Post-level routing (pending focus, intro) | Data done (`ConsumePendingFocus`, `MarkMetaIntroSeen`). Routing pending |
 | e | Tutorial and dialogue content, tutorial extension | Not started |
@@ -29,10 +29,22 @@ Branch: `feature/meta-city`. Spec: the Meta Layer brief (Base city, stages a–f
 - **Dialogues** are `TutorialSequence` assets with dialog-only steps, looked up by id in `MetaContentDatabase.sequences`. Completion persists through the existing `TUTORIAL_DONE_<id>` keys.
 - **Save:** PlayerPrefs JSON under key `MetaProgression`. New fields are defaulted, so no migration is needed for version 1.
 
+## Done in stage (b)
+
+- `Assets/Prefabs/Meta/BaseView.prefab`: one instance in MainMenu under `MetaPanel`. Scene references set on the instance.
+- uGUI city: ScrollRect (clamped, no zoom), viewport stops above the tab bar, houses from data.
+- `BaseHouseView`: ruined and restored primitives, locked dim + LOCKED tag, available pulse + !, fog that fades on live restore.
+- Info sheet (`MetaBuildingPanel`) sits above the tab bar (bottom inset 224 canvas px).
+- Badge ! on the Base tab button when `HasAttentionItems()`.
+- Animations pause while the Base tab is hidden (`MainMenuSwipeController.OnTabChanged`).
+- Deleted the 3D city scripts and `SafeAreaFitter`. `MetaCity.unity` is still present and is now broken (missing scripts). Delete it after confirmation.
+- Building data moved to canvas pixels: `cityPosition`, `cityLayoutSize`, `fogRadius`.
+
 ## Open items
 
-- `MainMenu.unity` and the SDF fallback font asset have uncommitted edits from before this work. Stage (b) waits until they are committed or stashed.
-- `MetaCity.unity` is still in Build Settings. It gets removed after stage (b) is verified, with the owner's confirmation.
+- `MetaCity.unity` is still in Build Settings and references deleted scripts. Remove it with the owner's confirmation.
+- Swipe across the city pans the city; it does not change tabs. Tab buttons work.
+- Research overlay sits under the bottom tab bar; fix in stage (c).
 - `TutorialManager` soft-lock risk: if a step's target never appears, the blocker stays up. The fix (skip, timeout, abandon on pause) belongs in stage (e).
 - `CurrencyService.Add` accepts `sourceType` and `sourceId` but does not store them yet. Analytics hookup is later.
 

@@ -15,8 +15,8 @@ MonoBehaviour:
   id: house_05
   displayName: House 5
   description: A school at the edge of the city. Placeholder unlock level.
-  worldPosition: {x: 0, y: -14}
-  zoneRadius: 6
+  cityPosition: {x: 0, y: -1400}
+  fogRadius: 260
   ruinedVisual: {fileID: 0}
   restoredVisual: {fileID: 0}
   conditions:
