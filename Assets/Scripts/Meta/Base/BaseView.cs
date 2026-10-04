@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -23,6 +24,7 @@ public class BaseView : MonoBehaviour
 
 	private MetaService service;
 	private RectTransform content;
+	private ScrollRect scroll;
 	private readonly Dictionary<string, BaseHouseView> houses = new Dictionary<string, BaseHouseView>();
 	private MetaBuildingPanel panel;
 	private MetaSkillTreeScreen research;
@@ -49,6 +51,41 @@ public class BaseView : MonoBehaviour
 		Subscribe();
 		SetVisible(tabs != null && tabs.CurrentTab == baseTabIndex);
 		Refresh();
+
+		StartCoroutine(RouteOnEntry());
+	}
+
+	// MainMenu opens after the result popup is done, so this is the right moment to route.
+	// One frame of delay lets MainMenuSwipeController.Start place the tabs first.
+	private IEnumerator RouteOnEntry()
+	{
+		yield return null;
+		if (tabs == null) yield break;
+
+		string focusId = service.ConsumePendingFocus();
+		bool introDue = !service.State.metaIntroSeen && service.State.highestClearedLevel >= 1;
+		if (focusId == null && !introDue) yield break;
+
+		if (introDue) service.MarkMetaIntroSeen();
+		tabs.GoToTabFromButton(baseTabIndex);
+		if (focusId != null) FocusHouse(focusId);
+	}
+
+	// Scrolls the city so the house is centered. Houses that need attention already pulse.
+	private void FocusHouse(string buildingId)
+	{
+		if (!houses.TryGetValue(buildingId, out BaseHouseView house) || scroll == null) return;
+
+		content.anchoredPosition = -house.Rect.anchoredPosition;
+	}
+
+	// Android Back: close the topmost overlay first. With nothing open, the key is left for the app.
+	private void Update()
+	{
+		if (!visible || !Input.GetKeyDown(KeyCode.Escape)) return;
+
+		if (research != null && research.IsOpen) research.Close();
+		else if (panel != null && panel.IsOpen) panel.Hide();
 	}
 
 	private void OnEnable()
@@ -118,7 +155,7 @@ public class BaseView : MonoBehaviour
 			Vector2.zero, Vector2.zero);
 
 		// Drag-pan only. Clamped movement stops at the content edge, so there is no overshoot.
-		var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+		scroll = viewport.gameObject.AddComponent<ScrollRect>();
 		scroll.viewport = viewport;
 		scroll.content = content;
 		scroll.horizontal = true;
@@ -143,7 +180,7 @@ public class BaseView : MonoBehaviour
 
 		// Research is the top overlay, so it is built last.
 		research = gameObject.AddComponent<MetaSkillTreeScreen>();
-		research.Build(self, service, MetaRuntime.Modifiers);
+		research.Build(self, service, MetaRuntime.Modifiers, tabBarHeight);
 
 		BuildBadge();
 	}

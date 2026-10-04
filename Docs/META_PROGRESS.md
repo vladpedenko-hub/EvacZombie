@@ -8,8 +8,8 @@ Branch: `feature/meta-city`. Spec: the Meta Layer brief (Base city, stages a–f
 |---|---|---|
 | a | Data, save, currency, services | Done (commit A + stage-a follow-up) |
 | b | BaseView in MainMenu (houses, fog, info sheet, tab badge, top bar) | Done. Verified in Play: tab switch, house tap, sheet above tab bar, badge |
-| c | Research overlay in MainMenu, battle hook | Tree screen exists as a scene-bound screen; port pending. Battle hook done |
-| d | Post-level routing (pending focus, intro) | Data done (`ConsumePendingFocus`, `MarkMetaIntroSeen`). Routing pending |
+| c | Research overlay in MainMenu, battle hook | Overlay in MainMenu above the tab bar, Android Back closes it. Battle hook done (stage C). Not yet verified in Play (needs a restored Laboratory) |
+| d | Post-level routing (pending focus, intro) | Done. Routes on MainMenu entry, verified in Play |
 | e | Tutorial and dialogue content, tutorial extension | Not started |
 | f | Debug panel | Not started |
 
@@ -39,6 +39,13 @@ Branch: `feature/meta-city`. Spec: the Meta Layer brief (Base city, stages a–f
 - Animations pause while the Base tab is hidden (`MainMenuSwipeController.OnTabChanged`).
 - Deleted the 3D city scripts and `SafeAreaFitter`. `MetaCity.unity` is still present and is now broken (missing scripts). Delete it after confirmation.
 - Building data moved to canvas pixels: `cityPosition`, `cityLayoutSize`, `fogRadius`.
+
+## Done in stages (c) and (d)
+
+- Research overlay parented under BaseView, bottom inset above the tab bar.
+- Android Back (Escape): closes research, then the info sheet. Only while the Base tab is visible.
+- Routing on MainMenu entry, one frame after the tab controller starts: pending focus switches to Base, centers the house, and consumes the pending value. Intro switches to Base once (`metaIntroSeen`).
+- The result popup lives in the Gameplay scene and loads MainMenu on continue, so routing runs after the rewards are done.
 
 ## Open items
 

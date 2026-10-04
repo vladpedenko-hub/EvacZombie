@@ -42,12 +42,14 @@ public class MetaSkillTreeScreen : MonoBehaviour
 
 	public bool IsOpen => root != null && root.activeSelf;
 
-	public void Build(Transform parent, MetaService metaService, MetaModifiers metaModifiers)
+	// bottomInset keeps the overlay above the tab bar, so the bar stays usable while research is open.
+	public void Build(Transform parent, MetaService metaService, MetaModifiers metaModifiers, float bottomInset = 0f)
 	{
 		service = metaService;
 		modifiers = metaModifiers;
 
-		RectTransform screen = MetaUI.Rect("ResearchScreen", parent, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+		RectTransform screen = MetaUI.Rect("ResearchScreen", parent, Vector2.zero, Vector2.one,
+			new Vector2(0f, bottomInset), Vector2.zero);
 		root = screen.gameObject;
 		MetaUI.ImageBox("Background", screen, new Color(0.07f, 0.08f, 0.1f), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
