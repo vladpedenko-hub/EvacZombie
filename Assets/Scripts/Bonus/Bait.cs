@@ -200,7 +200,7 @@ public class Bait : MonoBehaviour
 		for (int i = 0; i < count; i++)
 		{
 			AudioClip clip = pingClips[Random.Range(0, pingClips.Length)];
-			if (clip != null)
+			if (clip != null && AudioManager.SfxAllowed)
 				audioSource.PlayOneShot(clip, pingVolume);
 
 			if (i < count - 1)

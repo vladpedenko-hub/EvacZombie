@@ -152,6 +152,7 @@ public class HelicopterController : MonoBehaviour
 	private void StartLoading()
 	{
 		currentState = HeliState.Loading;
+		Feedback.Play(FeedbackEvent.HeliArrive, transform.position);
 		if (landingMarker) Destroy(landingMarker);
 		if (loadText != null) loadText.gameObject.SetActive(true);
 
@@ -363,6 +364,7 @@ public class HelicopterController : MonoBehaviour
 		}
 
 		currentState = HeliState.TakingOff;
+		Feedback.Play(FeedbackEvent.HeliTakeoff, transform.position);
 
 		if (loadedHumanCount > 0 || loadedScientistCount > 0)
 		{

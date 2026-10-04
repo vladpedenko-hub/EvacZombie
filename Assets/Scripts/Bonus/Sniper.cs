@@ -171,6 +171,7 @@ public class Sniper : MonoBehaviour
 					laserLine.startColor = Color.yellow;
 					laserLine.endColor = new Color(1f, 0.5f, 0f);
 
+					Feedback.Play(FeedbackEvent.SniperShot, transform.position + Vector3.up * muzzleHeight);
 					ApplyPiercingDamage(target);
 
 					// Triple target upgrade

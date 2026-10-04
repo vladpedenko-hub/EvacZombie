@@ -319,6 +319,8 @@ public class LevelManager : MonoBehaviour
 				}
 			}
 		}
+
+		Feedback.Play(FeedbackEvent.WaveWarning);
 	}
 
 	private IEnumerator ExecuteWave(TrackedWave waveTracker)

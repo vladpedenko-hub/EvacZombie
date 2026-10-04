@@ -121,11 +121,12 @@ public class AbilityButtonUI : MonoBehaviour
             }
         }
 
-        Handheld.Vibrate();
+        Feedback.Play(FeedbackEvent.AbilityReady);
     }
 
     private void HandleAbilityActivated()
     {
+        Feedback.Play(FeedbackEvent.AbilityActivate);
         button.interactable = false;
         fillImage.fillOrigin = 1;
         fillImage.fillAmount = 1f;

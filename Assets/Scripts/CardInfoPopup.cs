@@ -155,6 +155,7 @@ public class CardInfoPopup : MonoBehaviour
 		currentProgress.collectedShards -= shardsToSpend;
 		currentProgress.currentLevel++;
 
+		Feedback.Play(FeedbackEvent.UiUpgrade);
 		PlayerProfile.Instance.SaveProfile();
 		Show(currentData, currentProgress);
 		if (deckManager != null) deckManager.RefreshUI();

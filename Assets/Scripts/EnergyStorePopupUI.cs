@@ -84,6 +84,7 @@ public class EnergyStorePopupUI : MonoBehaviour
 			// TODO: Analytics event for hard currency spend
 			// AnalyticsManager.LogResourceSink("scientists", hardCurrencyCost, "buy_energy");
 
+			Feedback.Play(FeedbackEvent.UiReward);
 			RefreshUI();
 
 			// If energy is now sufficient to play (or full) — auto-close the popup
@@ -112,6 +113,7 @@ public class EnergyStorePopupUI : MonoBehaviour
 	public void GrantAdReward()
 	{
 		PlayerProfile.Instance.AddEnergy(energyPerAd);
+		Feedback.Play(FeedbackEvent.UiReward);
 
 		// TODO: Analytics event for ad view
 		// AnalyticsManager.LogEvent("rv_energy_watched");

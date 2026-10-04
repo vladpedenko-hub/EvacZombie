@@ -411,6 +411,7 @@ public class MapController : MonoBehaviour
 		if (currentVisualMap != null)
 		{
 			if (confettiFX != null) confettiFX.Play();
+			Feedback.Play(FeedbackEvent.UiReward);
 
 			foreach (var sector in currentVisualMap.sectors)
 			{
@@ -525,6 +526,7 @@ public class MapController : MonoBehaviour
 
 		PlayerProfile.Instance.MarkRegionRewardClaimed(regionIdx, rewardIndex);
 		PlayerProfile.Instance.SaveProfile();
+		Feedback.Play(FeedbackEvent.UiReward);
 		UpdateRegionProgress(regionIdx, false, true);
 
 		if (rewardIndex < rewardMilestones.Length && rewardMilestones[rewardIndex] != null)

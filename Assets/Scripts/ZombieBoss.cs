@@ -76,6 +76,7 @@ public class ZombieBoss : Zombie
 			yield return new WaitForSeconds(rageInterval);
 
 			isRaging = true;
+			Feedback.Play(FeedbackEvent.BossRage);
 			Debug.Log("[Boss] ENTERING RAGE");
 
 			BreakBuildingsAround();

@@ -159,6 +159,7 @@ public class Soldier : MonoBehaviour
 
 		Vector3 shootOrigin = GetShootOrigin();
 		Vector3 targetPoint = GetAimPoint(target);
+		Feedback.Play(FeedbackEvent.SoldierShot, shootOrigin);
 
 		if (!TryResolveShot(target, shootOrigin, targetPoint, out Zombie hitZombie, out Vector3 hitPoint))
 		{
