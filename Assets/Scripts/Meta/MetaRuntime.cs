@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // Composition root for the meta layer. Static because PlayerProfile is a DontDestroyOnLoad singleton
-// and GameManager, ResultPopupUI and MetaCity all need the same instances.
+// and GameManager, ResultPopupUI and BaseView all need the same instances.
 public static class MetaRuntime
 {
 	private const string ContentResourcePath = "Meta/MetaContentDatabase";
