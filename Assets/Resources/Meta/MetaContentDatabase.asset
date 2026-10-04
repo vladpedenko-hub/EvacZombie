@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39f7dd8e8d866dd4c9fa0bb39d857369, type: 3}
+  m_Name: MetaContentDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::MetaContentDatabase
+  buildings:
+  - {fileID: 11400000, guid: aab0e92ac26eb8841bef9f138bc87818, type: 2}
+  - {fileID: 11400000, guid: f14afef99269b5348a9a341e2480ccbd, type: 2}
+  - {fileID: 11400000, guid: af00b6b520d3a8945a547f9fc0843d14, type: 2}
+  - {fileID: 11400000, guid: c01cb5093cce67f449da9b037ecd5190, type: 2}
+  - {fileID: 11400000, guid: b457e9a98694a274fbc8152365e6bc51, type: 2}
+  skillTrees: []
+  characters: []
+  sequences: []

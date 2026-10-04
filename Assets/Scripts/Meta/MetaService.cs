@@ -29,12 +29,18 @@ public class MetaService : IMetaRewardSink
 
 	public MetaProgressionState State { get; }
 
+	public IReadOnlyList<BuildingDefinition> Buildings => content.buildings;
+
 	public MetaService(MetaContentDatabase content, CurrencyService currency, MetaProgressionState state)
 	{
 		this.content = content;
 		this.currency = currency;
 		State = state;
 	}
+
+	// The tree a building owns (by owningBuildingId), or null if it has none.
+	public SkillTreeDefinition FindTreeForBuilding(string buildingId) =>
+		content.skillTrees.Find(t => t != null && t.owningBuildingId == buildingId);
 
 	// --- Buildings ---
 

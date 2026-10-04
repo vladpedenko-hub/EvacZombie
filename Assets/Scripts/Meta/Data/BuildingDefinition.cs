@@ -17,6 +17,8 @@ public class BuildingDefinition : ScriptableObject
 	[Header("Visuals (optional; primitives are used when empty)")]
 	public GameObject ruinedVisual;
 	public GameObject restoredVisual;
+	[Tooltip("Roof color of the primitive restored house.")]
+	public Color roofColor = new Color(0.8f, 0.25f, 0.2f);
 
 	[Header("Unlock")]
 	[Tooltip("All conditions must be met for the building to become available.")]
