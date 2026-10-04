@@ -93,7 +93,7 @@ public class MetaTutorialDirector : MonoBehaviour
 
 		if (!TutorialProgress.IsDone(LabFreedId))
 		{
-			Start(LabFreedId);
+			StartSequence(LabFreedId);
 			return;
 		}
 
@@ -105,11 +105,11 @@ public class MetaTutorialDirector : MonoBehaviour
 			int saved = TutorialProgress.GetStep(ResearchTourId);
 			bool needsResearch = tour != null && saved < tour.steps.Count && IsResearchStep(tour.steps[saved].targetId);
 			if (needsResearch && !(view != null && view.IsResearchOpen)) TutorialProgress.SetStep(ResearchTourId, 0);
-			Start(ResearchTourId);
+			StartSequence(ResearchTourId);
 		}
 	}
 
-	private void Start(string id)
+	private void StartSequence(string id)
 	{
 		TutorialSequence sequence = service.FindSequence(id);
 		if (sequence == null)

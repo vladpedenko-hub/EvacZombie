@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 // Where balances physically live. Implemented by PlayerProfileCurrencyStore in the game.
 public interface ICurrencyStore
@@ -48,6 +49,11 @@ public class CurrencyService
 		SetAndNotify(type, current - amount);
 		return true;
 	}
+
+#if UNITY_EDITOR || DEBUG
+	// Cheats and snapshot restore only. Still emits OnChanged, so the UI refreshes.
+	public void DebugSetBalance(CurrencyType type, int value) => SetAndNotify(type, Mathf.Max(0, value));
+#endif
 
 	private void SetAndNotify(CurrencyType type, int value)
 	{

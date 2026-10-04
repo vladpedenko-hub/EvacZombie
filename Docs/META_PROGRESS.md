@@ -112,6 +112,38 @@ Branch: `feature/meta-city`. Spec: the Meta Layer brief (Base city, stages a–f
 - Skip on the freed dialogue: done, tour starts. Skip on the tour: done, screen released.
 - Not verified: a real OS backgrounding (simulated with OnApplicationPause), real Android Back, and battle tutorials in a real battle (defaults are guarded by EditMode tests only).
 
+## Cheat system (merged into one)
+
+- **One manager:** `Assets/Scripts/CheatManager.cs` on the `Cheats` object in MainMenu and Gameplay (unchanged scene objects). Persistent singleton. The pre-existing class was the base: it already ran in both scenes, held the battle cheats, and needed no runtime canvas. The debug panel (uGUI, its own injector and canvas, menu only) is deleted.
+- **Access:** hidden until revealed. Tap the top-right corner 5 times, at most 1.5 s apart (the counter resets after a 1.5 s pause). A Dev button appears under the settings gear, and it opens the full list. Raw input only, so the corner does not block the gear or any other UI.
+- **Release:** the whole body is compiled out unless `UNITY_EDITOR` or `DEBUG` (development builds) is defined. MetaService debug methods and `CurrencyService.DebugSetBalance` use the same guard.
+- **Rule:** meta cheats change state only through MetaService and CurrencyService, so events fire and the UI refreshes.
+
+Final list:
+
+- **General:** Unlock All (F1), +100 Shards + Cash + Energy (F8), +100 People (F6, menu), +100 Scientists (F9), RESET ALL (F7: meta state and meta tutorials too).
+- **Battle** (only in a level): Spawn Human (F2), Spawn Zombie (F3), Fill Energy (F4), Win Level (F5), Rescue +10 humans (F6).
+- **Meta:** status readout, +100 People, +10 Scientists, Simulate clear level 2 / 5, Set highest cleared = 0 / 2 / 5 / 10, per building Restore (normal rules) and Reset, Fast-forward: Laboratory restored (raises the level from the building's own conditions, then pays the cost), Clear pending focus + intro flag, Reset ALL meta progress, Save / Restore meta snapshot.
+- **Tutorial:** status, Reset meta tutorials (dialogue + tour), Clear dialogue-seen flags (every all-DialogOnly sequence), Skip active tutorial, Abandon active tutorial, Reload MainMenu.
+
+Removed: `MetaDebugPanel`, `MetaDebugInjector`, `Assets/Scripts/Meta/Dev/`. Also fixed: `MetaTutorialDirector.Start(string)` clashed with Unity's `Start` message ("Start() can not take parameters"); renamed to `StartSequence`.
+
+### Verified in Play
+
+- Hidden at start (`isDevMenuUnlocked` false). Four corner taps leave the count at 4. An off-corner tap is ignored. After 2.5 s the count is 0. Five quick corner taps unlock it.
+- Dev list renders (screenshot). Every menu cheat runs through its method, and the top People / Scientists counters match the balances right after each one.
+- Fast-forward raises the level, restores the Laboratory, and unlocks the tree (dock icon appears). Reset building removes it again.
+- Tutorial resets, dialogue-seen clear, flag clear, snapshot save and restore all work.
+- Battle, in Gameplay: F6 rescue adds 10 (pending humans 0 -> 10). F4 fill energy sets energy to 100.
+- Fresh MainMenu session after clearing the console: zero errors. The director error is gone.
+
+### Not verified
+
+- **Real touch input:** the 5-tap and the list buttons were driven through their methods, since the CLI cannot send taps. Please tap the corner five times and check that the settings gear still opens on a single tap.
+- **Spawn Human / Zombie:** the Gameplay scene has no baked NavMesh in Play, so spawn finds no point. This is a scene condition, and `SpawnAtTap` is unchanged. Test it on a real level.
+- **Win Level:** loading Gameplay directly throws `NullReferenceException` in `LevelManager.Start` (line 61), because no level is selected. That is pre-existing. Test Win Level from a real level.
+- **Release stripping:** the guard is by inspection. No release build was made.
+
 ## Open items
 
 - `MetaCity.unity` is still in Build Settings and references deleted scripts. Remove it with the owner's confirmation.

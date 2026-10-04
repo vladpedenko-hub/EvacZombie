@@ -178,6 +178,8 @@ public class MetaService : IMetaRewardSink
 
 	public TutorialSequence FindSequence(string id) => content.FindSequence(id);
 
+	public IReadOnlyList<TutorialSequence> Sequences => content.sequences;
+
 	// Buildings whose conditions were not all met at previousClearedLevel but are met at newClearedLevel.
 	public List<BuildingDefinition> GetNewlyAvailableBuildings(int previousClearedLevel, int newClearedLevel)
 	{
@@ -235,7 +237,8 @@ public class MetaService : IMetaRewardSink
 		return true;
 	}
 
-	// --- Debug panel only (dev builds). Not called by gameplay code. ---
+#if UNITY_EDITOR || DEBUG
+	// --- Cheats only (editor and development builds). Not called by gameplay code. ---
 
 	public void DebugSetHighestCleared(int level)
 	{
@@ -281,6 +284,7 @@ public class MetaService : IMetaRewardSink
 		State.CopyFrom(snapshot);
 		OnChanged?.Invoke();
 	}
+#endif
 
 	// --- Reward sink (called by Reward.Apply) ---
 
