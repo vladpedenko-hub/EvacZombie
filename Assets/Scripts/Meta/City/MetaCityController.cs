@@ -14,6 +14,7 @@ public class MetaCityController : MonoBehaviour
 	private MetaService service;
 	private MetaCityCamera cityCamera;
 	private MetaBuildingPanel panel;
+	private MetaSkillTreeScreen research;
 	private MetaTopBar topBar;
 	private Vector3 pressPosition;
 	private bool pressOverUi;
@@ -57,6 +58,10 @@ public class MetaCityController : MonoBehaviour
 
 		panel = gameObject.AddComponent<MetaBuildingPanel>();
 		panel.Build(safeRoot, service);
+		panel.OnOpenResearch += OpenResearch;
+
+		research = gameObject.AddComponent<MetaSkillTreeScreen>();
+		research.Build(safeRoot, service, MetaRuntime.Modifiers);
 
 		service.OnChanged += Refresh;
 		Refresh();
@@ -107,6 +112,16 @@ public class MetaCityController : MonoBehaviour
 
 		topBar.Refresh(MetaRuntime.Currency);
 		if (panel.IsOpen) panel.Refresh();
+		if (research.IsOpen) research.Refresh();
+	}
+
+	private void OpenResearch(BuildingDefinition building)
+	{
+		SkillTreeDefinition tree = service.FindTreeForBuilding(building.id);
+		if (tree == null) return;
+
+		panel.Hide();
+		research.Open(tree);
 	}
 
 	private static void EnsureEventSystem()

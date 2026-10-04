@@ -1,0 +1,141 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b6fee92dd2850e4f919655bfe6c4ee6, type: 3}
+  m_Name: Lab_Tree_01
+  m_EditorClassIdentifier: Assembly-CSharp::SkillTreeDefinition
+  id: Lab_Tree_01
+  displayName: Laboratory Research
+  owningBuildingId: lab
+  nodes:
+  - id: lab_n01
+    displayName: Reinforced Rounds
+    icon: {fileID: 0}
+    cost: 1
+    prerequisites: []
+    isMilestone: 0
+    effects:
+    - stat: 3
+      category: 0
+      mode: 0
+      value: 5
+  - id: lab_n02
+    displayName: Quick Feet
+    icon: {fileID: 0}
+    cost: 1
+    prerequisites:
+    - lab_n01
+    isMilestone: 0
+    effects:
+    - stat: 2
+      category: 0
+      mode: 1
+      value: 3
+  - id: lab_n03
+    displayName: Field Medic
+    icon: {fileID: 0}
+    cost: 2
+    prerequisites:
+    - lab_n02
+    isMilestone: 1
+    effects:
+    - stat: 9
+      category: 0
+      mode: 0
+      value: 50
+  - id: lab_n04
+    displayName: Armour Piercing
+    icon: {fileID: 0}
+    cost: 2
+    prerequisites:
+    - lab_n03
+    isMilestone: 0
+    effects:
+    - stat: 3
+      category: 2
+      mode: 0
+      value: 5
+  - id: lab_n05
+    displayName: Overdrive Engines
+    icon: {fileID: 0}
+    cost: 3
+    prerequisites:
+    - lab_n04
+    isMilestone: 0
+    effects:
+    - stat: 2
+      category: 0
+      mode: 1
+      value: 4
+  - id: lab_n06
+    displayName: Heavy Calibre
+    icon: {fileID: 0}
+    cost: 3
+    prerequisites:
+    - lab_n05
+    isMilestone: 1
+    effects:
+    - stat: 3
+      category: 0
+      mode: 0
+      value: 10
+  - id: lab_n07
+    displayName: Wide Net
+    icon: {fileID: 0}
+    cost: 4
+    prerequisites:
+    - lab_n06
+    isMilestone: 0
+    effects:
+    - stat: 5
+      category: 0
+      mode: 1
+      value: 10
+  - id: lab_n08
+    displayName: Rapid Fire
+    icon: {fileID: 0}
+    cost: 4
+    prerequisites:
+    - lab_n07
+    isMilestone: 0
+    effects:
+    - stat: 4
+      category: 0
+      mode: 1
+      value: 10
+  - id: lab_n09
+    displayName: Long Watch
+    icon: {fileID: 0}
+    cost: 5
+    prerequisites:
+    - lab_n08
+    isMilestone: 0
+    effects:
+    - stat: 6
+      category: 0
+      mode: 0
+      value: 1
+  - id: lab_n10
+    displayName: Mad Science Protocol
+    icon: {fileID: 0}
+    cost: 6
+    prerequisites:
+    - lab_n09
+    isMilestone: 1
+    effects:
+    - stat: 2
+      category: 0
+      mode: 1
+      value: 7
+    - stat: 9
+      category: 0
+      mode: 0
+      value: 50

@@ -19,7 +19,9 @@ MonoBehaviour:
   zoneRadius: 6
   ruinedVisual: {fileID: 0}
   restoredVisual: {fileID: 0}
+  roofColor: {r: 0.8, g: 0.25, b: 0.2, a: 1}
   conditions:
   - {fileID: 11400000, guid: 4211097c833308644b9505d1846da2df, type: 2}
   restorationCostPeople: 20
-  rewardsOnRestore: []
+  rewardsOnRestore:
+  - {fileID: 11400000, guid: 8044228930da677478d029a3c759284d, type: 2}

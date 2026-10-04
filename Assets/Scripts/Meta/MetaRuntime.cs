@@ -9,6 +9,17 @@ public static class MetaRuntime
 
 	public static CurrencyService Currency { get; private set; }
 	public static MetaService Service { get; private set; }
+	private static MetaModifiers modifiers;
+
+	// Battle reads research bonuses through here. Null when the meta data is unavailable (no bonuses).
+	public static MetaModifiers Modifiers
+	{
+		get
+		{
+			EnsureInitialized();
+			return modifiers;
+		}
+	}
 
 	// Buildings unlocked by the most recent level clear. Read by the post-level routing.
 	public static List<BuildingDefinition> PendingNewlyAvailable { get; private set; } = new List<BuildingDefinition>();
@@ -30,8 +41,31 @@ public static class MetaRuntime
 
 		Service = new MetaService(content, Currency, MetaSaveService.Load());
 		Service.OnChanged += () => MetaSaveService.Save(Service.State);
+		modifiers = new MetaModifiers(Service);
+		WarnStatsNoCardHas(content);
 		return true;
 	}
+
+	// A node effect on a stat that no card has does nothing. Warn once so the designer sees it.
+	private static void WarnStatsNoCardHas(MetaContentDatabase content)
+	{
+		foreach (SkillTreeDefinition tree in content.skillTrees)
+		{
+			if (tree == null || tree.nodes == null) continue;
+			foreach (SkillNodeDefinition node in tree.nodes)
+			{
+				foreach (StatModifier effect in node.effects)
+				{
+					if (!AnyCardHasStat(effect.stat))
+						Debug.LogWarning($"[Meta] Node '{node.id}' modifies {effect.stat}, which no card has. Ignored.");
+				}
+			}
+		}
+	}
+
+	private static bool AnyCardHasStat(StatType stat) =>
+		PlayerProfile.Instance.allAvailableCards.Exists(card =>
+			card != null && card.stats != null && card.stats.Exists(s => s.statType == stat));
 
 	// Called from GameManager.EndLevel on a win.
 	public static void OnLevelCleared(LevelData level)
@@ -71,6 +105,7 @@ public static class MetaRuntime
 	{
 		Currency = null;
 		Service = null;
+		modifiers = null;
 		PendingNewlyAvailable = new List<BuildingDefinition>();
 	}
 }

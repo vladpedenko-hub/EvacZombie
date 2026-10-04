@@ -79,7 +79,12 @@ public class CardData : ScriptableObject
 		CardStat foundStat = stats.Find(s => s.statType == type);
 		if (foundStat != null)
 		{
-			return foundStat.GetFloatValue(currentLevel);
+			float value = foundStat.GetFloatValue(currentLevel);
+
+			// Meta research bonuses: flat first, then percent. No-op when no node is purchased.
+			MetaModifiers meta = MetaRuntime.Modifiers;
+			if (meta != null) value = (value + meta.GetFlat(type, category)) * (1f + meta.GetPercent(type, category));
+			return value;
 		}
 
 		Debug.LogWarning($"Stat {type} not found in card {cardName}!");

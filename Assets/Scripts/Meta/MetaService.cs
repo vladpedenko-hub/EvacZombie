@@ -38,6 +38,15 @@ public class MetaService : IMetaRewardSink
 		State = state;
 	}
 
+	// Every purchased node, for battle modifiers and the research preview.
+	public IEnumerable<SkillNodeDefinition> PurchasedNodeDefinitions()
+	{
+		foreach (string nodeId in State.purchasedNodes)
+		{
+			if (content.FindNode(nodeId, out _, out SkillNodeDefinition node)) yield return node;
+		}
+	}
+
 	// The tree a building owns (by owningBuildingId), or null if it has none.
 	public SkillTreeDefinition FindTreeForBuilding(string buildingId) =>
 		content.skillTrees.Find(t => t != null && t.owningBuildingId == buildingId);
