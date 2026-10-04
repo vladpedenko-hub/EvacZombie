@@ -4,37 +4,32 @@ using DG.Tweening;
 using UnityEngine.UI;
 
 // [WHERE IT LIVES]: On the TabsContainer object (child of Container/SafeArea).
-public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+// Tabs (Deck / Map / Base) change only by tapping the bottom tab bar buttons (GoToTabFromButton).
+// The only drag gesture left is the vertical region swipe on the Map tab, which belongs to the map.
+public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IEndDragHandler
 {
 	public static bool IsSwipeLocked = false;
 
 	[Header("Tabs")]
 	[SerializeField] private RectTransform[] navButtons;
-	[SerializeField] private RectTransform deckPanel;
-	[SerializeField] private RectTransform mapPanel;
-	[SerializeField] private RectTransform metaPanel;
 	[SerializeField] private MapController mapController; // <-- Reference to MapPanel (MapController)
 
-	[Header("Snap Settings (Horizontal)")]
+	[Header("Tab Animation")]
 	[SerializeField] private float snapDuration = 0.4f;
-	[SerializeField] private float swipeThreshold = 0.15f;
-	[Range(0.05f, 0.4f)]
-	[SerializeField] private float elasticity = 0.25f;
 
-	[Header("Vertical Swipe Detection Settings")]
+	[Header("Map Region Swipe (vertical)")]
 	[SerializeField] private float minVerticalSwipe = 120f;
 	[SerializeField] private float verticalDominance = 1.5f; // vertical must exceed X times horizontal to count as vertical
 
 	private int currentTab = 1;               // 0 = Deck, 1 = Map, 2 = Meta
 
-	// Raised whenever the tab settles on a new position (drag end, button, or programmatic).
+	// Raised whenever the tab settles on a new position (button or programmatic).
 	public event System.Action<int> OnTabChanged;
 	public int CurrentTab => currentTab;
 
 	private RectTransform rectTransform;
 	private RectTransform parentRect;
 	private RectTransform[] tabs;
-	private float startPosition;
 
 	private Vector2 dragStartPos;
 	private bool dragActive = false;
@@ -77,52 +72,9 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 		dragActive = true;
 		dragStartPos = eventData.position;
 
-		rectTransform.DOKill();
-		startPosition = rectTransform.anchoredPosition.x;
-
 		// Close card popup when drag starts
 		if (CardPopupManager.Instance != null)
 			CardPopupManager.Instance.CloseContextMenu();
-	}
-
-	public void OnDrag(PointerEventData eventData)
-	{
-		if (!dragActive || IsSwipeLocked) return;
-
-		Vector2 delta = eventData.position - dragStartPos;
-		float absX = Mathf.Abs(delta.x);
-		float absY = Mathf.Abs(delta.y);
-
-		// 1) If vertical clearly dominates and we're on Map tab - do NOT move TabsContainer
-		if (currentTab == 1 && absY > absX * verticalDominance && absY >= minVerticalSwipe * 0.3f)
-		{
-			// Do not drag tabs - handle vertical swipe in OnEndDrag
-			return;
-		}
-
-		// 2) Otherwise treat as horizontal and drag TabsContainer
-		float width = parentRect.rect.width;
-		float dragDelta = delta.x;
-
-		float maxX = width;
-		float minX = -width;
-
-		float targetX = startPosition + dragDelta;
-
-		if (targetX > maxX)
-		{
-			float overshot = targetX - maxX;
-			targetX = maxX + (overshot * elasticity);
-			targetX = Mathf.Min(targetX, maxX + (width * 0.3f));
-		}
-		else if (targetX < minX)
-		{
-			float overshot = targetX - minX;
-			targetX = minX + (overshot * elasticity);
-			targetX = Mathf.Max(targetX, minX - (width * 0.3f));
-		}
-
-		rectTransform.anchoredPosition = new Vector2(targetX, rectTransform.anchoredPosition.y);
 	}
 
 	public void OnEndDrag(PointerEventData eventData)
@@ -130,41 +82,22 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 		if (!dragActive || IsSwipeLocked) return;
 		dragActive = false;
 
-		if (parentRect == null) return;
-
 		Vector2 delta = eventData.position - dragStartPos;
 		float absX = Mathf.Abs(delta.x);
 		float absY = Mathf.Abs(delta.y);
-		float width = parentRect.rect.width;
 
-		// 1) Check for vertical region swipe (only when on the Map tab)
+		// Vertical region swipe, only on the Map tab. Tabs never move.
 		bool isVerticalSwipe = currentTab == 1
 							   && mapController != null
 							   && absY >= minVerticalSwipe
 							   && absY > absX * verticalDominance;
 
-		if (isVerticalSwipe)
-		{
-			if (delta.y > 0f)
-				mapController.TryPreviewPreviousRegion();
-			else
-				mapController.TryPreviewNextRegion();
+		if (!isVerticalSwipe) return;
 
-			// Snap TabsContainer back so we stay on MapPanel
-			GoToTab(currentTab, false);
-			return;
-		}
-
-		// 2) Otherwise handle as horizontal swipe between panels
-		float dragDelta = delta.x;
-
-		if (Mathf.Abs(dragDelta) > width * swipeThreshold)
-		{
-			if (dragDelta > 0 && currentTab > 0) currentTab--;
-			else if (dragDelta < 0 && currentTab < tabs.Length - 1) currentTab++;
-		}
-
-		GoToTab(currentTab, false);
+		if (delta.y > 0f)
+			mapController.TryPreviewPreviousRegion();
+		else
+			mapController.TryPreviewNextRegion();
 	}
 
 	public void GoToTabFromButton(int tabIndex)
@@ -186,6 +119,7 @@ public class MainMenuSwipeController : MonoBehaviour, IBeginDragHandler, IDragHa
 		float width = parentRect.rect.width;
 		float targetX = (1 - currentTab) * width;
 
+		rectTransform.DOKill();
 		if (instant)
 			rectTransform.anchoredPosition = new Vector2(targetX, rectTransform.anchoredPosition.y);
 		else
