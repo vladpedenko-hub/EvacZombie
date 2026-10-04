@@ -35,6 +35,13 @@ MonoBehaviour:
   orthographicSize: 10
   currencyReward: 100
   levelRewardLootbox: {fileID: 11400000, guid: aedfda23cd5572c4dac0817ed913988e, type: 2}
+  clearGrants:
+  - currencyType: 0
+    amount: 10
+    sourceType: 0
+  - currencyType: 1
+    amount: 1
+    sourceType: 0
   scientistCount: 0
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
   abilityEnabled: 0

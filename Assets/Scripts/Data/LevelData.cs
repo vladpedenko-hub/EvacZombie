@@ -55,6 +55,9 @@ public class LevelData : ScriptableObject
 	public int currencyReward = 50;
 	public LootboxData levelRewardLootbox;
 
+	[Tooltip("Meta currency (People / Scientists) granted on the FIRST clear of this level. Tune pacing here.")]
+	public List<CurrencyGrant> clearGrants = new List<CurrencyGrant>();
+
 	[Header("Scientist on Level")]
 	[Tooltip("Number of scientists placed on the level")]
 	public int scientistCount = 0;

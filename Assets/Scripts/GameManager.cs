@@ -255,17 +255,23 @@ public class GameManager : MonoBehaviour
 	{
 		State = GameState.GameOver;
 
-		PlayerProfile.Instance.totalCurrency += rescuedHumans;
-		PlayerProfile.Instance.totalScientistsCurrency += rescuedScientists;
+		LevelData level = LevelManager.Instance.currentData;
+		MetaRuntime.EnsureInitialized();
+		CurrencyService currency = MetaRuntime.Currency;
 
-		string levelId = "LevelPassed_" + LevelManager.Instance.currentData.name;
+		currency.Add(CurrencyType.People, rescuedHumans, CurrencySourceType.LevelClear, level.name);
+		currency.Add(CurrencyType.Scientists, rescuedScientists, CurrencySourceType.LevelClear, level.name);
+
+		string levelId = "LevelPassed_" + level.name;
 		int hasPassedBefore = PlayerPrefs.GetInt(levelId, 0);
 		CardData droppedCard = null;
 
 		if (hasPassedBefore == 0)
 		{
 			PlayerPrefs.SetInt(levelId, 1);
-			PlayerProfile.Instance.totalCurrency += LevelManager.Instance.currentData.currencyReward;
+			currency.Add(CurrencyType.People, level.currencyReward, CurrencySourceType.LevelClear, level.name);
+			foreach (CurrencyGrant grant in level.clearGrants) currency.Add(grant, level.name);
+			// ThreeStars / Quest grants: one currency.Add(...) line each, with their CurrencySourceType.
 
 			if (LevelManager.Instance.currentData.levelRewardLootbox != null)
 			{
@@ -280,6 +286,7 @@ public class GameManager : MonoBehaviour
 
 		PlayerProfile.Instance.TrySetLevelStars(LevelManager.Instance.currentData.name, earnedStars, out int oldStarsFromSave);
 		PlayerProfile.Instance.SaveProfile();
+		MetaRuntime.OnLevelCleared(level);
 
 		UIManager.Instance.ShowResultPopup(
 			rescuedHumans,
