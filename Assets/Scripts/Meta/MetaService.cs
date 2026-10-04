@@ -102,6 +102,8 @@ public class MetaService : IMetaRewardSink
 	}
 
 	// Called after a level is cleared. Records progress and returns buildings that just became available.
+	// Each clear that unlocks a house replaces the pending focus, so the player lands on the latest one.
+	// The Base tab badge still covers any house that stays unrestored.
 	public List<BuildingDefinition> RecordLevelCleared(string levelId, int levelNumber)
 	{
 		int previousHighest = State.highestClearedLevel;
@@ -109,8 +111,50 @@ public class MetaService : IMetaRewardSink
 		if (!State.clearedLevelIds.Contains(levelId)) State.clearedLevelIds.Add(levelId);
 		State.highestClearedLevel = Mathf.Max(State.highestClearedLevel, levelNumber);
 
+		List<BuildingDefinition> newlyAvailable = GetNewlyAvailableBuildings(previousHighest, State.highestClearedLevel);
+		if (newlyAvailable.Count > 0) State.pendingFocusBuildingId = newlyAvailable[newlyAvailable.Count - 1].id;
+
 		OnChanged?.Invoke();
-		return GetNewlyAvailableBuildings(previousHighest, State.highestClearedLevel);
+		return newlyAvailable;
+	}
+
+	// Returns the building to focus once, then clears it. Empty when nothing is pending.
+	public string ConsumePendingFocus()
+	{
+		string id = State.pendingFocusBuildingId;
+		if (string.IsNullOrEmpty(id)) return null;
+
+		State.pendingFocusBuildingId = "";
+		OnChanged?.Invoke();
+		return id;
+	}
+
+	public void MarkMetaIntroSeen()
+	{
+		if (State.metaIntroSeen) return;
+		State.metaIntroSeen = true;
+		OnChanged?.Invoke();
+	}
+
+	// True when the Base tab should show a badge: a house can be restored, or a research node can be bought.
+	public bool HasAttentionItems()
+	{
+		foreach (BuildingDefinition building in content.buildings)
+		{
+			if (building == null) continue;
+			if (GetBuildingState(building.id).state == BuildingState.Available) return true;
+		}
+
+		foreach (SkillTreeDefinition tree in content.skillTrees)
+		{
+			if (tree == null || tree.nodes == null) continue;
+			foreach (SkillNodeDefinition node in tree.nodes)
+			{
+				if (node != null && GetNodeState(node.id) == NodeState.Available) return true;
+			}
+		}
+
+		return false;
 	}
 
 	// Buildings whose conditions were not all met at previousClearedLevel but are met at newClearedLevel.

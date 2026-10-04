@@ -141,4 +141,57 @@ public class MetaServiceTests
 		service.RecordLevelCleared("Level_1_Data", 1);
 		Assert.AreEqual(2, service.State.highestClearedLevel, "Replaying an earlier level must not lower progress");
 	}
+
+	[Test]
+	public void PendingFocus_SetByUnlockingClear_ConsumedOnce()
+	{
+		service.RecordLevelCleared("Level_2_Data", 2);
+		Assert.AreEqual("lab", service.ConsumePendingFocus());
+		Assert.IsNull(service.ConsumePendingFocus(), "Focus is consumed once");
+	}
+
+	[Test]
+	public void PendingFocus_NotSetByClearThatUnlocksNothing()
+	{
+		service.RecordLevelCleared("Level_1_Data", 1);
+		Assert.IsNull(service.ConsumePendingFocus());
+	}
+
+	[Test]
+	public void AttentionItems_TrueWhenRestorable_FalseWhenNothingActionable()
+	{
+		Assert.IsFalse(service.HasAttentionItems(), "Nothing unlocked on a fresh save");
+
+		service.State.highestClearedLevel = 2;
+		Assert.IsFalse(service.HasAttentionItems(), "Available but not affordable is not an attention item");
+
+		store.balances[CurrencyType.People] = 20;
+		Assert.IsTrue(service.HasAttentionItems());
+
+		service.TryRestoreBuilding("lab");
+		store.balances[CurrencyType.Scientists] = 1;
+		Assert.IsTrue(service.HasAttentionItems(), "A purchasable node is an attention item");
+
+		service.TryPurchaseNode("n1");
+		Assert.IsFalse(service.HasAttentionItems());
+	}
+
+	[Test]
+	public void MetaIntro_MarkedOnce()
+	{
+		Assert.IsFalse(service.State.metaIntroSeen);
+		service.MarkMetaIntroSeen();
+		Assert.IsTrue(service.State.metaIntroSeen);
+	}
+
+	[Test]
+	public void NewFields_SurviveSaveRoundTrip()
+	{
+		service.RecordLevelCleared("Level_2_Data", 2);
+		service.MarkMetaIntroSeen();
+
+		MetaProgressionState loaded = JsonUtility.FromJson<MetaProgressionState>(JsonUtility.ToJson(service.State));
+		Assert.AreEqual("lab", loaded.pendingFocusBuildingId);
+		Assert.IsTrue(loaded.metaIntroSeen);
+	}
 }
