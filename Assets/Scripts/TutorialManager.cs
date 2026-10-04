@@ -13,6 +13,16 @@ public class TutorialManager : MonoBehaviour
 	public static event System.Action OnTutorialStarted;
 	public static event System.Action OnTutorialFinished;
 
+	// Raised whenever the visible step changes or the screen is released. The side dock uses it to hide itself
+	// during blocking steps.
+	public static event System.Action OnStepChanged;
+
+	// Raised when a resumable sequence is interrupted (app paused, scene changed). Progress is saved, not finished.
+	public static event System.Action<string> OnTutorialAbandoned;
+
+	public bool IsActive => isTutorialActive;
+	public string CurrentTargetId => GetCurrentStep()?.targetId;
+
 	[Header("UI Elements (Main)")]
 	[Tooltip("FullScreenBlocker object")]
 	public GameObject fullScreenBlocker;
@@ -42,6 +52,13 @@ public class TutorialManager : MonoBehaviour
 	private Button currentTrackedButton;
 	private bool _pausedTimeForTutorial = false;
 
+	private Button skipButton;
+	private (Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax) dialogTextDefaults;
+	private TMPro.TextAlignmentOptions dialogTextAlignmentDefault;
+	private bool isWaitingForTarget = false;
+	private float waitingSince;
+	private float waitingTimeout;
+
 	private void Awake()
 	{
 		if (Instance == null)
@@ -69,6 +86,18 @@ public class TutorialManager : MonoBehaviour
 		SetupMaskRect(leftMask);
 		SetupMaskRect(rightMask);
 
+		// Built last so it sits above the blocker. Only shown for sequences with allowSkip.
+		// Bottom right, above the tab bar, so it never covers the settings gear or the DEV button.
+		skipButton = MetaUI.Button("SkipButton", transform, "SKIP", MetaUI.ButtonSecondary,
+			new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-260f, 216f), new Vector2(-30f, 286f), out _);
+		if (dialogText != null)
+		{
+			RectTransform textRect = dialogText.rectTransform;
+			dialogTextDefaults = (textRect.anchorMin, textRect.anchorMax, textRect.offsetMin, textRect.offsetMax);
+			dialogTextAlignmentDefault = dialogText.alignment;
+		}
+		skipButton.onClick.AddListener(SkipTutorial);
+
 		CloseTutorialUI();
 	}
 
@@ -78,6 +107,26 @@ public class TutorialManager : MonoBehaviour
 	{
 		activeTargets.Clear();
 		CleanUpTrackedButton();
+
+		// Leaving the scene must never leave the screen blocked. Resumable sequences save their step.
+		if (isTutorialActive && currentSequence != null && currentSequence.resumable) AbandonTutorial();
+	}
+
+	// Backgrounding the app (mobile) interrupts a resumable sequence. The screen is released, progress is kept.
+	private void OnApplicationPause(bool paused)
+	{
+		if (paused && isTutorialActive && currentSequence != null && currentSequence.resumable) AbandonTutorial();
+	}
+
+	// Missing-target timeout. Only runs while a step is waiting for a target that is not registered.
+	private void Update()
+	{
+		if (!isWaitingForTarget || !isTutorialActive) return;
+		if (Time.unscaledTime - waitingSince < waitingTimeout) return;
+
+		isWaitingForTarget = false;
+		Debug.Log("[Tutorial] Target missing for " + waitingTimeout + "s; skipping step.");
+		NextStep();
 	}
 
 	public void RegisterTarget(string id, RectTransform rect)
@@ -95,10 +144,12 @@ public class TutorialManager : MonoBehaviour
 	public void StartTutorial(TutorialSequence sequence)
 	{
 		if (sequence == null) return;
-		if (PlayerPrefs.GetInt("TUTORIAL_DONE_" + sequence.tutorialId, 0) == 1) return;
+		if (TutorialProgress.IsDone(sequence.tutorialId)) return;
 
 		currentSequence = sequence;
 		currentStepIndex = 0;
+		if (sequence.resumable)
+			currentStepIndex = Mathf.Clamp(TutorialProgress.GetStep(sequence.tutorialId), 0, Mathf.Max(0, sequence.steps.Count - 1));
 		isTutorialActive = true;
 
 		// Pause timeScale only during active gameplay.
@@ -118,6 +169,7 @@ public class TutorialManager : MonoBehaviour
 
 		OnTutorialStarted?.Invoke();
 		fullScreenBlocker.SetActive(true);
+		skipButton.gameObject.SetActive(sequence.allowSkip);
 		ShowStep(GetCurrentStep());
 	}
 
@@ -137,6 +189,8 @@ public class TutorialManager : MonoBehaviour
 
 		CleanUpTrackedButton();
 		if (fingerTween != null) fingerTween.Kill();
+		isWaitingForTarget = false;
+		OnStepChanged?.Invoke();
 
 		fingerPointer.gameObject.SetActive(false);
 		maskContainer.gameObject.SetActive(false);
@@ -166,6 +220,7 @@ public class TutorialManager : MonoBehaviour
 		{
 			dialogPanel.SetActive(true);
 			dialogText.text = step.dialogText;
+			ApplyDialogTextLayout(step.wideDialogText);
 
 			if (step.characterIcon != null)
 			{
@@ -204,7 +259,7 @@ public class TutorialManager : MonoBehaviour
 		// --- Finger and Target ---
 		if (step.stepType != TutorialStepType.DialogOnly)
 		{
-			if (activeTargets.TryGetValue(step.targetId, out RectTransform targetRect) && targetRect != null)
+			if (TryGetTarget(step, out RectTransform targetRect))
 			{
 				if (step.useDarkMask) FocusMaskOnTarget(targetRect);
 				fingerPointer.gameObject.SetActive(true);
@@ -249,8 +304,46 @@ public class TutorialManager : MonoBehaviour
 			{
 				Debug.Log($"[Tutorial] Waiting for target: {step.targetId}...");
 				dialogPanel.SetActive(false);
+
+				if (step.missingTargetTimeout > 0f)
+				{
+					isWaitingForTarget = true;
+					waitingSince = Time.unscaledTime;
+					waitingTimeout = step.missingTargetTimeout;
+				}
 			}
 		}
+	}
+
+	// Wide text spans the dialog panel; otherwise the original layout is restored exactly.
+	private void ApplyDialogTextLayout(bool wide)
+	{
+		RectTransform textRect = dialogText.rectTransform;
+		if (wide)
+		{
+			textRect.anchorMin = Vector2.zero;
+			textRect.anchorMax = Vector2.one;
+			textRect.offsetMin = new Vector2(40f, 20f);
+			textRect.offsetMax = new Vector2(-40f, -20f);
+			dialogText.alignment = TMPro.TextAlignmentOptions.Center;
+			return;
+		}
+
+		textRect.anchorMin = dialogTextDefaults.anchorMin;
+		textRect.anchorMax = dialogTextDefaults.anchorMax;
+		textRect.offsetMin = dialogTextDefaults.offsetMin;
+		textRect.offsetMax = dialogTextDefaults.offsetMax;
+		dialogText.alignment = dialogTextAlignmentDefault;
+	}
+
+	// A target is present when it is registered. Steps that opt into a missing-target timeout also need the
+	// target to be active, so a closed overlay counts as missing. Steps without a timeout keep the original rule.
+	private bool TryGetTarget(TutorialStep step, out RectTransform rect)
+	{
+		rect = null;
+		if (!activeTargets.TryGetValue(step.targetId, out rect) || rect == null) return false;
+		if (step.missingTargetTimeout > 0f && !rect.gameObject.activeInHierarchy) return false;
+		return true;
 	}
 
 	// Positions the fingerPointer exactly over targetRect via screen space conversion.
@@ -336,6 +429,8 @@ public class TutorialManager : MonoBehaviour
 		if (!isTutorialActive) return;
 
 		currentStepIndex++;
+		if (currentSequence.resumable) TutorialProgress.SetStep(currentSequence.tutorialId, currentStepIndex);
+
 		if (currentStepIndex >= currentSequence.steps.Count) FinishTutorial();
 		else ShowStep(GetCurrentStep());
 	}
@@ -357,7 +452,7 @@ public class TutorialManager : MonoBehaviour
 
 		if (step.stepType == TutorialStepType.DialogOnly) return true; // Always block
 
-		if (activeTargets.TryGetValue(step.targetId, out RectTransform targetRect) && targetRect != null)
+		if (TryGetTarget(step, out RectTransform targetRect))
 		{
 			bool inHole = RectTransformUtility.RectangleContainsScreenPoint(targetRect, screenPosition, eventCamera);
 			return !inHole; // Inside the hole — allow (false). Outside — block (true).
@@ -370,9 +465,34 @@ public class TutorialManager : MonoBehaviour
 	{
 		if (currentSequence != null)
 		{
-			PlayerPrefs.SetInt("TUTORIAL_DONE_" + currentSequence.tutorialId, 1);
-			PlayerPrefs.Save();
+			TutorialProgress.MarkDone(currentSequence.tutorialId);
+			TutorialProgress.ClearStep(currentSequence.tutorialId);
 		}
+		ReleaseScreen();
+		OnTutorialFinished?.Invoke();
+	}
+
+	// Skip ends the sequence for good (marked done). Only allowed when the sequence opts in.
+	public void SkipTutorial()
+	{
+		if (!isTutorialActive || currentSequence == null || !currentSequence.allowSkip) return;
+		FinishTutorial();
+	}
+
+	// Interruption: release the screen and keep the step, so the next start resumes there. Not marked done.
+	public void AbandonTutorial()
+	{
+		if (!isTutorialActive || currentSequence == null) return;
+
+		string id = currentSequence.tutorialId;
+		TutorialProgress.SetStep(id, currentStepIndex);
+		ReleaseScreen();
+		OnTutorialAbandoned?.Invoke(id);
+	}
+
+	// Every exit path ends here, so the screen, the time pause and the skip button are always released.
+	private void ReleaseScreen()
+	{
 		CloseTutorialUI();
 		if (_pausedTimeForTutorial)
 		{
@@ -382,12 +502,14 @@ public class TutorialManager : MonoBehaviour
 			else
 				Time.timeScale = 1f;
 		}
-		OnTutorialFinished?.Invoke();
 	}
 
 	private void CloseTutorialUI()
 	{
 		isTutorialActive = false;
+		isWaitingForTarget = false;
+		currentSequence = null;
+		if (skipButton != null) skipButton.gameObject.SetActive(false);
 		CleanUpTrackedButton();
 		if (fullScreenBlocker != null) fullScreenBlocker.SetActive(false);
 		dialogPanel.SetActive(false);
@@ -396,6 +518,7 @@ public class TutorialManager : MonoBehaviour
 		if (solidDarkMask) solidDarkMask.SetActive(false);
 
 		if (fingerTween != null) fingerTween.Kill();
+		OnStepChanged?.Invoke();
 	}
 }
 
