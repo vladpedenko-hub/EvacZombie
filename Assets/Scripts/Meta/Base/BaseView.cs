@@ -22,6 +22,10 @@ public class BaseView : MonoBehaviour
 	[SerializeField] private float cityMargin = 200f;
 	[SerializeField] private float sheetGap = 24f;
 
+	// Raised when the research overlay opens or closes. The side dock hides itself while it is open.
+	public event System.Action ResearchStateChanged;
+	public bool IsResearchOpen => research != null && research.IsOpen;
+
 	private MetaService service;
 	private RectTransform content;
 	private ScrollRect scroll;
@@ -79,13 +83,14 @@ public class BaseView : MonoBehaviour
 		content.anchoredPosition = -house.Rect.anchoredPosition;
 	}
 
-	// Android Back: close the topmost overlay first. With nothing open, the key is left for the app.
+	// Android Back (Escape): close the topmost overlay first. Research works from any tab, so it is checked first.
+	// With nothing open, the key is left for the app.
 	private void Update()
 	{
-		if (!visible || !Input.GetKeyDown(KeyCode.Escape)) return;
+		if (!Input.GetKeyDown(KeyCode.Escape)) return;
 
-		if (research != null && research.IsOpen) research.Close();
-		else if (panel != null && panel.IsOpen) panel.Hide();
+		if (IsResearchOpen) research.Close();
+		else if (visible && panel != null && panel.IsOpen) panel.Hide();
 	}
 
 	private void OnEnable()
@@ -99,17 +104,23 @@ public class BaseView : MonoBehaviour
 		SetVisible(false);
 	}
 
+	// Currency is listened to as well: People and Scientists change house and node availability,
+	// and those changes do not raise MetaService.OnChanged.
 	private void Subscribe()
 	{
 		if (service != null) service.OnChanged += Refresh;
+		if (MetaRuntime.Currency != null) MetaRuntime.Currency.OnChanged += OnCurrencyChanged;
 		if (tabs != null) tabs.OnTabChanged += OnTabChanged;
 	}
 
 	private void Unsubscribe()
 	{
 		if (service != null) service.OnChanged -= Refresh;
+		if (MetaRuntime.Currency != null) MetaRuntime.Currency.OnChanged -= OnCurrencyChanged;
 		if (tabs != null) tabs.OnTabChanged -= OnTabChanged;
 	}
+
+	private void OnCurrencyChanged(CurrencyType type, int value) => Refresh();
 
 	private void OnTabChanged(int tab) => SetVisible(tab == baseTabIndex);
 
@@ -141,8 +152,13 @@ public class BaseView : MonoBehaviour
 		Vector2 contentSize = extents.size + Vector2.one * cityMargin * 2f;
 
 		// Viewport stops above the tab bar, so the city never slides under the buttons.
+		// Full-width ground behind the viewport, so the reserved dock margin matches the city.
+		MetaUI.ImageBox("CityBackground", self, new Color(0.24f, 0.3f, 0.22f), Vector2.zero, Vector2.one,
+			Vector2.zero, Vector2.zero);
+
+		// The right margin is reserved for the side dock, so houses are never hidden under its icon.
 		RectTransform viewport = MetaUI.Rect("CityViewport", self,
-			Vector2.zero, Vector2.one, new Vector2(0f, tabBarHeight), Vector2.zero);
+			Vector2.zero, Vector2.one, new Vector2(0f, tabBarHeight), new Vector2(-SideDock.IconSize - SideDock.RightInset - 12f, 0f));
 		Image viewportImage = viewport.gameObject.AddComponent<Image>();
 		viewportImage.color = Color.clear;
 		viewport.gameObject.AddComponent<RectMask2D>();
@@ -176,11 +192,14 @@ public class BaseView : MonoBehaviour
 
 		panel = gameObject.AddComponent<MetaBuildingPanel>();
 		panel.Build(self, service, tabBarHeight + sheetGap);
-		panel.OnOpenResearch += OpenResearch;
+		panel.OnOpenResearch += OpenResearchForHouse;
 
-		// Research is the top overlay, so it is built last.
+		// Research lives on its own overlay canvas, so it opens from any tab (the side dock).
+		// Its bottom inset keeps the tab bar visible.
+		Canvas researchCanvas = MetaUI.CreateOverlayCanvas("[MetaResearch]", 2000);
 		research = gameObject.AddComponent<MetaSkillTreeScreen>();
-		research.Build(self, service, MetaRuntime.Modifiers, tabBarHeight);
+		research.Build(researchCanvas.transform, service, MetaRuntime.Modifiers, tabBarHeight);
+		research.Closed += () => ResearchStateChanged?.Invoke();
 
 		BuildBadge();
 	}
@@ -190,13 +209,21 @@ public class BaseView : MonoBehaviour
 		panel.Show(building);
 	}
 
-	private void OpenResearch(BuildingDefinition building)
+	// The house sheet's "Open Research" button. Same path as the dock.
+	private void OpenResearchForHouse(BuildingDefinition building)
 	{
-		SkillTreeDefinition tree = service.FindTreeForBuilding(building.id);
-		if (tree == null) return;
+		OpenResearch(service.FindTreeForBuilding(building.id));
+	}
+
+	// The one code path that opens research. The house button and the side dock both call this.
+	// Opening does not change tabs, so Back returns to whichever tab the player was on.
+	public void OpenResearch(SkillTreeDefinition tree)
+	{
+		if (tree == null || research == null) return;
 
 		panel.Hide();
 		research.Open(tree);
+		ResearchStateChanged?.Invoke();
 	}
 
 	// A "!" on the Base tab button, so the player sees an action even when the Base panel is not open.

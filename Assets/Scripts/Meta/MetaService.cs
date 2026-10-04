@@ -145,17 +145,36 @@ public class MetaService : IMetaRewardSink
 			if (GetBuildingState(building.id).state == BuildingState.Available) return true;
 		}
 
+		return HasPurchasableNode();
+	}
+
+	// A node that can be bought right now: its tree is unlocked, prerequisites are met, and Scientists cover it.
+	public bool HasPurchasableNode()
+	{
 		foreach (SkillTreeDefinition tree in content.skillTrees)
 		{
-			if (tree == null || tree.nodes == null) continue;
+			if (tree == null || tree.nodes == null || !State.unlockedTrees.Contains(tree.id)) continue;
 			foreach (SkillNodeDefinition node in tree.nodes)
 			{
 				if (node != null && GetNodeState(node.id) == NodeState.Available) return true;
 			}
 		}
-
 		return false;
 	}
+
+	// Which tree the research shortcut opens. Today there is one tree, so this is the first unlocked one.
+	// Extension point: when several trees exist, return the first unlocked tree that still has a purchasable
+	// node, or open a picker. Keep the dock and the house button going through this one method.
+	public SkillTreeDefinition PickResearchTree()
+	{
+		foreach (SkillTreeDefinition tree in content.skillTrees)
+		{
+			if (tree != null && State.unlockedTrees.Contains(tree.id)) return tree;
+		}
+		return null;
+	}
+
+	public IReadOnlyList<DockShortcutDefinition> DockShortcuts => content.dockShortcuts;
 
 	// Buildings whose conditions were not all met at previousClearedLevel but are met at newClearedLevel.
 	public List<BuildingDefinition> GetNewlyAvailableBuildings(int previousClearedLevel, int newClearedLevel)

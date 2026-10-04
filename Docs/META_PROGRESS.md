@@ -65,6 +65,27 @@ Branch: `feature/meta-city`. Spec: the Meta Layer brief (Base city, stages a–f
 - Snapshot restore: returned the save to its state from before the test session.
 - Not verified: the Android Back key itself. The CLI cannot inject key presses, so this needs a manual check.
 
+## Done in stage (B): side research icon (SideDock)
+
+- `SideDock` (+ `SideDockInjector`, same runtime pattern as the settings gear): right edge, vertically at 36% of the screen, 96 px icon, on its own overlay canvas. Visible on Deck, Map and Base.
+- Shortcuts are data: `DockShortcutDefinition` (id, label, visibility, badge, action) listed in `MetaContentDatabase.dockShortcuts`. Current list: `Assets/Data/Meta/Dock/ResearchShortcut.asset`.
+- Visibility: after any tree is unlocked. Badge: a node is purchasable right now (`MetaService.HasPurchasableNode`).
+- One open path: `BaseView.OpenResearch(tree)`. The house button and the dock both call it. Opening does not change tabs, so Back returns to the tab the player was on.
+- Research overlay moved to its own overlay canvas (sort 2000) so it works from any tab. Bottom inset keeps the tab bar visible.
+- Dock hides while the research overlay is open (`BaseView.ResearchStateChanged`).
+- Events: subscribed in OnEnable, unsubscribed in OnDisable. No Update loop, no tweens.
+- Base city: viewport leaves a 124 px right margin for the dock, so houses are never hidden under it.
+- Fixed: Base and dock did not refresh on currency changes (People and Scientists do not raise MetaService.OnChanged). Both now also listen to `CurrencyService.OnChanged`.
+- Tutorial highlight: `SideDock.IconRect("research")` returns the icon's RectTransform (used by stage E).
+
+### Verified in Play
+
+- Dock hidden before the Laboratory is restored; visible after.
+- Badge off with no purchasable node, on when Scientists cover one, off again when Scientists are spent (through `CurrencyService`).
+- Tapped from Deck: research opens, dock hides, tab stays Deck. BACK closes, dock returns, tab still Deck.
+- Screenshots on Deck, Map and Base at 16:9 (1280x720): no overlap with cards, nodes, or houses. A corner of the island on Map is touched.
+- Not verified: 9:16 and 9:21 layouts (the CLI captures 16:9 only), and the Android Back key itself.
+
 ## Open items
 
 - `MetaCity.unity` is still in Build Settings and references deleted scripts. Remove it with the owner's confirmation.

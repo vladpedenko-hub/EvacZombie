@@ -111,10 +111,14 @@ public class MetaSkillTreeScreen : MonoBehaviour
 		Refresh();
 	}
 
+	// Raised on every close (BACK button, Android Back, or code), so the dock and the Base tab can update.
+	public event System.Action Closed;
+
 	public void Close()
 	{
 		selected = -1;
 		if (root != null) root.SetActive(false);
+		Closed?.Invoke();
 	}
 
 	public void Refresh()

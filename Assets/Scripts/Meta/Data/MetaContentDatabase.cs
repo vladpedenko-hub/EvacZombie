@@ -13,6 +13,9 @@ public class MetaContentDatabase : ScriptableObject
 	[Tooltip("Sequences used as dialogues (DialogOnly steps) and as tutorials. Looked up by tutorialId.")]
 	public List<TutorialSequence> sequences = new List<TutorialSequence>();
 
+	[Tooltip("Icons on the side dock, shown on every MainMenu tab. Order = top to bottom.")]
+	public List<DockShortcutDefinition> dockShortcuts = new List<DockShortcutDefinition>();
+
 	public BuildingDefinition FindBuilding(string id) => buildings.Find(b => b != null && b.id == id);
 
 	public SkillTreeDefinition FindTree(string id) => skillTrees.Find(t => t != null && t.id == id);
