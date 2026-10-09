@@ -25,6 +25,9 @@ public class CombatHelicopter : MonoBehaviour
 	private int currentLoad = 0;
 	private float shootTimer = 0f;
 
+	// Cached so DrawTracer's repeated yield doesn't allocate a new WaitForSeconds per shot.
+	private static readonly WaitForSeconds tracerLifetime = new WaitForSeconds(0.05f);
+
 	private void Start()
 	{
 		int currentLevel = 1;
@@ -150,7 +153,7 @@ public class CombatHelicopter : MonoBehaviour
 		GameObject tracerLine = new GameObject("Tracer");
 		LineRenderer lr = tracerLine.AddComponent<LineRenderer>();
 
-		lr.material = new Material(Shader.Find("Sprites/Default"));
+		lr.material = SharedMaterials.SpritesDefaultMaterial;
 		lr.startColor = Color.yellow;
 		lr.endColor = new Color(1, 0.5f, 0, 0);
 		lr.startWidth = 0.1f;
@@ -159,7 +162,7 @@ public class CombatHelicopter : MonoBehaviour
 		lr.SetPosition(0, start);
 		lr.SetPosition(1, end);
 
-		yield return new WaitForSeconds(0.05f);
+		yield return tracerLifetime;
 		Destroy(tracerLine);
 	}
 }

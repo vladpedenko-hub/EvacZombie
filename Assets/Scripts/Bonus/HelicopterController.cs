@@ -126,8 +126,10 @@ public class HelicopterController : MonoBehaviour
 			landingMarker.transform.localScale = new Vector3(landingRadius * 2, 0.01f, landingRadius * 2);
 			Destroy(landingMarker.GetComponent<Collider>());
 
+			// Not SharedMaterials.SpritesDefaultMaterial: this instance's .color is mutated below,
+			// which would leak landingColor onto every other user of a shared material.
 			Renderer r = landingMarker.GetComponent<Renderer>();
-			r.material = new Material(Shader.Find("Sprites/Default"));
+			r.material = new Material(SharedMaterials.SpritesDefaultShader);
 			r.material.color = landingColor;
 		}
 	}

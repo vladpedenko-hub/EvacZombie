@@ -34,7 +34,7 @@ public class InputManager : MonoBehaviour
 		radiusCircle = circleObj.AddComponent<LineRenderer>();
 		radiusCircle.startWidth = 0.2f;
 		radiusCircle.endWidth = 0.2f;
-		radiusCircle.material = new Material(Shader.Find("Sprites/Default"));
+		radiusCircle.material = SharedMaterials.SpritesDefaultMaterial;
 		radiusCircle.loop = true;
 		radiusCircle.enabled = false;
 
@@ -43,7 +43,7 @@ public class InputManager : MonoBehaviour
 		buildingOutline = outlineObj.AddComponent<LineRenderer>();
 		buildingOutline.startWidth = 0.15f;
 		buildingOutline.endWidth = 0.15f;
-		buildingOutline.material = new Material(Shader.Find("Sprites/Default"));
+		buildingOutline.material = SharedMaterials.SpritesDefaultMaterial;
 		buildingOutline.loop = true;
 		buildingOutline.positionCount = 5;
 		buildingOutline.startColor = new Color(1f, 0.9f, 0.3f, 0.9f);

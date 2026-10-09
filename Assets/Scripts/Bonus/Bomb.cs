@@ -69,7 +69,7 @@ public class Bomb : MonoBehaviour
 		circleRenderer = warningCircle.AddComponent<LineRenderer>();
 		circleRenderer.startWidth = 0.2f;
 		circleRenderer.endWidth = 0.2f;
-		circleRenderer.material = new Material(Shader.Find("Sprites/Default"));
+		circleRenderer.material = SharedMaterials.SpritesDefaultMaterial;
 		circleRenderer.startColor = Color.red;
 		circleRenderer.endColor = Color.red;
 		circleRenderer.loop = true;

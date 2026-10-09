@@ -74,6 +74,15 @@ public class Zombie : MonoBehaviour
 	private Collider cachedCollider;
 	private NavMeshPath cachedPath;
 
+	// Cached so AttackRoutine/HitFlashRoutine/LoseTargetRoutine's repeated yields don't allocate a
+	// new WaitForSeconds every attack/hit/distraction — these durations are fixed per-prefab values
+	// (infectDelay/attackCooldown/hitFlashDuration are Inspector fields, chaosSettings isn't
+	// reassigned at runtime), so one instance per zombie, created once, covers every pool reuse too.
+	private WaitForSeconds infectDelayWait;
+	private WaitForSeconds attackCooldownWait;
+	private WaitForSeconds hitFlashWait;
+	private WaitForSeconds loseTargetWait;
+
 	public bool IsDead => isDead;
 
 	protected virtual void Awake()
@@ -86,6 +95,11 @@ public class Zombie : MonoBehaviour
 
 		allRenderers = GetComponentsInChildren<Renderer>();
 		propertyBlock = new MaterialPropertyBlock();
+
+		infectDelayWait = new WaitForSeconds(infectDelay);
+		attackCooldownWait = new WaitForSeconds(attackCooldown);
+		hitFlashWait = new WaitForSeconds(hitFlashDuration);
+		loseTargetWait = new WaitForSeconds(chaosSettings != null ? chaosSettings.zombieLoseTargetDuration : 0.6f);
 
 		for (int i = 0; i < allRenderers.Length; i++)
 		{
@@ -348,11 +362,7 @@ public class Zombie : MonoBehaviour
 			agent.ResetPath();
 		}
 
-		float duration = chaosSettings != null
-			? chaosSettings.zombieLoseTargetDuration
-			: 0.6f;
-
-		yield return new WaitForSeconds(duration);
+		yield return loseTargetWait;
 		isDistracted = false;
 	}
 
@@ -498,7 +508,7 @@ public class Zombie : MonoBehaviour
 			agent.ResetPath();
 		}
 
-		yield return new WaitForSeconds(infectDelay);
+		yield return infectDelayWait;
 
 		if (target != null && !isDead)
 		{
@@ -517,7 +527,7 @@ public class Zombie : MonoBehaviour
 			}
 		}
 
-		yield return new WaitForSeconds(attackCooldown);
+		yield return attackCooldownWait;
 		isAttacking = false;
 	}
 
@@ -674,7 +684,7 @@ public class Zombie : MonoBehaviour
 	private IEnumerator HitFlashRoutine()
 	{
 		SetAllRendererColors(hitFlashColor);
-		yield return new WaitForSeconds(hitFlashDuration);
+		yield return hitFlashWait;
 		RestoreOriginalColors();
 	}
 

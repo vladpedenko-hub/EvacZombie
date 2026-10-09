@@ -34,6 +34,9 @@ public class Soldier : MonoBehaviour
 	private Coroutine shootRoutine;
 	private Coroutine tracerRoutine;
 
+	// Cached so ShootRoutine's repeated yield doesn't allocate a new WaitForSeconds per shot.
+	private WaitForSeconds fireRateWait;
+
 	private void Awake()
 	{
 		tracerLine = GetComponent<LineRenderer>();
@@ -45,7 +48,7 @@ public class Soldier : MonoBehaviour
 		tracerLine.positionCount = 2;
 		tracerLine.startWidth = 0.14f;
 		tracerLine.endWidth = 0.05f;
-		tracerLine.material = new Material(Shader.Find("Sprites/Default"));
+		tracerLine.material = SharedMaterials.SpritesDefaultMaterial;
 		tracerLine.startColor = new Color(1f, 0.95f, 0.2f, 1f);
 		tracerLine.endColor = new Color(1f, 0.45f, 0.05f, 0.9f);
 		tracerLine.enabled = false;
@@ -73,6 +76,7 @@ public class Soldier : MonoBehaviour
 		}
 
 		currentFireRate = Mathf.Max(0.05f, fireRate);
+		fireRateWait = new WaitForSeconds(currentFireRate);
 		shootRoutine = StartCoroutine(ShootRoutine());
 	}
 
@@ -144,7 +148,7 @@ public class Soldier : MonoBehaviour
 			if (target != null)
 			{
 				DoShot(target);
-				yield return new WaitForSeconds(currentFireRate);
+				yield return fireRateWait;
 			}
 			else
 			{

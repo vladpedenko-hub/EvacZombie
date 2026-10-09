@@ -47,6 +47,9 @@ public class CarController : MonoBehaviour
 
 	private List<GameObject> loadedUnits = new List<GameObject>();
 
+	// Cached so CarRoutine's too-hot wait doesn't allocate a new WaitForSeconds.
+	private static readonly WaitForSeconds tooHotWait = new WaitForSeconds(0.8f);
+
 	private void Awake()
 	{
 		agent = GetComponent<NavMeshAgent>();
@@ -286,7 +289,7 @@ public class CarController : MonoBehaviour
 		if (isTooHot && hotWarning != null)
 		{
 			hotWarning.SetActive(true);
-			yield return new WaitForSeconds(0.8f);
+			yield return tooHotWait;
 		}
 
 		foreach (var h in Human.AllHumans)

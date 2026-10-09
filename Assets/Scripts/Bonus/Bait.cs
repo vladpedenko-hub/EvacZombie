@@ -41,6 +41,10 @@ public class Bait : MonoBehaviour
 	private bool statsInitialized = false;
 	private bool launched = false;
 
+	// Cached so PingRoutine/LifeRoutine's repeated yields don't allocate a new WaitForSeconds each time.
+	private WaitForSeconds pingIntervalWait;
+	private WaitForSeconds lifeTimeWait;
+
 	private LineRenderer radiusRenderer;
 	private GameObject radiusRingObject;
 	private Tween ringPulseTween;
@@ -89,6 +93,9 @@ public class Bait : MonoBehaviour
 
 		if (attractRadius <= 0f) attractRadius = 10f;
 		if (lifeTime <= 0f) lifeTime = 5f;
+
+		pingIntervalWait = new WaitForSeconds(pingInterval);
+		lifeTimeWait = new WaitForSeconds(lifeTime);
 	}
 
 	public void Launch(Vector3 pos)
@@ -146,7 +153,7 @@ public class Bait : MonoBehaviour
 		radiusRenderer.positionCount = ringSegments;
 		radiusRenderer.startWidth = ringWidth;
 		radiusRenderer.endWidth = ringWidth;
-		radiusRenderer.material = new Material(Shader.Find("Sprites/Default"));
+		radiusRenderer.material = SharedMaterials.SpritesDefaultMaterial;
 		radiusRenderer.startColor = ringColor;
 		radiusRenderer.endColor = ringColor;
 		radiusRenderer.sortingOrder = 10;
@@ -204,13 +211,13 @@ public class Bait : MonoBehaviour
 				audioSource.PlayOneShot(clip, pingVolume);
 
 			if (i < count - 1)
-				yield return new WaitForSeconds(pingInterval);
+				yield return pingIntervalWait;
 		}
 	}
 
 	private IEnumerator LifeRoutine()
 	{
-		yield return new WaitForSeconds(lifeTime);
+		yield return lifeTimeWait;
 		Destroy(gameObject);
 	}
 

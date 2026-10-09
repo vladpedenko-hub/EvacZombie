@@ -38,6 +38,9 @@ public class Barricade : MonoBehaviour, IDamageable
 
     private Coroutine hitFlashRoutine;
 
+    // Cached so HitFlashRoutine's repeated yield doesn't allocate a new WaitForSeconds per hit.
+    private WaitForSeconds hitFlashWait;
+
     // ── lifecycle ───────────────────────────────────────────────────
 
     private void Awake()
@@ -49,6 +52,8 @@ public class Barricade : MonoBehaviour, IDamageable
         obstacle.carving = true;
         obstacle.carvingMoveThreshold = 0f;
         obstacle.carvingTimeToStationary = 0f;
+
+        hitFlashWait = new WaitForSeconds(hitFlashDuration);
 
         // Collect renderers once in Awake, same as in Zombie
         allRenderers = GetComponentsInChildren<Renderer>();
@@ -204,7 +209,7 @@ public class Barricade : MonoBehaviour, IDamageable
     private IEnumerator HitFlashRoutine()
     {
         SetAllRendererColors(hitFlashColor);
-        yield return new WaitForSeconds(hitFlashDuration);
+        yield return hitFlashWait;
         RestoreOriginalColors();
     }
 

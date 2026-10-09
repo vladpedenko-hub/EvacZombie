@@ -28,6 +28,12 @@ public class Sniper : MonoBehaviour
 	private int damage;
 	private float lifespan;
 
+	// Cached so SniperRoutine's repeated yields don't allocate a new WaitForSeconds each cycle.
+	private static readonly WaitForSeconds afterShotWait = new WaitForSeconds(0.15f);
+	private static readonly WaitForSeconds targetLostWait = new WaitForSeconds(0.2f);
+	private static readonly WaitForSeconds noTargetWait = new WaitForSeconds(0.35f);
+	private WaitForSeconds cooldownWait;
+
 	private bool isExtracting = false;
 	private bool isFirstShot = true;
 	private LineRenderer laserLine;
@@ -43,7 +49,7 @@ public class Sniper : MonoBehaviour
 	private void Awake()
 	{
 		laserLine = gameObject.AddComponent<LineRenderer>();
-		laserLine.material = new Material(Shader.Find("Sprites/Default"));
+		laserLine.material = SharedMaterials.SpritesDefaultMaterial;
 		laserLine.enabled = false;
 		laserLine.positionCount = 2;
 	}
@@ -92,6 +98,7 @@ public class Sniper : MonoBehaviour
 				lifespan = 99999f;
 		}
 
+		cooldownWait = new WaitForSeconds(cooldownDelay);
 		StartCoroutine(SniperRoutine());
 	}
 
@@ -187,21 +194,21 @@ public class Sniper : MonoBehaviour
 
 					isFirstShot = false;
 
-					yield return new WaitForSeconds(0.15f);
+					yield return afterShotWait;
 
 					laserLine.enabled = false;
-					yield return new WaitForSeconds(cooldownDelay);
+					yield return cooldownWait;
 				}
 				else
 				{
 					laserLine.enabled = false;
-					yield return new WaitForSeconds(0.2f);
+					yield return targetLostWait;
 				}
 			}
 			else
 			{
 				laserLine.enabled = false;
-				yield return new WaitForSeconds(0.35f);
+				yield return noTargetWait;
 			}
 		}
 	}
