@@ -371,22 +371,9 @@ public class Zombie : MonoBehaviour
 		target = null;
 		overrideDestination = null;
 
-		currentBait = null;
-		float bestDist = float.MaxValue;
-
-		foreach (var bait in Bait.AllBaits)
-		{
-			if (bait == null) continue;
-
-			Vector3 baitTargetPoint = bait.hasValidAttractPoint ? bait.attractPoint : bait.transform.position;
-			float dist = Vector3.Distance(transform.position, baitTargetPoint);
-
-			if (dist <= bait.attractRadius && dist < bestDist)
-			{
-				bestDist = dist;
-				currentBait = bait;
-			}
-		}
+		currentBait = TargetScanUtil.FindNearest(Bait.AllBaits, transform.position, float.MaxValue,
+			bait => bait.hasValidAttractPoint ? bait.attractPoint : bait.transform.position, out _,
+			accept: (bait, dist) => dist <= bait.attractRadius);
 
 		if (currentBait != null)
 		{
@@ -408,23 +395,17 @@ public class Zombie : MonoBehaviour
 
 	protected virtual Transform FindClosestVictim()
 	{
-		// Find the nearest living target
+		// Find the nearest living target. Humans are checked first, so a scientist at the exact
+		// same distance does not displace an already-found human — same tie-break as the single
+		// combined loop this replaces.
+		Human nearestHuman = TargetScanUtil.FindNearest(Human.AllHumans, transform.position, float.MaxValue, h => h.transform.position, out float humanDist);
+		Scientist nearestScientist = TargetScanUtil.FindNearest(Scientist.AllScientists, transform.position, float.MaxValue, s => s.transform.position, out float scientistDist);
+
 		Transform closest = null;
-		float minDist = float.MaxValue;
-
-		foreach (var h in Human.AllHumans)
-		{
-			if (h == null) continue;
-			float d = Vector3.Distance(transform.position, h.transform.position);
-			if (d < minDist) { minDist = d; closest = h.transform; }
-		}
-
-		foreach (var s in Scientist.AllScientists)
-		{
-			if (s == null) continue;
-			float d = Vector3.Distance(transform.position, s.transform.position);
-			if (d < minDist) { minDist = d; closest = s.transform; }
-		}
+		if (nearestHuman != null && (nearestScientist == null || humanDist <= scientistDist))
+			closest = nearestHuman.transform;
+		else if (nearestScientist != null)
+			closest = nearestScientist.transform;
 
 		// Target found — check if a barricade is blocking the path to it.
 		// PathPartial = NavMesh only reached the barricade, cannot go further.
@@ -486,15 +467,8 @@ public class Zombie : MonoBehaviour
 
 	private bool TryFindNearestBarricade(out Barricade result)
 	{
-		result = null;
-		float bestDist = barricadeCheckRadius;
-
-		foreach (var b in Barricade.AllBarricades)
-		{
-			if (b == null) continue;
-			float d = Vector3.Distance(transform.position, b.transform.position);
-			if (d < bestDist) { bestDist = d; result = b; }
-		}
+		result = TargetScanUtil.FindNearest(Barricade.AllBarricades, transform.position, barricadeCheckRadius,
+			b => b.transform.position, out _);
 
 		return result != null;
 	}

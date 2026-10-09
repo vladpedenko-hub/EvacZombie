@@ -107,20 +107,7 @@ public abstract class EvacueeBase : MonoBehaviour
 		}
 
 		// --- Priority 2: Flee from zombie ---
-		Zombie nearest = null;
-		float minD = panicRadius;
-
-		foreach (var z in Zombie.AllZombies)
-		{
-			if (z == null) continue;
-
-			float d = Vector3.Distance(transform.position, z.transform.position);
-			if (d < minD)
-			{
-				minD = d;
-				nearest = z;
-			}
-		}
+		Zombie nearest = TargetScanUtil.FindNearest(Zombie.AllZombies, transform.position, panicRadius, z => z.transform.position, out float minD);
 
 		if (nearest != null)
 		{

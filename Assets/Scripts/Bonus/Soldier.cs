@@ -300,21 +300,7 @@ public class Soldier : MonoBehaviour
 
 	private Zombie FindTarget()
 	{
-		Zombie best = null;
-		float minD = attackRange;
-
-		foreach (var z in Zombie.AllZombies)
-		{
-			if (z == null || z.IsDead) continue;
-
-			float d = Vector3.Distance(transform.position, z.transform.position);
-			if (d < minD)
-			{
-				minD = d;
-				best = z;
-			}
-		}
-
-		return best;
+		return TargetScanUtil.FindNearest(Zombie.AllZombies, transform.position, attackRange,
+			z => z.transform.position, out _, accept: (z, d) => !z.IsDead);
 	}
 }

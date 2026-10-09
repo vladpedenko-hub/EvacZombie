@@ -137,20 +137,8 @@ public class CombatHelicopter : MonoBehaviour
 
 	private Zombie FindClosestZombie()
 	{
-		Zombie closest = null;
-		float minDist = shootRadius;
-
-		foreach (var zombie in Zombie.AllZombies)
-		{
-			if (zombie == null) continue;
-			float dist = Vector3.Distance(transform.position, zombie.transform.position);
-			if (dist < minDist)
-			{
-				minDist = dist;
-				closest = zombie;
-			}
-		}
-		return closest;
+		return TargetScanUtil.FindNearest(Zombie.AllZombies, transform.position, shootRadius,
+			zombie => zombie.transform.position, out _);
 	}
 
 	private IEnumerator DrawTracer(Vector3 start, Vector3 end)
