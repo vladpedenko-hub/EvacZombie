@@ -41,6 +41,18 @@ public class Sniper : MonoBehaviour
 
 	private readonly List<Transform> civilianBuffer = new List<Transform>();
 
+	// Reused buffer for ApplyPiercingDamage's Physics.RaycastNonAlloc, fully consumed (sorted and
+	// iterated) before the method returns, so one buffer per sniper is safe to reuse per shot.
+	private RaycastHit[] piercingHitsBuffer = new RaycastHit[8];
+
+	// Cached comparer instance so sorting piercingHitsBuffer by distance doesn't allocate a new
+	// Comparer<RaycastHit> wrapper every shot (what Array.Sort(array, Comparison<T>) does internally).
+	private sealed class RaycastHitDistanceComparer : IComparer<RaycastHit>
+	{
+		public static readonly RaycastHitDistanceComparer Instance = new RaycastHitDistanceComparer();
+		public int Compare(RaycastHit a, RaycastHit b) => a.distance.CompareTo(b.distance);
+	}
+
 	public void Init(Transform buildingTransform)
 	{
 		myBuilding = buildingTransform;
@@ -341,14 +353,15 @@ public class Sniper : MonoBehaviour
 		Vector3 dir = (end - start).normalized;
 		float dist = Vector3.Distance(start, end);
 
-		RaycastHit[] hits = Physics.RaycastAll(start, dir, dist);
-		System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+		int hitCount = PhysicsNonAlloc.Raycast(start, dir, dist, ref piercingHitsBuffer);
+		System.Array.Sort(piercingHitsBuffer, 0, hitCount, RaycastHitDistanceComparer.Instance);
 
 		int targetsHit = 0;
 		float currentDamage = damage;
 
-		foreach (var hit in hits)
+		for (int i = 0; i < hitCount; i++)
 		{
+			RaycastHit hit = piercingHitsBuffer[i];
 			if (targetsHit >= maxPierceTargets) break;
 
 			if (hit.collider.CompareTag("Building") && (myBuilding == null || hit.collider.transform != myBuilding))

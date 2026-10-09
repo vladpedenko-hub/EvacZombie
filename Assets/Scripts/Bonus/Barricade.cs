@@ -41,6 +41,10 @@ public class Barricade : MonoBehaviour, IDamageable
     // Cached so HitFlashRoutine's repeated yield doesn't allocate a new WaitForSeconds per hit.
     private WaitForSeconds hitFlashWait;
 
+    // Reused buffer for Physics.OverlapSphereNonAlloc — the two roguelite checks in TakeDamage
+    // run back-to-back, each fully consumed before the next, so one buffer is safe to reuse.
+    private Collider[] overlapBuffer = new Collider[8];
+
     // ── lifecycle ───────────────────────────────────────────────────
 
     private void Awake()
@@ -130,10 +134,10 @@ public class Barricade : MonoBehaviour, IDamageable
             float reflectPct = run.GetModifier("barricade_reflect_pct");
             if (reflectPct > 0f)
             {
-                Collider[] nearby = Physics.OverlapSphere(transform.position, 3f);
-                foreach (var c in nearby)
+                int nearbyCount = PhysicsNonAlloc.OverlapSphere(transform.position, 3f, ref overlapBuffer);
+                for (int i = 0; i < nearbyCount; i++)
                 {
-                    Zombie z = c?.GetComponent<Zombie>();
+                    Zombie z = overlapBuffer[i]?.GetComponent<Zombie>();
                     if (z != null)
                     {
                         z.TakeDamage(Mathf.RoundToInt(damage * reflectPct));
@@ -144,9 +148,9 @@ public class Barricade : MonoBehaviour, IDamageable
 
             if (run.HasFlag("barricade_death_zone"))
             {
-                Collider[] deathZone = Physics.OverlapSphere(transform.position, 1.5f);
-                foreach (var c in deathZone)
-                    c?.GetComponent<Zombie>()?.TakeDamage(99999);
+                int deathZoneCount = PhysicsNonAlloc.OverlapSphere(transform.position, 1.5f, ref overlapBuffer);
+                for (int i = 0; i < deathZoneCount; i++)
+                    overlapBuffer[i]?.GetComponent<Zombie>()?.TakeDamage(99999);
             }
         }
 

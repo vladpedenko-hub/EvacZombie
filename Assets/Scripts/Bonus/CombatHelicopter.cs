@@ -28,6 +28,10 @@ public class CombatHelicopter : MonoBehaviour
 	// Cached so DrawTracer's repeated yield doesn't allocate a new WaitForSeconds per shot.
 	private static readonly WaitForSeconds tracerLifetime = new WaitForSeconds(0.05f);
 
+	// Reused buffer for the pickup-check Physics.OverlapSphereNonAlloc, fully consumed each
+	// loop iteration before the next.
+	private Collider[] pickupHitsBuffer = new Collider[8];
+
 	private void Start()
 	{
 		int currentLevel = 1;
@@ -84,9 +88,10 @@ public class CombatHelicopter : MonoBehaviour
 
 		while (timer < loadTime && currentLoad < maxCapacity)
 		{
-			Collider[] hits = Physics.OverlapSphere(transform.position, pickupRadius);
-			foreach (var hit in hits)
+			int hitCount = PhysicsNonAlloc.OverlapSphere(transform.position, pickupRadius, ref pickupHitsBuffer);
+			for (int i = 0; i < hitCount; i++)
 			{
+				Collider hit = pickupHitsBuffer[i];
 				if (hit.CompareTag("Human"))
 				{
 					Destroy(hit.gameObject);

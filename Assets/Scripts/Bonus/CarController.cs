@@ -50,6 +50,12 @@ public class CarController : MonoBehaviour
 	// Cached so CarRoutine's too-hot wait doesn't allocate a new WaitForSeconds.
 	private static readonly WaitForSeconds tooHotWait = new WaitForSeconds(0.8f);
 
+	// Reused buffers for Physics.OverlapSphereNonAlloc — separate per call site since the boarding
+	// one is read across a yield (PlayBoardingAnimation), so it must not be touched by the
+	// per-frame crush check in between.
+	private Collider[] crushHitsBuffer = new Collider[8];
+	private Collider[] boardingHitsBuffer = new Collider[8];
+
 	private void Awake()
 	{
 		agent = GetComponent<NavMeshAgent>();
@@ -145,9 +151,10 @@ public class CarController : MonoBehaviour
 
 		if (agent.velocity.magnitude > 1f)
 		{
-			Collider[] hits = Physics.OverlapSphere(transform.position, crushRadius);
-			foreach (var h in hits)
+			int hitCount = PhysicsNonAlloc.OverlapSphere(transform.position, crushRadius, ref crushHitsBuffer);
+			for (int i = 0; i < hitCount; i++)
 			{
+				Collider h = crushHitsBuffer[i];
 				if (h.CompareTag("Zombie"))
 					h.GetComponent<Zombie>()?.TakeDamage(1000);
 			}
@@ -235,10 +242,11 @@ public class CarController : MonoBehaviour
 			if (Time.time >= nextBoardTime)
 			{
 				int boarded = 0;
-				Collider[] unitsAtDoors = Physics.OverlapSphere(transform.position, boardingRadius);
+				int doorHitCount = PhysicsNonAlloc.OverlapSphere(transform.position, boardingRadius, ref boardingHitsBuffer);
 
-				foreach (var unit in unitsAtDoors)
+				for (int i = 0; i < doorHitCount; i++)
 				{
+					Collider unit = boardingHitsBuffer[i];
 					if (currentLoad >= maxCapacity) break;
 					if (boarded >= boardPerTick) break;
 

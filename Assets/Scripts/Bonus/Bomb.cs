@@ -20,6 +20,11 @@ public class Bomb : MonoBehaviour
 	private GameObject warningCircle;
 	private LineRenderer circleRenderer;
 
+	// Reused buffer for Physics.OverlapSphereNonAlloc — Explode() calls it up to three times
+	// (hit, stun, cluster) back-to-back, each fully consumed before the next, so one buffer
+	// is safe to reuse across all three.
+	private Collider[] overlapBuffer = new Collider[8];
+
 	private void Start()
 	{
 		int currentLevel = 1;
@@ -106,11 +111,12 @@ public class Bomb : MonoBehaviour
 
 	private void Explode()
 	{
-		Collider[] hits = Physics.OverlapSphere(transform.position, damageRadius);
+		int hitCount = PhysicsNonAlloc.OverlapSphere(transform.position, damageRadius, ref overlapBuffer);
 		HashSet<GameObject> processedObjects = new HashSet<GameObject>();
 
-		foreach (var hit in hits)
+		for (int i = 0; i < hitCount; i++)
 		{
+			Collider hit = overlapBuffer[i];
 			if (hit == null) continue;
 
 			GameObject target = hit.gameObject;
@@ -168,10 +174,10 @@ public class Bomb : MonoBehaviour
 			// Stun survivors
 			if (run.HasFlag("bomb_stun"))
 			{
-				Collider[] stunHits = Physics.OverlapSphere(transform.position, damageRadius);
-				foreach (var h in stunHits)
+				int stunHitCount = PhysicsNonAlloc.OverlapSphere(transform.position, damageRadius, ref overlapBuffer);
+				for (int i = 0; i < stunHitCount; i++)
 				{
-					Zombie z = h?.GetComponent<Zombie>();
+					Zombie z = overlapBuffer[i]?.GetComponent<Zombie>();
 					if (z != null && !z.IsDead)
 						z.Stun(5f);
 				}
@@ -183,9 +189,9 @@ public class Bomb : MonoBehaviour
 			{
 				Vector2 rndOffset = UnityEngine.Random.insideUnitCircle * damageRadius * 0.7f;
 				Vector3 miniPos = targetPos + new Vector3(rndOffset.x, 0, rndOffset.y);
-				Collider[] miniHits = Physics.OverlapSphere(miniPos, damageRadius * 0.3f);
-				foreach (var mh in miniHits)
-					mh?.GetComponent<Zombie>()?.TakeDamage(150);
+				int miniHitCount = PhysicsNonAlloc.OverlapSphere(miniPos, damageRadius * 0.3f, ref overlapBuffer);
+				for (int j = 0; j < miniHitCount; j++)
+					overlapBuffer[j]?.GetComponent<Zombie>()?.TakeDamage(150);
 			}
 		}
 
