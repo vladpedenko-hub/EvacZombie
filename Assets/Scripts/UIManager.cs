@@ -2,7 +2,6 @@ using DG.Tweening;
 using System.Collections;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
 {
@@ -10,8 +9,6 @@ public class UIManager : MonoBehaviour
 
 	[Header("UI References")]
 	[SerializeField] private TextMeshProUGUI timerText;
-	[SerializeField] private TextMeshProUGUI manaText;
-	[SerializeField] private Image manaFillBar;
 	[SerializeField] private ResultPopupUI resultPopup;
 
 	[Header("Rescue Counter")]
@@ -38,26 +35,11 @@ public class UIManager : MonoBehaviour
 
 	private void Start()
 	{
-		if (EnergyManager.Instance != null)
-			EnergyManager.Instance.OnEnergyChanged += UpdateManaUI;
-
 		if (centerNightText != null)
 		{
 			centerNightText.gameObject.SetActive(false);
 			centerNightText.color = new Color(centerNightText.color.r, centerNightText.color.g, centerNightText.color.b, 0);
 		}
-	}
-
-	private void OnDestroy()
-	{
-		if (EnergyManager.Instance != null)
-			EnergyManager.Instance.OnEnergyChanged -= UpdateManaUI;
-	}
-
-	private void UpdateManaUI(float currentEnergy, float maxEnergy)
-	{
-		if (manaText != null) manaText.text = Mathf.FloorToInt(currentEnergy).ToString();
-		if (manaFillBar != null && maxEnergy > 0) manaFillBar.fillAmount = currentEnergy / maxEnergy;
 	}
 
 	public void UpdateTimer(float time, bool isPlanning)

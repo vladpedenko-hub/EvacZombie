@@ -77,7 +77,6 @@ public class CheatManager : MonoBehaviour
 		{
 			if (Input.GetKeyDown(KeyCode.F2)) currentMode = SpawnMode.Human;
 			if (Input.GetKeyDown(KeyCode.F3)) currentMode = SpawnMode.Zombie;
-			if (Input.GetKeyDown(KeyCode.F4)) FillMana();
 			if (Input.GetKeyDown(KeyCode.F5)) CheatWin();
 		}
 		if (Input.GetKeyDown(KeyCode.F6)) AddPeople(); // People (soft currency), or rescued humans in a battle
@@ -146,7 +145,6 @@ public class CheatManager : MonoBehaviour
 			Section("BATTLE");
 			Button(currentMode == SpawnMode.Human ? "> TAP MAP <" : "Spawn Human (F2)", () => currentMode = SpawnMode.Human);
 			Button(currentMode == SpawnMode.Zombie ? "> TAP MAP <" : "Spawn Zombie (F3)", () => currentMode = SpawnMode.Zombie);
-			Button("Fill Energy (F4)", FillMana);
 			Button("Win Level (F5)", CheatWin);
 			Button("Rescue +10 humans (F6)", AddPeople);
 		}
@@ -403,7 +401,6 @@ public class CheatManager : MonoBehaviour
 	}
 
 	private void CheatWin() => GameManager.Instance?.EndLevel();
-	private void FillMana() => EnergyManager.Instance?.CheatFillEnergy();
 
 	// F6: rescues humans in a battle, adds People in the menu.
 	private void AddPeople()

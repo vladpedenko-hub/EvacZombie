@@ -136,7 +136,6 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 
 		if (success)
 		{
-			// EnergyManager.Instance.TrySpendEnergy(cost); ← убрано
 			StartCooldown();
 		}
 		else if (Input.mousePosition.y >= Screen.height * 0.25f)
