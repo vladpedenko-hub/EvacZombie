@@ -2,7 +2,13 @@
 
 Source task: `Docs/CLAUDE_CODE_TASK_LevelProgression.md`. This file is the single source of truth for the numbers; `CLAUDE.md` only points here.
 
-Status: **P1 (Audit) complete.** P2+ in progress — this file is updated after every phase.
+Status: **P1 (Audit) complete. P2 (Instruments) code-complete; live measurement blocked — see §0.** Continuing with P4-P6 content authoring using the brief's explicit ranges as a first pass, flagged pending probe verification.
+
+## 0. Blocker: Play Mode isn't ticking frames in this environment
+
+`BalanceProbe` is implemented and compiles clean, but running it requires Play Mode to actually advance `Time.frameCount`/`Time.time`, and in this Editor session it doesn't: `runtime_status` shows `FrameCount` stuck at 1 indefinitely (confirmed across 20-45s real-time waits, across stop/restart cycles, `editor_pause` toggles, `editor_focus`, and simulated pointer input — none of it un-stuck the loop), despite `RealTimeSinceStartup` advancing normally and `IsPlaying: true`. Earlier in this same session Play Mode *did* tick normally (screenshots rendered, frame count advanced) — this appears to be the Editor window getting suspended by the OS after an extended idle/unfocused period, which none of the available remote commands can override from inside the already-throttled process. A standalone Development Build would sidestep this (its own OS process, normal message loop) but requires switching the active build target from Android to a desktop target and back (`switch_build_target` is explicitly flagged as "destructive, long-running: triggers a full reimport + domain reload") plus enabling `runtime_pipeline.enableInBuilds` — a heavier detour than seemed justified before checking in.
+
+**What this means for the numbers below:** every level's waves/timer/objectives/multipliers are authored per the brief's explicit per-level ranges (§3) and the game's actual mechanics (spawn groups, multiplier wiring, boss HP ratio) — not guessed — but the **PI measured / t50 median columns are empty** until `BalanceProbe` can actually run. Vlad: if you're at the machine, clicking into the Unity Editor window (or just moving focus to it) may be enough to un-suspend it — worth a try before resorting to a standalone build.
 
 ---
 
@@ -67,6 +73,15 @@ Fix (P6): Region1's 100% trophy reward → a People/Scientist currency bundle (n
 ### 1.6 Win-condition / rescued-count mechanics (needed for §5.2 math)
 
 `GameManager.SetTotalHumans()`: `totalHumans` = spawned Human count, `totalScientists` = `Scientist.AllScientists.Count` (both captured once at level start). `requiredHumans` = `LevelData.requiredRescuedHumans` directly (an absolute int, not a percentage — so §5.2's percentage table must be converted to absolute counts per level: `round(pct * (humanCount + scientistCount))`, stored as the actual `requiredRescuedHumans`/`star2RequiredHumans` values). `GetStar1Target()`/`GetStar2Target()` fall back to `requiredRescuedHumans`/`requiredRescuedHumans+5` only when `star1RequiredHumans`/`star2RequiredHumans` are left at 0 — per the brief, both get set explicitly everywhere.
+
+---
+
+## 1.7 P2 Instruments (code-complete)
+
+- **Multipliers wired**: `LevelData.zombieSpeedMultiplier`/`zombieHealthMultiplier`, previously declared but never read, now apply at every point `Zombie` resets `currentHealth`/`agent.speed` from the base fields (`Awake`, `Start`, `OnTakenFromPool`) — covers wave spawns (pooled and raw `Instantiate`), Sudden Death spawns, infection-created zombies, and `ZombieBoss` (inherits unchanged). Always recomputed from the base field, never the prior value, so pool reuse can't compound it.
+- **`BalanceProbe.cs`** (`Assets/Scripts/Dev/`, dev-only): runs a level with zero input at accelerated `Time.timeScale`, logs t25/t50/t75/daySpawns/peakZombies/dayLength/totalLength/bossSpawnTime per (level, seed), writes `balance_probe.csv`. Verified compiling and logically sound; **not yet run end-to-end** (see §0).
+- **`PlaytestLog.cs`** (same folder): one JSON line per level attempt to `playtest_log.jsonl`, per the brief's schema. Export button added to CheatManager's dev panel. `metaActionsSinceLastAttempt` is wired for card upgrades (`CardInfoPopup.PerformUpgrade`) only — building restoration and skill-tree purchases aren't hooked yet (3 more small call-sites; see Proposals).
+- **Upgrade curve rescaled**: all 8 cards now have 4 `upgradeCosts` entries (2/60, 3/120, 4/220, 6/400), replacing the old 5-entry 5/10/15/20/25-dupe curve whose 5th entry was provably dead code.
 
 ---
 
