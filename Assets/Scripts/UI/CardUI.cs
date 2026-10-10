@@ -6,6 +6,11 @@ using TMPro;
 [RequireComponent(typeof(CanvasGroup))]
 public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
+	// Dev-only PlaytestLog's one unavoidable hook (Docs/CLAUDE_CODE_TASK_LevelProgression.md §7)
+	// -- placement is a discrete, fast event polling could miss or double-count. No gameplay code
+	// subscribes to this; it's purely observational.
+	public static event System.Action<CardManager.CardType> OnCardPlaced;
+
 	[Header("Card & Settings")]
 	public CardData myCardData; // Always assign CARD DATA here, not an ENUM
 
@@ -137,6 +142,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		if (success)
 		{
 			StartCooldown();
+			OnCardPlaced?.Invoke(myCardData.cardType);
 		}
 		else if (CardManager.Instance == null || !CardManager.Instance.IsScreenPointOverCardsPanel(Input.mousePosition))
 		{

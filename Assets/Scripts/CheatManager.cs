@@ -140,6 +140,13 @@ public class CheatManager : MonoBehaviour
 		Button("+100 Scientists (F9)", AddHardCurrency);
 		Button("RESET ALL (F7)", ResetSaves);
 
+		Section("PLAYTEST LOG");
+		Button("Export playtest_log.jsonl to clipboard", () =>
+		{
+			string path = PlaytestLog.ExportToClipboard();
+			Debug.Log("[Cheats] Playtest log copied to clipboard (source: " + path + ")");
+		});
+
 		if (GameManager.Instance != null)
 		{
 			Section("BATTLE");

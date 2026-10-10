@@ -154,6 +154,9 @@ public class CardInfoPopup : MonoBehaviour
 		PlayerProfile.Instance.totalCurrency -= cost;
 		currentProgress.collectedShards -= shardsToSpend;
 		currentProgress.currentLevel++;
+#if UNITY_EDITOR || DEBUG
+		PlaytestLog.NotifyMetaAction();
+#endif
 
 		Feedback.Play(FeedbackEvent.UiUpgrade);
 		PlayerProfile.Instance.SaveProfile();

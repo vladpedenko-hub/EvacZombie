@@ -9,6 +9,11 @@ public class LevelManager : MonoBehaviour
 {
 	public static LevelManager Instance;
 
+	// Observational only (BalanceProbe, Docs/CLAUDE_CODE_TASK_LevelProgression.md §4.1) -- counts
+	// zombies spawned by the wave timeline (not Sudden Death, not infection). Not read by any
+	// gameplay/flow code.
+	public static int DaySpawnCount = 0;
+
 	[Header("World References")]
 	[SerializeField] private NavMeshSurface navSurface;
 	[SerializeField] private GameObject humanPrefab;
@@ -401,6 +406,7 @@ public class LevelManager : MonoBehaviour
 			{
 				Instantiate(prefabToUse, spawnPoint.position, Quaternion.identity);
 			}
+			DaySpawnCount++;
 
 			if (i < finalSpawnCount - 1)
 			{

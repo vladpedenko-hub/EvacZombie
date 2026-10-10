@@ -9,6 +9,10 @@ public class Zombie : MonoBehaviour
 {
 	public static List<Zombie> AllZombies = new List<Zombie>();
 
+	// Observational only (BalanceProbe, Docs/CLAUDE_CODE_TASK_LevelProgression.md §4.1) -- counts
+	// humans/scientists turned into zombies. Not read by any gameplay/flow code.
+	public static int InfectedThisLevel = 0;
+
 	[Header("Settings")]
 	public int maxHealth = 100;
 	public float detectRadius = 10f;
@@ -556,6 +560,7 @@ public class Zombie : MonoBehaviour
 
 		Human.AllHumans.Remove(human);
 		Destroy(human.gameObject);
+		InfectedThisLevel++;
 
 		if (ZombiePool.Instance != null)
 		{
@@ -577,6 +582,7 @@ public class Zombie : MonoBehaviour
 
 		Scientist.AllScientists.Remove(scientist);
 		Destroy(scientist.gameObject);
+		InfectedThisLevel++;
 
 		if (ZombiePool.Instance != null)
 		{
