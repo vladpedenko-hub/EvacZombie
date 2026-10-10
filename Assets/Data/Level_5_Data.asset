@@ -17,7 +17,7 @@ MonoBehaviour:
   levelTimer: 42
   suddenDeathSpawnRate: 0.5
   zombieSpeedMultiplier: 1
-  zombieHealthMultiplier: 1.1
+  zombieHealthMultiplier: 1.15
   waves:
   - {fileID: 11400000, guid: 1841ae5c85844771a16bcbf323d3038e, type: 2}
   - {fileID: 11400000, guid: f2a2f08064c44a73acc47aa3a15f9bca, type: 2}

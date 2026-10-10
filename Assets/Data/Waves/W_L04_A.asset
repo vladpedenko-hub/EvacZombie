@@ -17,8 +17,8 @@ MonoBehaviour:
   actions:
   - delayBeforeStart: 0
     zombiePrefab: {fileID: 0}
-    minCount: 14
-    maxCount: 14
+    minCount: 20
+    maxCount: 20
     pattern: 1
     spawnInterval: 0.05
     spawnGroup: 0
