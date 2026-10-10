@@ -22,16 +22,14 @@ MonoBehaviour:
   uiButtonPrefab: {fileID: 5696677907596636750, guid: 2bb28bc51af1728418505e329e136af5, type: 3}
   maxLevel: 5
   upgradeCosts:
-  - duplicateCardsNeeded: 5
-    currencyCost: 100
-  - duplicateCardsNeeded: 10
-    currencyCost: 100
-  - duplicateCardsNeeded: 15
-    currencyCost: 100
-  - duplicateCardsNeeded: 20
-    currencyCost: 100
-  - duplicateCardsNeeded: 25
-    currencyCost: 100
+  - duplicateCardsNeeded: 2
+    currencyCost: 60
+  - duplicateCardsNeeded: 3
+    currencyCost: 120
+  - duplicateCardsNeeded: 4
+    currencyCost: 220
+  - duplicateCardsNeeded: 6
+    currencyCost: 400
   stats:
   - statType: 3
     statName: Damage

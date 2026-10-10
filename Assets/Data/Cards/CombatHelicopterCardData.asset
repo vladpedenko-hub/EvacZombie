@@ -22,16 +22,14 @@ MonoBehaviour:
   uiButtonPrefab: {fileID: 3048290322514774780, guid: d001d85369bef9746b02a1f7fc37c169, type: 3}
   maxLevel: 5
   upgradeCosts:
-  - duplicateCardsNeeded: 5
-    currencyCost: 100
-  - duplicateCardsNeeded: 10
-    currencyCost: 100
-  - duplicateCardsNeeded: 15
-    currencyCost: 100
-  - duplicateCardsNeeded: 20
-    currencyCost: 100
-  - duplicateCardsNeeded: 25
-    currencyCost: 100
+  - duplicateCardsNeeded: 2
+    currencyCost: 60
+  - duplicateCardsNeeded: 3
+    currencyCost: 120
+  - duplicateCardsNeeded: 4
+    currencyCost: 220
+  - duplicateCardsNeeded: 6
+    currencyCost: 400
   stats:
   - statType: 1
     statName: Capacity
