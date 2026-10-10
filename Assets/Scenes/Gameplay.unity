@@ -1231,6 +1231,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6eb148d2b68944f4cb11b9f360693e08, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  fitMarginPercent: 0.08
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -5298,6 +5299,9 @@ MonoBehaviour:
   indicatorHeight: 1.5
   minDistanceFromSpawnPoints: 3
   maxSpawnAttempts: 30
+  topReservedUI:
+  - {fileID: 211537536}
+  - {fileID: 2059390078}
   sunLight: {fileID: 410087040}
   nightColor: {r: 0.1986917, g: 0.1986917, b: 0.4433962, a: 1}
   nightIntensity: 0.5

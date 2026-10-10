@@ -39,16 +39,30 @@ public class CameraSwitcher : MonoBehaviour
 	private void ApplyOrtho()
 	{
 		cam.orthographic = true;
-		cam.orthographicSize = orthoSize;
 		transform.position = orthoPos;
 		transform.rotation = Quaternion.Euler(orthoRot);
+
+		// Reuse the current level's cached HUD/card-hand reservation (computed by
+		// CameraController.SetupCamera) so this debug toggle also fits the city width/HUD.
+		CameraController cc = CameraController.Instance;
+		cam.orthographicSize = cc != null
+			? CameraFraming.ComputeOrthographicSize(orthoSize, cam.aspect, cc.TopReservedScreenFraction, cc.BottomReservedScreenFraction, cc.fitMarginPercent)
+			: orthoSize;
 	}
 
 	private void ApplyPersp()
 	{
 		cam.orthographic = false;
-		cam.fieldOfView = perspFOV;
 		transform.position = perspPos;
 		transform.rotation = Quaternion.Euler(perspRot);
+		cam.fieldOfView = perspFOV;
+
+		CameraController cc = CameraController.Instance;
+		float? groundDistance = CameraFraming.GetGroundDistance(transform.position, transform.forward);
+		if (cc != null && groundDistance.HasValue)
+		{
+			float pullback = CameraFraming.ComputePerspectivePullback(groundDistance.Value, cam.aspect, cc.TopReservedScreenFraction, cc.BottomReservedScreenFraction, cc.fitMarginPercent);
+			if (pullback > 0f) transform.position -= transform.forward * pullback;
+		}
 	}
 }

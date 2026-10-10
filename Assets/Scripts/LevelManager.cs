@@ -23,6 +23,10 @@ public class LevelManager : MonoBehaviour
 	[SerializeField] private float minDistanceFromSpawnPoints = 8f;
 	[SerializeField] private int maxSpawnAttempts = 30;
 
+	[Header("Camera Fit - Reserved UI")]
+	[Tooltip("Top-anchored HUD elements whose screen-space extent the camera should not hide the map behind (e.g. TimerText, RescuedCounter).")]
+	[SerializeField] private RectTransform[] topReservedUI;
+
 	[Header("Lighting")]
 	public Light sunLight;
 	public Color nightColor = new Color(0.1f, 0.1f, 0.3f);
@@ -84,7 +88,10 @@ public class LevelManager : MonoBehaviour
 		currentLevelEnvironment = Instantiate(data.levelPrefab, Vector3.zero, Quaternion.identity);
 
 		if (CameraController.Instance != null)
-			CameraController.Instance.SetupCamera(data);
+		{
+			(float topFrac, float bottomFrac) = GetReservedScreenFractions();
+			CameraController.Instance.SetupCamera(data, topFrac, bottomFrac);
+		}
 
 		if (navSurface != null)
 			navSurface.BuildNavMesh();
@@ -114,6 +121,35 @@ public class LevelManager : MonoBehaviour
 		{
 			TutorialManager.Instance.StartTutorial(currentData.onStartTutorial);
 		}
+	}
+
+	// Fraction of the screen height covered by top-anchored HUD elements / the bottom card hand,
+	// read from their actual on-screen RectTransform corners (Screen Space - Overlay canvases,
+	// so GetWorldCorners already returns screen pixels, safe-area insets included).
+	private (float top, float bottom) GetReservedScreenFractions()
+	{
+		Vector3[] corners = new Vector3[4];
+		float topPixels = 0f;
+
+		if (topReservedUI != null)
+		{
+			foreach (RectTransform rt in topReservedUI)
+			{
+				if (rt == null || !rt.gameObject.activeInHierarchy) continue;
+				rt.GetWorldCorners(corners);
+				topPixels = Mathf.Max(topPixels, Screen.height - corners[0].y);
+			}
+		}
+
+		float bottomPixels = 0f;
+		RectTransform cardsPanel = CardManager.Instance != null ? CardManager.Instance.cardsPanel as RectTransform : null;
+		if (cardsPanel != null)
+		{
+			cardsPanel.GetWorldCorners(corners);
+			bottomPixels = corners[1].y; // top-left corner's screen Y == panel height from the bottom edge
+		}
+
+		return (topPixels / Screen.height, bottomPixels / Screen.height);
 	}
 
 	private void SpawnInitialPlanningIndicators()
