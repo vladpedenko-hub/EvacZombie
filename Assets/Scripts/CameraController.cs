@@ -7,6 +7,7 @@ public class CameraController : MonoBehaviour
 {
 	public static CameraController Instance;
 	private Camera cam;
+	private CameraZoomPanController zoomPan;
 
 	[Header("Fit-to-width")]
 	[Tooltip("Extra breathing room added on top of the tight fit to the authored framing.")]
@@ -21,6 +22,10 @@ public class CameraController : MonoBehaviour
 	{
 		Instance = this;
 		cam = GetComponent<Camera>();
+
+		// Added here (not in the scene) so the zoom/pan feature needs no scene/prefab edit.
+		zoomPan = GetComponent<CameraZoomPanController>();
+		if (zoomPan == null) zoomPan = gameObject.AddComponent<CameraZoomPanController>();
 	}
 
 	// Called from LevelManager when setting up the level
@@ -58,5 +63,9 @@ public class CameraController : MonoBehaviour
 				if (pullback > 0f) transform.position -= transform.forward * pullback;
 			}
 		}
+
+		// Readability pass: treat the fit-to-width framing just computed above as the max
+		// zoom-out limit, then let the player pinch/pan in from there (Docs/CAMERA_READABILITY.md).
+		zoomPan?.OnLevelCameraSetup(data);
 	}
 }

@@ -72,6 +72,8 @@ public class InputManager : MonoBehaviour
 	{
 		if (!isDragging || draggingCard == null) return;
 
+		CameraZoomPanController.Instance?.NotifyCardDragScreenPosition(screenPos);
+
 		Ray ray = mainCam.ScreenPointToRay(screenPos);
 		if (Physics.Raycast(ray, out RaycastHit hit))
 		{
