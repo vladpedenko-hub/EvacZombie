@@ -85,11 +85,23 @@ public class Zombie : MonoBehaviour
 
 	public bool IsDead => isDead;
 
+	// Read fresh (not cached) so a pooled zombie reused across level loads, or one that outlives
+	// a LevelManager swap, always reflects the CURRENT level's multipliers. Always re-applied from
+	// the base maxHealth/moveSpeed fields below, never from the current value -- no compounding
+	// across repeated pool reuse.
+	protected static float SpeedMultiplier =>
+		LevelManager.Instance != null && LevelManager.Instance.currentData != null
+			? LevelManager.Instance.currentData.zombieSpeedMultiplier : 1f;
+
+	protected static float HealthMultiplier =>
+		LevelManager.Instance != null && LevelManager.Instance.currentData != null
+			? LevelManager.Instance.currentData.zombieHealthMultiplier : 1f;
+
 	protected virtual void Awake()
 	{
 		agent = GetComponent<NavMeshAgent>();
 		cachedCollider = GetComponent<Collider>();
-		currentHealth = maxHealth;
+		currentHealth = Mathf.RoundToInt(maxHealth * HealthMultiplier);
 		initialScale = transform.localScale;
 		cachedPath = new NavMeshPath();
 
@@ -137,7 +149,7 @@ public class Zombie : MonoBehaviour
 	{
 		if (agent != null)
 		{
-			agent.speed = moveSpeed;
+			agent.speed = moveSpeed * SpeedMultiplier;
 		}
 
 		StartBrainIfNeeded();
@@ -164,7 +176,7 @@ public class Zombie : MonoBehaviour
 		isDistracted = false;
 		isStunned = false;
 		isStunned = false;
-		currentHealth = maxHealth;
+		currentHealth = Mathf.RoundToInt(maxHealth * HealthMultiplier);
 		nextChaosCheckTime = 0f;
 
 		currentBait = null;
@@ -194,7 +206,7 @@ public class Zombie : MonoBehaviour
 		if (agent != null)
 		{
 			agent.enabled = true;
-			agent.speed = moveSpeed;
+			agent.speed = moveSpeed * SpeedMultiplier;
 			agent.isStopped = false;
 			agent.ResetPath();
 
