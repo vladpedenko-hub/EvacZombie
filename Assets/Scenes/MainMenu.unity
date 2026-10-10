@@ -286,7 +286,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 902432391}
-  m_Father: {fileID: 163044543}
+  m_Father: {fileID: 160508322}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -1338,6 +1338,14 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 626747009}
+  - {fileID: 1591229202}
+  - {fileID: 1622144395}
+  - {fileID: 1735171768}
+  - {fileID: 322760892}
+  - {fileID: 13665850}
+  - {fileID: 1915587877}
+  - {fileID: 866342910}
+  - {fileID: 856050123}
   m_Father: {fileID: 163044543}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -1455,14 +1463,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 160508322}
-  - {fileID: 1591229202}
-  - {fileID: 1622144395}
-  - {fileID: 1735171768}
-  - {fileID: 13665850}
-  - {fileID: 1915587877}
-  - {fileID: 866342910}
-  - {fileID: 856050123}
-  - {fileID: 322760892}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -1859,7 +1859,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1203343941}
-  m_Father: {fileID: 163044543}
+  m_Father: {fileID: 160508322}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
@@ -4561,7 +4561,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1823744327}
-  m_Father: {fileID: 163044543}
+  m_Father: {fileID: 160508322}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -4658,7 +4658,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2063139501}
-  m_Father: {fileID: 163044543}
+  m_Father: {fileID: 160508322}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -8304,7 +8304,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 163044543}
+  m_Father: {fileID: 160508322}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
@@ -8578,7 +8578,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 163044543}
+  m_Father: {fileID: 160508322}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
@@ -9401,7 +9401,7 @@ RectTransform:
   - {fileID: 140088814}
   - {fileID: 1380017832}
   - {fileID: 1570622046}
-  m_Father: {fileID: 163044543}
+  m_Father: {fileID: 160508322}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 0}
@@ -10058,7 +10058,7 @@ RectTransform:
   m_Children:
   - {fileID: 1558781007}
   - {fileID: 561774927}
-  m_Father: {fileID: 163044543}
+  m_Father: {fileID: 160508322}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -11494,9 +11494,45 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1158782442054280166, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: -80
+      objectReference: {fileID: 0}
     - target: {fileID: 1529269533510877890, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
       propertyPath: m_Name
       value: TutorialCanvas
+      objectReference: {fileID: 0}
+    - target: {fileID: 3438320515075131700, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3438320515075131700, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3438320515075131700, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 390
+      objectReference: {fileID: 0}
+    - target: {fileID: 4383322521872243221, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4383322521872243221, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4383322521872243221, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: -635
+      objectReference: {fileID: 0}
+    - target: {fileID: 4383322521872243221, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 180
+      objectReference: {fileID: 0}
+    - target: {fileID: 4383322521872243221, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 277.5
       objectReference: {fileID: 0}
     - target: {fileID: 4923197227504576298, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
       propertyPath: m_Pivot.x
@@ -11577,6 +11613,22 @@ PrefabInstance:
     - target: {fileID: 4923197227504576298, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5534962281070621667, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_fontSize
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 5534962281070621667, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_fontSizeMax
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 5534962281070621667, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_fontSizeMin
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 5534962281070621667, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      propertyPath: m_enableAutoSizing
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

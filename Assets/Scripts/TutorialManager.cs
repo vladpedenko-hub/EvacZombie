@@ -230,13 +230,17 @@ public class TutorialManager : MonoBehaviour
 			else dialogIcon.gameObject.SetActive(false);
 
 			RectTransform dialogRect = dialogPanel.GetComponent<RectTransform>();
+			(float topInset, float bottomInset) = GetVerticalSafeAreaInsetsInCanvasUnits(dialogRect);
 			switch (step.dialogPosition)
 			{
 				case DialogPosition.Top:
 					dialogRect.anchorMin = new Vector2(0, 1);
 					dialogRect.anchorMax = new Vector2(1, 1);
 					dialogRect.pivot = new Vector2(0.5f, 1);
-					dialogRect.anchoredPosition = new Vector2(0, -100);
+					// -170 (was -100) clears the Gameplay HUD (timer/rescued counter sit ~0-62
+					// units below the true top edge); the safe-area inset is added on top so this
+					// also clears a notch/cutout on devices where Screen.safeArea shrinks the top.
+					dialogRect.anchoredPosition = new Vector2(0, -170f - topInset);
 					break;
 				case DialogPosition.Center:
 					dialogRect.anchorMin = new Vector2(0, 0.5f);
@@ -248,7 +252,7 @@ public class TutorialManager : MonoBehaviour
 					dialogRect.anchorMin = new Vector2(0, 0);
 					dialogRect.anchorMax = new Vector2(1, 0);
 					dialogRect.pivot = new Vector2(0.5f, 0);
-					dialogRect.anchoredPosition = new Vector2(0, 100);
+					dialogRect.anchoredPosition = new Vector2(0, 100f + bottomInset);
 					break;
 			}
 
@@ -367,6 +371,19 @@ public class TutorialManager : MonoBehaviour
 			return fingerPointer.parent.TransformPoint(localPos);
 		}
 		return targetRect.position;
+	}
+
+	// DialogPanel can't be wrapped in a SafeArea container (it's part of the TutorialCanvas
+	// prefab instance, and Unity won't let a prefab-instance child be reparented outside it),
+	// so the Top/Bottom cases above add this inset directly to their anchoredPosition instead.
+	private (float top, float bottom) GetVerticalSafeAreaInsetsInCanvasUnits(RectTransform rect)
+	{
+		Canvas canvas = rect.GetComponentInParent<Canvas>();
+		float scale = (canvas != null && canvas.scaleFactor > 0f) ? canvas.scaleFactor : 1f;
+		Rect safe = Screen.safeArea;
+		float topPixels = Screen.height - (safe.y + safe.height);
+		float bottomPixels = safe.y;
+		return (topPixels / scale, bottomPixels / scale);
 	}
 
 	private void SetupMaskRect(RectTransform rect)
