@@ -1370,6 +1370,7 @@ GameObject:
   - component: {fileID: 163044541}
   - component: {fileID: 163044540}
   - component: {fileID: 163044544}
+  - component: {fileID: 163044545}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -1481,6 +1482,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1b3cd6ed8ff42904b8675e6513d5434c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &163044545
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 163044539}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87ce95fb41fc5f741a85a9e4b583f5e2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AspectAwareCanvasScaler
 --- !u!1 &176472834
 GameObject:
   m_ObjectHideFlags: 0
@@ -3494,13 +3507,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   navButtons: []
-  deckPanel: {fileID: 426550882}
-  mapPanel: {fileID: 1467049857}
-  metaPanel: {fileID: 1045892565}
   mapController: {fileID: 1467049860}
   snapDuration: 0.4
-  swipeThreshold: 0.15
-  elasticity: 0.25
   minVerticalSwipe: 50
   verticalDominance: 1.5
 --- !u!114 &626747011
@@ -11573,8 +11581,28 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 1529269533510877890, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1090074339177539008}
   m_SourcePrefab: {fileID: 100100000, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+--- !u!1 &1090074339177539007 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1529269533510877890, guid: b21e633feb407c04882a63360aab3fdf, type: 3}
+  m_PrefabInstance: {fileID: 1090074339177539006}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1090074339177539008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1090074339177539007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87ce95fb41fc5f741a85a9e4b583f5e2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AspectAwareCanvasScaler
 --- !u!198 &3538970768929830795
 ParticleSystem:
   m_ObjectHideFlags: 0
