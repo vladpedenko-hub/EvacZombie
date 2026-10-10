@@ -70,6 +70,10 @@ Core loop реализован и работает: `GameManager`, `LevelManager
 - **Известные ограничения проверки (10.10.2026)**: Device Simulator пакет (`com.unity.device-simulator`) не установлен — верификация по 5 целевым разрешениям (1080x1920, 1080x2400, 1170x2532, 750x1334, 1536x2048) сделана через `capture_game_view` с реальным `Screen.width/height` этого размера, но БЕЗ симуляции настоящего notch/cutout (Editor без Device Simulator отдаёт `Screen.safeArea` = весь экран, инсет = 0). Это значит: пропорции/аспекты/safe-area-МЕХАНИЗМ проверены, а то, что safe area реально подожмёт контент под живым вырезом на настоящем 1170x2532-устройстве — нет. Если нужна точная проверка под нотч — ставить Device Simulator (спросить Влада) или тестить на реальном телефоне.
 - **`unity command eval`**: `Transform.SetParent` на объекте внутри PrefabInstance молча проваливается (объект остаётся на месте) — ни голый `eval`, ни команда `set_parent` не могут вынести ребёнка префаб-инстанса в чужого родителя. Если нужно переместить такой объект — либо распаковать инстанс (`PrefabUtility.UnpackPrefabInstance`, меняет линковку с префабом — спросить Влада), либо решать задачу в коде (как с `DialogPanel` выше), а не в сцене.
 
+## Level Progression & Balance Pass (ветка `feature/level-progression`, начато 10.10.2026)
+
+Бриф → `Docs/CLAUDE_CODE_TASK_LevelProgression.md`. Все цифры (per-level PI/таймеры/волны/экономика) → `Docs/LEVEL_BALANCE.md`, это единственный источник правды, сюда — только указатель.
+
 ## Документация — где что лежит
 
 - `Docs/GDD_CORE_LOOP.md` — актуальный GDD MVP-скоупа.
