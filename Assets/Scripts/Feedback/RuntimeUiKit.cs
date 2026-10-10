@@ -10,9 +10,10 @@ public static class RuntimeUiKit
 {
 	private static Sprite roundedSprite;
 	private static Sprite gearSprite;
+	private static Sprite triangleSprite;
 
 	[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-	private static void ResetStatics() { roundedSprite = null; gearSprite = null; }
+	private static void ResetStatics() { roundedSprite = null; gearSprite = null; triangleSprite = null; }
 
 	/// <summary>9-sliced rounded rectangle (white, tint it with Image.color).</summary>
 	public static Sprite Rounded()
@@ -74,6 +75,47 @@ public static class RuntimeUiKit
 		gearSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
 		return gearSprite;
 	}
+
+	/// <summary>Upward-pointing white triangle (tint with Image.color, rotate to point anywhere). Used by the off-screen threat indicators.</summary>
+	public static Sprite Triangle()
+	{
+		if (triangleSprite != null) return triangleSprite;
+
+		const int size = 64;
+		var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+		tex.wrapMode = TextureWrapMode.Clamp;
+		tex.filterMode = FilterMode.Bilinear;
+
+		Vector2 apex = new Vector2(size * 0.5f, size - 2f);
+		Vector2 baseL = new Vector2(2f, 2f);
+		Vector2 baseR = new Vector2(size - 2f, 2f);
+
+		for (int y = 0; y < size; y++)
+		{
+			for (int x = 0; x < size; x++)
+			{
+				Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+				bool inside = PointInTriangle(p, apex, baseL, baseR);
+				tex.SetPixel(x, y, new Color(1f, 1f, 1f, inside ? 1f : 0f));
+			}
+		}
+		tex.Apply();
+
+		triangleSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+		return triangleSprite;
+	}
+
+	private static bool PointInTriangle(Vector2 p, Vector2 a, Vector2 b, Vector2 c)
+	{
+		float d1 = Cross(b - a, p - a);
+		float d2 = Cross(c - b, p - b);
+		float d3 = Cross(a - c, p - c);
+		bool hasNeg = d1 < 0f || d2 < 0f || d3 < 0f;
+		bool hasPos = d1 > 0f || d2 > 0f || d3 > 0f;
+		return !(hasNeg && hasPos);
+	}
+
+	private static float Cross(Vector2 a, Vector2 b) => a.x * b.y - a.y * b.x;
 
 	public static RectTransform CreateRect(string name, Transform parent)
 	{
