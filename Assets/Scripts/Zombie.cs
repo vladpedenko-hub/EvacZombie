@@ -103,6 +103,10 @@ public class Zombie : MonoBehaviour
 
 	protected virtual void Awake()
 	{
+		// Covers ZombieBoss too (it doesn't override Awake) -- both prefabs have a same-named
+		// "AttractedVisual" bait-attraction hitbox child that must keep its original world size.
+		ActorVisualScaler.Apply(transform, transform.Find("AttractedVisual"));
+
 		agent = GetComponent<NavMeshAgent>();
 		cachedCollider = GetComponent<Collider>();
 		currentHealth = Mathf.RoundToInt(maxHealth * HealthMultiplier);

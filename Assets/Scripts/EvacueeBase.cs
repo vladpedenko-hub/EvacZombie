@@ -38,7 +38,11 @@ public abstract class EvacueeBase : MonoBehaviour
 	private Vector3 rescueApproachPoint;
 	private bool isBoarding = false;
 
-	private void Awake() => agent = GetComponent<NavMeshAgent>();
+	private void Awake()
+	{
+		ActorVisualScaler.Apply(transform);
+		agent = GetComponent<NavMeshAgent>();
+	}
 
 	private void Start()
 	{
