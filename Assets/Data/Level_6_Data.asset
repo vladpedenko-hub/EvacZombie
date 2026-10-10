@@ -11,38 +11,38 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
   m_Name: Level_6_Data
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   levelPrefab: {fileID: 4058927015439930953, guid: f41673eece9a8b04185f939f82447b45, type: 3}
   humanCount: 50
-  levelTimer: 30
-  suddenDeathSpawnRate: 0.2
+  levelTimer: 42
+  suddenDeathSpawnRate: 0.5
   zombieSpeedMultiplier: 1
   zombieHealthMultiplier: 1
   waves:
-  - {fileID: 11400000, guid: d9a443c098b198e4dbcb832ed2de2079, type: 2}
-  - {fileID: 11400000, guid: 49665c75a36b0454fa61c46978ee3ab6, type: 2}
-  requiredRescuedHumans: 10
-  star1RequiredHumans: 0
-  star2RequiredHumans: 0
-  star3Description: Save all
-  missionTitleOverride: 
+  - {fileID: 11400000, guid: 25fd75c9e4cb4e69b760549790974152, type: 2}
+  - {fileID: 11400000, guid: a415275508e645f2beec134994749bc6, type: 2}
+  requiredRescuedHumans: 13
+  star1RequiredHumans: 13
+  star2RequiredHumans: 27
+  star3Description: Save everyone
+  missionTitleOverride:
   missionIcon: {fileID: 0}
-  missionDescription: 
+  missionDescription: Scientists are trapped in the ruins. Get them out gently.
   cameraType: 0
   cameraPosition: {x: -2.61, y: 27.4, z: 0.83}
   cameraRotation: {x: 90, y: 0, z: 0}
   cameraFieldOfView: 84
   orthographicSize: 10
-  currencyReward: 50
-  levelRewardLootbox: {fileID: 0}
+  currencyReward: 40
+  levelRewardLootbox: {fileID: 11400000, guid: 876651ccfaa87924cbec7cb20b71d086, type: 2}
   clearGrants:
   - currencyType: 0
-    amount: 10
+    amount: 5
     sourceType: 0
   - currencyType: 1
-    amount: 1
+    amount: 3
     sourceType: 0
-  scientistCount: 0
+  scientistCount: 3
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
   abilityEnabled: 1
   onStartTutorial: {fileID: 0}

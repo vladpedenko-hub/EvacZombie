@@ -34,7 +34,7 @@ MonoBehaviour:
   cameraFieldOfView: 62
   orthographicSize: 35
   currencyReward: 50
-  levelRewardLootbox: {fileID: 11400000, guid: aedfda23cd5572c4dac0817ed913988e, type: 2}
+  levelRewardLootbox: {fileID: 11400000, guid: a56196d1d79ba2a4c885f9a1f600b379, type: 2}
   clearGrants:
   - currencyType: 0
     amount: 10

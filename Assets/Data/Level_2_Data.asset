@@ -11,36 +11,36 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
   m_Name: Level_2_Data
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   levelPrefab: {fileID: 4058927015439930953, guid: 6f2cdca8843941f448c476e4431a5f3a, type: 3}
-  humanCount: 100
-  levelTimer: 30
-  suddenDeathSpawnRate: 0.2
+  humanCount: 50
+  levelTimer: 33
+  suddenDeathSpawnRate: 0.5
   zombieSpeedMultiplier: 1
   zombieHealthMultiplier: 1
   waves:
-  - {fileID: 11400000, guid: d9a443c098b198e4dbcb832ed2de2079, type: 2}
-  - {fileID: 11400000, guid: 49665c75a36b0454fa61c46978ee3ab6, type: 2}
+  - {fileID: 11400000, guid: 4c232a42964341e59d09a41a7b121e28, type: 2}
+  - {fileID: 11400000, guid: 0a939776ecea49b1885b6c8f410f93cb, type: 2}
   requiredRescuedHumans: 10
   star1RequiredHumans: 10
   star2RequiredHumans: 20
-  star3Description: Save all
-  missionTitleOverride: 
-  missionIcon: {fileID: -7343220986905845580, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
-  missionDescription: 
+  star3Description: Save everyone
+  missionTitleOverride:
+  missionIcon: {fileID: 0}
+  missionDescription: Hold the line up north. Your Soldier buys the chopper time.
   cameraType: 0
   cameraPosition: {x: -2.78, y: 40.6, z: 2.24}
   cameraRotation: {x: 90, y: 0, z: 0}
   cameraFieldOfView: 62
   orthographicSize: 10
-  currencyReward: 100
+  currencyReward: 40
   levelRewardLootbox: {fileID: 11400000, guid: aedfda23cd5572c4dac0817ed913988e, type: 2}
   clearGrants:
   - currencyType: 0
-    amount: 10
+    amount: 5
     sourceType: 0
   - currencyType: 1
-    amount: 1
+    amount: 0
     sourceType: 0
   scientistCount: 0
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}

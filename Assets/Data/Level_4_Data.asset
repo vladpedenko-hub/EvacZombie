@@ -11,36 +11,37 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
   m_Name: Level_4_Data
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   levelPrefab: {fileID: 4058927015439930953, guid: 8d6a82675df5cf34593ad5e7eb120e96, type: 3}
-  humanCount: 50
-  levelTimer: 30
-  suddenDeathSpawnRate: 0.2
+  humanCount: 60
+  levelTimer: 39
+  suddenDeathSpawnRate: 0.5
   zombieSpeedMultiplier: 1
   zombieHealthMultiplier: 1
   waves:
-  - {fileID: 11400000, guid: 49665c75a36b0454fa61c46978ee3ab6, type: 2}
-  - {fileID: 11400000, guid: d9a443c098b198e4dbcb832ed2de2079, type: 2}
-  requiredRescuedHumans: 10
-  star1RequiredHumans: 10
-  star2RequiredHumans: 20
-  star3Description: Save all
-  missionTitleOverride: 
-  missionIcon: {fileID: -7343220986905845580, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
-  missionDescription: 
+  - {fileID: 11400000, guid: 45c8cb583bbe48e0a8e3e6216630d764, type: 2}
+  - {fileID: 11400000, guid: 81d48d86a1a4410e88d23439fc8090b0, type: 2}
+  - {fileID: 11400000, guid: 53584e15c4ff488482189f09363fc089, type: 2}
+  requiredRescuedHumans: 15
+  star1RequiredHumans: 15
+  star2RequiredHumans: 30
+  star3Description: Save everyone
+  missionTitleOverride:
+  missionIcon: {fileID: 0}
+  missionDescription: Dig in. Your Sniper can reach further than you think.
   cameraType: 0
   cameraPosition: {x: -2.9, y: 29.35, z: 1.35}
   cameraRotation: {x: 90, y: 0, z: 0}
   cameraFieldOfView: 80
   orthographicSize: 10
-  currencyReward: 50
-  levelRewardLootbox: {fileID: 11400000, guid: aedfda23cd5572c4dac0817ed913988e, type: 2}
+  currencyReward: 45
+  levelRewardLootbox: {fileID: 11400000, guid: 830a6190f4844d51a1bd4dcfe0f9ffd6, type: 2}
   clearGrants:
   - currencyType: 0
-    amount: 10
+    amount: 5
     sourceType: 0
   - currencyType: 1
-    amount: 1
+    amount: 0
     sourceType: 0
   scientistCount: 0
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}

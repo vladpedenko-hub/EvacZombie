@@ -20,6 +20,6 @@ MonoBehaviour:
   ruinedVisual: {fileID: 0}
   restoredVisual: {fileID: 0}
   conditions:
-  - {fileID: 11400000, guid: 19aefe27d31658c42b42b14babb72248, type: 2}
+  - {fileID: 11400000, guid: f9ba5dd4fa67e9a4c847232cdfe3fc1e, type: 2}
   restorationCostPeople: 120
   rewardsOnRestore: []

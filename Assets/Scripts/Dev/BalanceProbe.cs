@@ -76,6 +76,36 @@ public class BalanceProbe : MonoBehaviour
 
 		if (InputManager.Instance != null) InputManager.Instance.IsPaused = true;
 
+		// Clean slate: unlike normal play (a full scene reload between attempts), the probe
+		// reuses the live scene across runs for speed. LoadLevel() only destroys the map
+		// prefab, not scene-root actors spawned by SpawnHumans/SpawnScientists/wave spawns,
+		// and GameManager.State carries over -- its StartGame() guard ("if State != Planning
+		// return") would silently no-op every run after the first (or after any aborted run)
+		// without this reset.
+		foreach (Human h in Human.AllHumans.ToArray()) if (h != null) Destroy(h.gameObject);
+		foreach (Scientist s in Scientist.AllScientists.ToArray()) if (s != null) Destroy(s.gameObject);
+		foreach (Zombie z in Zombie.AllZombies.ToArray()) if (z != null) Destroy(z.gameObject);
+		if (GameManager.Instance != null) GameManager.Instance.State = GameManager.GameState.Planning;
+
+		// LoadLevel() destroys the previous run's map prefab with Destroy() (deferred to end of
+		// frame) and, later in that same call, re-populates its spawn-point cache with
+		// FindObjectsOfType<SpawnPointMarker>() -- which still sees the about-to-be-destroyed
+		// old markers since the deferred destroy hasn't run yet. That stale reference then
+		// throws MissingReferenceException the moment a wave reads it, silently killing the
+		// wave-timeline coroutine for the rest of the run. Never hit in normal play (one
+		// LoadLevel() per scene load); only the probe calls it repeatedly without a scene
+		// reload. Pre-destroying the old environment synchronously (DestroyImmediate, via
+		// reflection since the field is private) before LoadLevel() avoids the staleness
+		// without touching LevelManager.cs itself.
+		var envField = typeof(LevelManager).GetField("currentLevelEnvironment",
+			System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+		GameObject oldEnv = envField.GetValue(LevelManager.Instance) as GameObject;
+		if (oldEnv != null)
+		{
+			DestroyImmediate(oldEnv);
+			envField.SetValue(LevelManager.Instance, null);
+		}
+
 		Zombie.InfectedThisLevel = 0;
 		LevelManager.DaySpawnCount = 0;
 

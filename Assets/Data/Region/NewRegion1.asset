@@ -36,10 +36,10 @@ MonoBehaviour:
     cardReward: {fileID: 0}
     skinRewardIcon: {fileID: 0}
     customRewardId: 
-  - rewardType: 1
+  - rewardType: 0
     progressThreshold: 1
-    softCurrencyAmount: 0
-    lootboxReward: {fileID: 11400000, guid: aedfda23cd5572c4dac0817ed913988e, type: 2}
+    softCurrencyAmount: 100
+    lootboxReward: {fileID: 0}
     cardReward: {fileID: 0}
     skinRewardIcon: {fileID: 0}
-    customRewardId: 
+    customRewardId:

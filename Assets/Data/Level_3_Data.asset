@@ -11,36 +11,36 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
   m_Name: Level_3_Data
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   levelPrefab: {fileID: 4058927015439930953, guid: 12ac8eca5340e3e43a1718afc0a2eba4, type: 3}
-  humanCount: 50
-  levelTimer: 30
-  suddenDeathSpawnRate: 0.2
+  humanCount: 55
+  levelTimer: 36
+  suddenDeathSpawnRate: 0.5
   zombieSpeedMultiplier: 1
   zombieHealthMultiplier: 1
   waves:
-  - {fileID: 11400000, guid: 49665c75a36b0454fa61c46978ee3ab6, type: 2}
-  - {fileID: 11400000, guid: d9a443c098b198e4dbcb832ed2de2079, type: 2}
-  requiredRescuedHumans: 10
-  star1RequiredHumans: 10
-  star2RequiredHumans: 20
-  star3Description: Save all
-  missionTitleOverride: 
-  missionIcon: {fileID: -7343220986905845580, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
-  missionDescription: 
+  - {fileID: 11400000, guid: d5c3fcc9a5b84ac3a8f12bba6e8df719, type: 2}
+  - {fileID: 11400000, guid: 24b12a69d0d5475babe673cad5c50d32, type: 2}
+  requiredRescuedHumans: 14
+  star1RequiredHumans: 14
+  star2RequiredHumans: 26
+  star3Description: Save everyone
+  missionTitleOverride:
+  missionIcon: {fileID: 0}
+  missionDescription: Lure them away from two sides. The chopper needs a clear path.
   cameraType: 0
   cameraPosition: {x: -2.96, y: 31.71, z: 2.4}
   cameraRotation: {x: 90, y: 0, z: 0}
   cameraFieldOfView: 75
   orthographicSize: 10
-  currencyReward: 50
-  levelRewardLootbox: {fileID: 11400000, guid: a56196d1d79ba2a4c885f9a1f600b379, type: 2}
+  currencyReward: 45
+  levelRewardLootbox: {fileID: 11400000, guid: cf9c080cc60fd834782fe96eb286a38d, type: 2}
   clearGrants:
   - currencyType: 0
-    amount: 10
+    amount: 5
     sourceType: 0
   - currencyType: 1
-    amount: 1
+    amount: 0
     sourceType: 0
   scientistCount: 0
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}

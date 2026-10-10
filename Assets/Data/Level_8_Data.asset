@@ -11,38 +11,39 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
   m_Name: Level_8_Data
-  m_EditorClassIdentifier: 
-  levelPrefab: {fileID: 4058927015439930953, guid: e72bd972271fde6499532a093ebaa6e6, type: 3}
-  humanCount: 50
-  levelTimer: 30
-  suddenDeathSpawnRate: 0.2
-  zombieSpeedMultiplier: 1
-  zombieHealthMultiplier: 1
+  m_EditorClassIdentifier:
+  levelPrefab: {fileID: 4058927015439930953, guid: 8d6a82675df5cf34593ad5e7eb120e96, type: 3}
+  humanCount: 65
+  levelTimer: 45
+  suddenDeathSpawnRate: 0.5
+  zombieSpeedMultiplier: 1.2
+  zombieHealthMultiplier: 1.4
   waves:
-  - {fileID: 11400000, guid: d9a443c098b198e4dbcb832ed2de2079, type: 2}
-  - {fileID: 11400000, guid: 49665c75a36b0454fa61c46978ee3ab6, type: 2}
-  requiredRescuedHumans: 10
-  star1RequiredHumans: 0
-  star2RequiredHumans: 0
-  star3Description: Save all
-  missionTitleOverride: 
+  - {fileID: 11400000, guid: 3fc36934b4394c418b570396cb0739b2, type: 2}
+  - {fileID: 11400000, guid: 330e8e7253ca404497ba2e1ae241bce6, type: 2}
+  - {fileID: 11400000, guid: 236ebc311cee443eae17425f812e17fe, type: 2}
+  requiredRescuedHumans: 22
+  star1RequiredHumans: 22
+  star2RequiredHumans: 39
+  star3Description: Save everyone
+  missionTitleOverride:
   missionIcon: {fileID: 0}
-  missionDescription: 
+  missionDescription: They're tougher now. Focus fire wins this one.
   cameraType: 0
-  cameraPosition: {x: -2.78, y: 27.4, z: -1.7}
+  cameraPosition: {x: -2.9, y: 29.35, z: 1.35}
   cameraRotation: {x: 90, y: 0, z: 0}
-  cameraFieldOfView: 76
+  cameraFieldOfView: 80
   orthographicSize: 10
   currencyReward: 50
-  levelRewardLootbox: {fileID: 0}
+  levelRewardLootbox: {fileID: 11400000, guid: 8d8c8bd3f53e4f1c9f29ad73eece9654, type: 2}
   clearGrants:
   - currencyType: 0
-    amount: 10
+    amount: 5
     sourceType: 0
   - currencyType: 1
-    amount: 1
+    amount: 3
     sourceType: 0
-  scientistCount: 0
+  scientistCount: 3
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
   abilityEnabled: 1
   onStartTutorial: {fileID: 0}

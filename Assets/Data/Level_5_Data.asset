@@ -11,30 +11,31 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
   m_Name: Level_5_Data
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier:
   levelPrefab: {fileID: 4058927015439930953, guid: 7342fa22789ce7c4db22be3fc28779e2, type: 3}
-  humanCount: 50
-  levelTimer: 30
-  suddenDeathSpawnRate: 0.2
+  humanCount: 65
+  levelTimer: 42
+  suddenDeathSpawnRate: 0.5
   zombieSpeedMultiplier: 1
-  zombieHealthMultiplier: 1
+  zombieHealthMultiplier: 1.1
   waves:
-  - {fileID: 11400000, guid: 49665c75a36b0454fa61c46978ee3ab6, type: 2}
-  - {fileID: 11400000, guid: d9a443c098b198e4dbcb832ed2de2079, type: 2}
-  requiredRescuedHumans: 10
-  star1RequiredHumans: 10
-  star2RequiredHumans: 20
-  star3Description: Save all
-  missionTitleOverride: 
-  missionIcon: {fileID: -5159087384432534610, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
-  missionDescription: 
+  - {fileID: 11400000, guid: 1841ae5c85844771a16bcbf323d3038e, type: 2}
+  - {fileID: 11400000, guid: f2a2f08064c44a73acc47aa3a15f9bca, type: 2}
+  - {fileID: 11400000, guid: 347b5b9ff6e041099f198a86edc66d11, type: 2}
+  requiredRescuedHumans: 20
+  star1RequiredHumans: 20
+  star2RequiredHumans: 36
+  star3Description: Save everyone, survive the boss
+  missionTitleOverride:
+  missionIcon: {fileID: 0}
+  missionDescription: Nevada Falls. A boss is coming -- hold until the chopper clears the sky.
   cameraType: 0
   cameraPosition: {x: -2.78, y: 29.75, z: 2.35}
   cameraRotation: {x: 90, y: 0, z: 0}
   cameraFieldOfView: 80
   orthographicSize: 10
-  currencyReward: 50
-  levelRewardLootbox: {fileID: 11400000, guid: cf9c080cc60fd834782fe96eb286a38d, type: 2}
+  currencyReward: 55
+  levelRewardLootbox: {fileID: 11400000, guid: 55d40bc089b4479a82164554c19cc071, type: 2}
   clearGrants:
   - currencyType: 0
     amount: 10
