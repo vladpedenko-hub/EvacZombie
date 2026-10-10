@@ -74,6 +74,12 @@ Core loop реализован и работает: `GameManager`, `LevelManager
 
 Бриф → `Docs/CLAUDE_CODE_TASK_LevelProgression.md`. Все цифры (per-level PI/таймеры/волны/экономика) → `Docs/LEVEL_BALANCE.md`, это единственный источник правды, сюда — только указатель.
 
+## Camera Readability Pass (ветка `feature/camera-readability`, начато 11.10.2026)
+
+Проблема была: fit-to-width камера (см. пункт выше про респонсив-лейаут) только РАСШИРЯЛА рамку под HUD/аспект, из-за чего на L4-L10 (108-154 построек) игрок видел весь город сразу — люди/зомби были ~2-3мм на экране. Полный список тюнаблов, их дефолты и что крутить первым при жалобах "слишком мелко/крупно" → `Docs/CAMERA_READABILITY.md`, это единственный источник правды для этой фичи.
+
+Коротко: `CameraZoomPanController` (новый, на том же GameObject что `CameraController`) добавляется САМ через код в `CameraController.Awake()` — ручных шагов в Unity Editor для этой фичи нет, в отличие от других UI-пассов. Все тюнаблы (диапазон зума, чувствительность pan, edge-auto-pan, тайминги интро-шота, инвентарь off-screen-индикаторов, глобальный множитель масштаба акторов) лежат в одном ScriptableObject-ассете `Assets/Resources/CameraReadabilityConfig.asset` — открыть в инспекторе и крутить, без пересборки кода.
+
 ## Документация — где что лежит
 
 - `Docs/GDD_CORE_LOOP.md` — актуальный GDD MVP-скоупа.
