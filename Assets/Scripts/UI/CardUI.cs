@@ -138,7 +138,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		{
 			StartCooldown();
 		}
-		else if (Input.mousePosition.y >= Screen.height * 0.25f)
+		else if (CardManager.Instance == null || !CardManager.Instance.IsScreenPointOverCardsPanel(Input.mousePosition))
 		{
 			// Released in the play area but placement was rejected (released in the card tray = plain cancel, stay silent)
 			Feedback.Play(FeedbackEvent.CardPlaceInvalid);

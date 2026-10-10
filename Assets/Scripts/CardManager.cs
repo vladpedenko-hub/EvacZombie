@@ -13,6 +13,18 @@ public class CardManager : MonoBehaviour
 
 	private void Awake() => Instance = this;
 
+	// Real hit-test against the actual card-hand panel, used in place of a hardcoded
+	// "bottom N% of screen is UI" assumption so this works on any aspect ratio / safe area.
+	public bool IsScreenPointOverCardsPanel(Vector2 screenPoint)
+	{
+		RectTransform panelRect = cardsPanel as RectTransform;
+		if (panelRect == null) return false;
+
+		Canvas canvas = panelRect.GetComponentInParent<Canvas>();
+		Camera uiCamera = (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay) ? canvas.worldCamera : null;
+		return RectTransformUtility.RectangleContainsScreenPoint(panelRect, screenPoint, uiCamera);
+	}
+
 	private void Start()
 	{
 		SpawnDeck();

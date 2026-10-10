@@ -153,7 +153,7 @@ public class InputManager : MonoBehaviour
 			return placed;
 		}
 
-		if (Input.mousePosition.y < Screen.height * 0.25f)
+		if (CardManager.Instance != null && CardManager.Instance.IsScreenPointOverCardsPanel(Input.mousePosition))
 		{
 			ClearBuildingOutline();
 			return false;
@@ -258,7 +258,7 @@ public class InputManager : MonoBehaviour
 	{
 		if (card == null) return false;
 
-		bool isUI = screenPos.y < Screen.height * 0.25f;
+		bool isUI = CardManager.Instance != null && CardManager.Instance.IsScreenPointOverCardsPanel(screenPos);
 		if (isUI) return false;
 
 		bool isBuilding = hit.collider.CompareTag("Building");
