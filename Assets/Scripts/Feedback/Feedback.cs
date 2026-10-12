@@ -25,6 +25,9 @@ public enum FeedbackEvent
 	// Abilities / boss
 	AbilityReady, AbilityActivate, BossRage,
 
+	// Core Loop v2 Signal Flare (Docs/CORE_LOOP_V2.md Phase 6)
+	SignalFlare,
+
 	// Results
 	Win, PerfectClear, Lose
 }
@@ -116,6 +119,9 @@ public static class Feedback
 		{ FeedbackEvent.AbilityReady,     E(SfxId.AbilityReady, HapticType.Success) },
 		{ FeedbackEvent.AbilityActivate,  E(SfxId.AbilityActivate, HapticType.Medium) },
 		{ FeedbackEvent.BossRage,         E(SfxId.BossRage, HapticType.Heavy, hapticCd: 1.0f, shake: 0.35f, shakeTime: 0.6f) },
+
+		// ---- Core Loop v2 Signal Flare
+		{ FeedbackEvent.SignalFlare,      E(SfxId.SignalFlare, HapticType.Heavy, VfxId.SignalFlareFlash, shake: 0.4f, shakeTime: 0.4f) },
 
 		// ---- Results
 		{ FeedbackEvent.Win,              E(SfxId.Win, HapticType.Success) },

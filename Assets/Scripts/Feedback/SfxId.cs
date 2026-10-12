@@ -54,6 +54,9 @@ public enum SfxId
 	AbilityActivate,
 	BossRage,
 
+	// --- Core Loop v2 Signal Flare ---
+	SignalFlare,
+
 	// --- Results ---
 	Win,
 	PerfectClear,

@@ -12,7 +12,8 @@ public enum VfxId
 	PlacePop,
 	BarricadeDust,
 	BarricadeDebris,
-	RescueSparkle
+	RescueSparkle,
+	SignalFlareFlash
 }
 
 /// <summary>
@@ -55,6 +56,7 @@ public class VfxManager : MonoBehaviour
 		{ VfxId.BarricadeDust,   new Spec(new Color(0.75f, 0.70f, 0.60f), new Color(0.60f, 0.55f, 0.45f), 5, 0.40f, 1.5f, 0.40f, -0.1f, Shape.Sphere, 0.20f) },
 		{ VfxId.BarricadeDebris, new Spec(new Color(0.50f, 0.35f, 0.20f), new Color(0.70f, 0.50f, 0.30f), 10, 0.60f, 4.0f, 0.22f, 1.5f, Shape.ConeUp, 0.30f) },
 		{ VfxId.RescueSparkle,   new Spec(new Color(0.60f, 1f, 1f), new Color(1f, 1f, 1f),          12, 0.70f, 2.5f, 0.30f, -0.2f, Shape.ConeUp, 0.40f) },
+		{ VfxId.SignalFlareFlash, new Spec(new Color(1f, 0.95f, 0.55f), new Color(1f, 0.55f, 0.15f), 28, 0.6f, 5.0f, 0.55f, 0.0f, Shape.Sphere, 0.3f) },
 	};
 	// ------------------------------------------------------------------
 

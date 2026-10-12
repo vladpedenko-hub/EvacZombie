@@ -19,6 +19,10 @@ public class AbilityManager : MonoBehaviour
     public bool IsInitialized { get; private set; } = false;
     public bool IsEnabled { get; private set; } = false;
 
+    // Core Loop v2 Signal Flare (Docs/CORE_LOOP_V2.md Phase 6): read by SignalFlareDragHandler to
+    // decide whether a drag may begin.
+    public bool IsReady => state == AbilityState.Ready;
+
     public event Action<bool> OnInitialized;
     public event Action<float, float> OnChargeChanged;
     public event Action OnAbilityReady;
@@ -50,6 +54,13 @@ public class AbilityManager : MonoBehaviour
         IsEnabled = levelData != null && levelData.abilityEnabled;
         IsInitialized = true;
         OnInitialized?.Invoke(IsEnabled);
+
+        // Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 6): the ability button only becomes a drag
+        // target (Signal Flare) on v2 levels with the ability enabled. Added/removed here so a
+        // legacy level's button never gets the extra component at all -- no risk of it changing
+        // Unity's click-vs-drag disambiguation for levels that must stay byte-identical.
+        bool wantsFlareDrag = IsEnabled && levelData != null && levelData.useCoreLoopV2;
+        SignalFlareDragHandler.SetEnabledOnButton(wantsFlareDrag);
     }
 
     public void AddCharge(int civiliansCount)
@@ -102,8 +113,63 @@ public class AbilityManager : MonoBehaviour
     public void OnAbilityButtonClicked()
     {
         if (!IsEnabled) return;
+
+        // Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 6): a plain click/tap no-ops in v2 -- Signal
+        // Flare only fires via SignalFlareDragHandler's drag-to-target release.
+        if (CoreLoopV2.IsActive) return;
+
         if (state == AbilityState.Ready)
             ActivateAbility();
+    }
+
+    // Core Loop v2 Signal Flare (Docs/CORE_LOOP_V2.md Phase 6): instant, targeted activation --
+    // replaces the legacy speed-boost effect entirely for v2 levels. Resets charge to 0 so it can
+    // charge again, same as the legacy DrainRoutine's end state.
+    public void ActivateFlareAt(Vector3 worldPoint)
+    {
+        if (!IsEnabled || state != AbilityState.Ready) return;
+
+        if (drainCoroutine != null) { StopCoroutine(drainCoroutine); drainCoroutine = null; }
+
+        OnAbilityActivated?.Invoke();
+        ApplyFlareEffect(worldPoint);
+
+        currentCharge = 0;
+        state = AbilityState.Idle;
+        OnChargeChanged?.Invoke(0, maxCharge);
+        OnAbilityExpired?.Invoke();
+    }
+
+    private void ApplyFlareEffect(Vector3 center)
+    {
+        CoreLoopV2Config cfg = CoreLoopV2Config.Active;
+        float radius = cfg != null ? cfg.flareRadius : 12f;
+        float stunDuration = cfg != null ? cfg.flareStunDuration : 4f;
+        float radiusSqr = radius * radius;
+
+        foreach (var z in Zombie.AllZombies.ToArray())
+        {
+            if (z != null && (z.transform.position - center).sqrMagnitude <= radiusSqr)
+                z.Stun(stunDuration);
+        }
+
+        Transform nearestTransport = CoreLoopV2.FindNearestActiveTransport(center);
+
+        if (nearestTransport != null)
+        {
+            foreach (var h in Human.AllHumans.ToArray())
+            {
+                if (h != null && (h.transform.position - center).sqrMagnitude <= radiusSqr)
+                    h.SetRescueTarget(nearestTransport);
+            }
+            foreach (var s in Scientist.AllScientists.ToArray())
+            {
+                if (s != null && (s.transform.position - center).sqrMagnitude <= radiusSqr)
+                    s.SetRescueTarget(nearestTransport);
+            }
+        }
+
+        Feedback.Play(FeedbackEvent.SignalFlare, center);
     }
 
     public void ActivateAbility()
