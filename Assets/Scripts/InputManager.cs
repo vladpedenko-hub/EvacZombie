@@ -142,7 +142,9 @@ public class InputManager : MonoBehaviour
 			ClearBuildingOutline();
 			if (placed) Feedback.Play(FeedbackEvent.CardPlaceOk);
 
-			if (placed && GameManager.Instance.State == GameManager.GameState.Planning)
+			// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 2): Planning no longer ends on first
+			// placement -- PlanningControllerV2's GO button / auto-start timer does it instead.
+			if (placed && !CoreLoopV2.IsActive && GameManager.Instance.State == GameManager.GameState.Planning)
 				GameManager.Instance.StartGame();
 
 			// --- Tutorial: advance step on card play ---
@@ -174,7 +176,8 @@ public class InputManager : MonoBehaviour
 			Feedback.Play(FeedbackEvent.CardPlaceOk, hit.point);
 			ClearBuildingOutline();
 
-			if (GameManager.Instance.State == GameManager.GameState.Planning)
+			// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 2): see the Sniper branch above.
+			if (!CoreLoopV2.IsActive && GameManager.Instance.State == GameManager.GameState.Planning)
 				GameManager.Instance.StartGame();
 
 			// --- Tutorial: advance step on any other card play (e.g. helicopter, bait, etc.) ---
