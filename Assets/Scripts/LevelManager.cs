@@ -112,6 +112,7 @@ public class LevelManager : MonoBehaviour
 		PlanningControllerV2.OnLevelLoaded(data);
 		WaveHudV2.OnLevelLoaded(data);
 		NightLastCallController.OnLevelLoaded(data);
+		GoalBarUI.OnLevelLoaded(data);
 
 		if (currentLevelEnvironment != null)
 			Destroy(currentLevelEnvironment);
