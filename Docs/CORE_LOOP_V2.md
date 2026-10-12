@@ -95,3 +95,41 @@ Card supply costs (`CardData.supplyCost`): Barricade 1, Bait 1, Car 2, Soldier 2
 ## No manual Unity Editor steps are needed for this pass
 
 Every new v2 system self-bootstraps (same pattern as `CameraZoomPanController`/`SettingsButtonInjector`) and builds its own UI in code at runtime, parented into `SafeAreaContainer` (found by name) or alongside `TimerText`/`RescuedCounter` (also found by name) — nothing was wired by hand in the Editor, and nothing needs to be.
+
+---
+
+## HUD rebuild + progressive onboarding (12.10.2026 follow-up)
+
+A second pass, same branch. Driven by a playtest that found the v2 HUD chaotic (ad-hoc elements each claiming their own spot) and L1 introducing Planning/Supply/waves all at once before the player ever flies a helicopter. Two changes: (1) a strict HUD zone system, (2) v2 enabled on **all 10 levels** with per-level feature gating so the UI/tutorial introduces one mechanic at a time instead of dumping the whole system on L1.
+
+### Final per-level feature matrix
+
+| Level | `v2PlanningEnabled` | `v2ShowSupplyHud` | `v2ShowWaveIndicator` | `v2ShowAdOffer` | `startingSupply` | `abilityEnabled` | Tutorial |
+|---|---|---|---|---|---|---|---|
+| L1 | false | false | false | false | 20 (= cap, never blocks) | false | `onStartTutorial`: drag Helicopter. `onNightTutorial`: drag Last Transport. |
+| L2 | true | true | true | false | 0 (default 6) | false | `onStartTutorial`: spawn point -> 2 Barricades -> GO. |
+| L3 | true | true | true | false | 0 (default 6) | true | Ability-ready-triggered: drag Signal Flare, completes on use. |
+| L4-L10 | true | true | true | true | 0 (default 6) | true | none |
+
+Everywhere: the rescue progress bar + stars, Night/Last Call, and `useCoreLoopV2=true` are on. Numbers (costs, waves, durations) were **not** rebalanced — the only deliberate value changes are L1's `startingSupply=20` (so a hidden, logic-only Supply never blocks a level that doesn't show it) and L2 keeping the **default** `startingSupply` (6, from `CoreLoopV2Config`) rather than a level-specific override, since two Barricades (cost 1 each = 2 Supply) fit comfortably inside it with margin for the forced first wave.
+
+### Zone layout (`Docs/CORE_LOOP_V2.md` HUD rebuild, section 3 of the brief)
+
+- **TOP** (`TopHudV2`, replaces the old `WaveHudV2`+`GoalBarUI`): wave pills + "WAVE n/total" on the left (or, during Night, a big "LAST CALL m:ss" countdown that turns red in the last 5s — shows regardless of `v2ShowWaveIndicator`); rescued/total + a labeled-star progress bar + "ALIVE n" in the center; the pre-existing settings gear is left alone on the right. A thin "PLANNING — set up defenses" strip appears underneath while Planning is active.
+- **CENTER** (`CenterBannerV2`): a single queued transient banner (WAVE CLEARED [+2 if Supply HUD shown] / NEXT WAVE INCOMING / GOAL REACHED ★1 / NIGHT FALLS / PERFECT EVACUATION), each on screen ≤2s, never overlapping, non-interactive.
+- **BOTTOM** (`BottomZoneV2` + `SupplyHud` + `PlanningControllerV2` + the repositioned ability button + `CardManager`'s 5-slot hand): a control row above the hand holds the Supply pill (left), the ad-offer + GO buttons (center-right, GO's countdown is now inside its own label: "GO · 12"), and the pre-existing ability button (repositioned into the row's right slot rather than rebuilt). The hand itself always renders 5 equal-width slots (dimmed placeholders for unowned cards).
+
+### Tutorial trigger vocabulary (`TutorialCompletionTrigger`, `TutorialSequence.cs`/`TutorialManager.cs`)
+
+`CardPlaced` (+ `requiredCardType`/`requiredCount`/`requireLastTransportCard`), `WaveStarted`, `FirstRescueCredited`, `NightStarted`, `UltimateReady`, `UltimateUsed`. `Default` keeps every pre-existing behavior (Button.onClick for Click steps, an external `NextStep()` call for Drag steps, a blocker tap for DialogOnly) — used for the GO step, since GO is a real `Button` with a `TutorialTarget` and the click mechanism already is the generic, data-driven answer for "complete when this specific button is pressed." Only L1-L3 author steps; `WaveStarted`/`FirstRescueCredited`/`UltimateReady` aren't exercised by any authored step but exist as available vocabulary, per the brief's "add the missing triggers generically" framing.
+
+### Known simplifications (flagged, not hidden)
+
+- **L2 step 1** ("highlight the wave-1 spawn indicator") is authored as a plain `DialogOnly` tap-to-continue step, without an actual mask/finger pointing at the spawn indicator. Indicators are anonymous, regenerated-per-wave GameObjects with no stable `TutorialTarget` id today; wiring one up would mean touching `LevelManager`'s indicator-spawning code for a single cosmetic step. The dialog text ("Zombies come here.") still gives the right context.
+- **L3's "highlight the largest zombie cluster on screen"** is not implemented as a dynamic world-space highlight — the tutorial system's mask/finger only knows how to point at a registered, static UI `RectTransform`. The step points at the ability button itself instead (the same target the pre-existing ability-ready sequence already used), which still teaches "drag this to use it."
+- **The Last Transport card is a 6th hand slot at Night**, not a replacement of one of the 5 regular slots — `CardManager.SpawnTemporaryCard` appends it. "Always 5 equal-width slots" holds everywhere except that one window.
+- **The ability button's reposition** only sets `anchorMin/Max`+zeroed offsets (so it exactly fills its new control-row slot) — it was not re-verified against its own internal children's (`BackgroundImage`/`FillImage`/`PulseGlow`) aspect ratio, since that slot's width:height ratio depends on screen aspect and couldn't be rendered to check.
+
+### Verification (unchanged limitation from the first pass)
+
+Play Mode still would not tick frames in this session (`Time.frameCount` stuck even after the intro-camera-shot wait coroutine would have resolved), confirmed again across multiple fresh attempts (including one `editor_play` that advanced exactly one frame in ~8s then fully stalled for the next 30s of polling) — this is the same CLI/Editor instability flagged in the first pass, not a regression from this work. Every change in this pass is confirmed by clean compiles (`consoleErrors: 0` after every edit) and by reading `Gameplay.unity`'s actual hierarchy (`TimerText`, `RescuedCounter`, `LosePopup`, `CardsPanel`, `AbilityButton`'s anchors, `CardsPanel`'s `HorizontalLayoutGroup` settings) and the 10 levels' real wave-list data directly, not by playing any of it. No screenshots could be captured (`capture_game_view` needs a running Game view). **This needs a real Play Mode / device session before trusting layout, tutorial pacing, or feel beyond "it compiles and the data/logic reads correctly."**
