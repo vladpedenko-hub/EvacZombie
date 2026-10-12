@@ -23,6 +23,10 @@ public class AbilityManager : MonoBehaviour
     // decide whether a drag may begin.
     public bool IsReady => state == AbilityState.Ready;
 
+    // Per-attempt instrumentation (Docs/CORE_LOOP_V2.md Phase 7 / PlaytestLog), reset in
+    // Initialize.
+    public int FlareUses { get; private set; }
+
     public event Action<bool> OnInitialized;
     public event Action<float, float> OnChargeChanged;
     public event Action OnAbilityReady;
@@ -53,6 +57,7 @@ public class AbilityManager : MonoBehaviour
     {
         IsEnabled = levelData != null && levelData.abilityEnabled;
         IsInitialized = true;
+        FlareUses = 0;
         OnInitialized?.Invoke(IsEnabled);
 
         // Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 6): the ability button only becomes a drag
@@ -133,6 +138,7 @@ public class AbilityManager : MonoBehaviour
 
         OnAbilityActivated?.Invoke();
         ApplyFlareEffect(worldPoint);
+        FlareUses++;
 
         currentCharge = 0;
         state = AbilityState.Idle;

@@ -80,6 +80,10 @@ Core loop реализован и работает: `GameManager`, `LevelManager
 
 Коротко: `CameraZoomPanController` (новый, на том же GameObject что `CameraController`) добавляется САМ через код в `CameraController.Awake()` — ручных шагов в Unity Editor для этой фичи нет, в отличие от других UI-пассов. Все тюнаблы (диапазон зума, чувствительность pan, edge-auto-pan, тайминги интро-шота, инвентарь off-screen-индикаторов, глобальный множитель масштаба акторов) лежат в одном ScriptableObject-ассете `Assets/Resources/CameraReadabilityConfig.asset` — открыть в инспекторе и крутить, без пересборки кода.
 
+## Core Loop v2 — vertical slice (ветка `feature/core-loop-v2`, начата 12.10.2026)
+
+Экономика Supply, реальный Planning (GO/countdown + fake-door реклама), последовательные волны с breather'ами, ограниченная по времени Night + "Last Call"/Last Transport, видимая цель/прогресс-бар, и переработанный ultimate "Signal Flare" — всё за флагом `LevelData.useCoreLoopV2`, включено только на Level_1/3/5. Полный system map, статус по фазам и известные ограничения → `Docs/CORE_LOOP_V2.md`, это единственный источник правды для этой фичи. **Важно**: живая проверка в Play Mode для этой ветки заблокирована нестабильностью CLI-линка этой сессии (Play Mode не продвигался дальше 1 кадра даже с `set_autotick`/`editor_focus`) — код чистo компилируется, но ничего не было реально сыграно. Нужна проверка руками/на твоей машине перед тем как доверять этому дальше, чем "компилируется и логика читается верно".
+
 ## Документация — где что лежит
 
 - `Docs/GDD_CORE_LOOP.md` — актуальный GDD MVP-скоупа.

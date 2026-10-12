@@ -14,6 +14,13 @@ public class NightLastCallController : MonoBehaviour
 	/// <summary>Absolute Time.time the Last Transport departs at. Read by HelicopterController.ConfigureAsLastTransport callers.</summary>
 	public float DepartAtTime { get; private set; }
 
+	// Per-attempt instrumentation (Docs/CORE_LOOP_V2.md Phase 7 / PlaytestLog), reset in
+	// HandleLevelLoaded.
+	public bool NightReached { get; private set; }
+	public float LastTransportPlacedAt { get; private set; } = -1f;
+	public bool LastTransportWasAutoPlaced { get; private set; }
+	public int RescuedInLastCall { get; private set; }
+
 	private RectTransform root;
 	private TextMeshProUGUI countdownText;
 	private bool builtUi;
@@ -52,6 +59,10 @@ public class NightLastCallController : MonoBehaviour
 		if (autoPlaceCoroutine != null) { StopCoroutine(autoPlaceCoroutine); autoPlaceCoroutine = null; }
 		placed = false;
 		spawnedCardUi = null;
+		NightReached = false;
+		LastTransportPlacedAt = -1f;
+		LastTransportWasAutoPlaced = false;
+		RescuedInLastCall = 0;
 
 		if (builtUi) root.gameObject.SetActive(false);
 
@@ -65,6 +76,7 @@ public class NightLastCallController : MonoBehaviour
 	{
 		if (!CoreLoopV2.IsActive) return;
 
+		NightReached = true;
 		BuildUiIfNeeded();
 
 		CoreLoopV2Config cfg = CoreLoopV2Config.Active;
@@ -85,12 +97,14 @@ public class NightLastCallController : MonoBehaviour
 	public void NotifyPlaced()
 	{
 		placed = true;
+		LastTransportPlacedAt = Time.time;
 		if (autoPlaceCoroutine != null) { StopCoroutine(autoPlaceCoroutine); autoPlaceCoroutine = null; }
 	}
 
 	// Called by HelicopterController.TakeOff() when the Last Transport departs.
-	public void OnTransportDeparted()
+	public void OnTransportDeparted(int rescuedCount)
 	{
+		RescuedInLastCall = rescuedCount;
 		if (countdownCoroutine != null) { StopCoroutine(countdownCoroutine); countdownCoroutine = null; }
 		if (autoPlaceCoroutine != null) { StopCoroutine(autoPlaceCoroutine); autoPlaceCoroutine = null; }
 		if (builtUi) root.gameObject.SetActive(false);
@@ -134,6 +148,8 @@ public class NightLastCallController : MonoBehaviour
 		heli.ConfigureAsLastTransport(DepartAtTime);
 
 		placed = true;
+		LastTransportWasAutoPlaced = true;
+		LastTransportPlacedAt = Time.time;
 		if (spawnedCardUi != null) spawnedCardUi.StartCooldown();
 	}
 

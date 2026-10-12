@@ -53,6 +53,26 @@ public class PlaytestLog : MonoBehaviour
 		public int scientistsBefore;
 		public int scientistsAfter;
 		public int metaActionsSinceLastAttempt;
+
+		// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 7). All zeroed/false on legacy levels.
+		public bool coreLoopV2;
+		public int supplyStart;
+		public int supplyEarned;
+		public int supplySpent;
+		public int supplyMin;
+		public float timeAtZeroSupply;
+		public bool supplyAdTaken;
+		public bool retryBonusUsed;
+		public float planningDuration;
+		public int unitsPlacedInPlanning;
+		public int wavesCleared;
+		public int wavesForced;
+		public bool nightReached;
+		public float lastTransportPlacedAt;
+		public bool lastTransportAutoPlaced;
+		public int rescuedInLastCall;
+		public int flareUses;
+		public bool perfectEvacuation;
 	}
 
 	private readonly string sessionId = Guid.NewGuid().ToString("N").Substring(0, 8);
@@ -67,6 +87,12 @@ public class PlaytestLog : MonoBehaviour
 	private bool dayEnded;
 	private float dayEndedAt;
 	private bool attemptInProgress;
+
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 7): a new GameManager instance means a fresh level
+	// load (a fresh Planning phase), since GameManager isn't DontDestroyOnLoad like this logger.
+	private GameManager lastGameManagerInstance;
+	private float planningStartTime;
+	private int unitsPlacedInPlanning;
 
 	[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
 	private static void ResetStatics() { Instance = null; pendingMetaActions = 0; }
@@ -98,11 +124,21 @@ public class PlaytestLog : MonoBehaviour
 		string id = type.ToString();
 		cardsPlacedThisAttempt.TryGetValue(id, out int c);
 		cardsPlacedThisAttempt[id] = c + 1;
+
+		if (GameManager.Instance != null && GameManager.Instance.State == GameManager.GameState.Planning)
+			unitsPlacedInPlanning++;
 	}
 
 	private void Update()
 	{
 		if (GameManager.Instance == null || LevelManager.Instance == null) return;
+
+		if (GameManager.Instance != lastGameManagerInstance)
+		{
+			lastGameManagerInstance = GameManager.Instance;
+			planningStartTime = Time.time;
+			unitsPlacedInPlanning = 0;
+		}
 
 		GameManager.GameState state = GameManager.Instance.State;
 
@@ -129,6 +165,8 @@ public class PlaytestLog : MonoBehaviour
 		lastState = state;
 	}
 
+	private float planningDuration;
+
 	private void BeginAttempt()
 	{
 		attemptInProgress = true;
@@ -142,6 +180,7 @@ public class PlaytestLog : MonoBehaviour
 		attemptStartTime = Time.time;
 		dayEnded = false;
 		dayEndedAt = 0f;
+		planningDuration = Time.time - planningStartTime;
 	}
 
 	private void WriteLine(string result, int stars)
@@ -169,6 +208,46 @@ public class PlaytestLog : MonoBehaviour
 			metaActionsSinceLastAttempt = pendingMetaActions
 		};
 		pendingMetaActions = 0;
+
+		// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 7). Left at their zero/false defaults on
+		// legacy levels (every source system is itself inert when !useCoreLoopV2).
+		LevelData level = LevelManager.Instance != null ? LevelManager.Instance.currentData : null;
+		line.coreLoopV2 = level != null && level.useCoreLoopV2;
+		line.planningDuration = planningDuration;
+		line.unitsPlacedInPlanning = unitsPlacedInPlanning;
+
+		SupplyManager sm = SupplyManager.Instance;
+		if (sm != null)
+		{
+			line.supplyStart = sm.StartValue;
+			line.supplyEarned = sm.TotalEarned;
+			line.supplySpent = sm.TotalSpent;
+			line.supplyMin = sm.MinSeen;
+			line.timeAtZeroSupply = sm.TimeAtZero;
+			line.supplyAdTaken = sm.FakeDoorAdUsedThisAttempt;
+			line.retryBonusUsed = sm.RetryBonusAppliedThisAttempt;
+		}
+
+		if (LevelManager.Instance != null)
+		{
+			line.wavesCleared = LevelManager.Instance.V2WavesClearedCount;
+			line.wavesForced = LevelManager.Instance.V2WavesForcedCount;
+		}
+
+		NightLastCallController nlc = NightLastCallController.Instance;
+		if (nlc != null)
+		{
+			line.nightReached = nlc.NightReached;
+			line.lastTransportPlacedAt = nlc.LastTransportPlacedAt;
+			line.lastTransportAutoPlaced = nlc.LastTransportWasAutoPlaced;
+			line.rescuedInLastCall = nlc.RescuedInLastCall;
+		}
+
+		if (AbilityManager.Instance != null)
+			line.flareUses = AbilityManager.Instance.FlareUses;
+
+		if (gm != null)
+			line.perfectEvacuation = gm.PerfectEvacuationTriggered;
 
 		foreach (var kv in cardsPlacedThisAttempt)
 			line.cardsPlaced.Add(new CardPlacedEntry { id = kv.Key, count = kv.Value });

@@ -68,14 +68,30 @@ All v2-only systems are new files that self-bootstrap at runtime (same pattern a
 
 Card supply costs (`CardData.supplyCost`): Barricade 1, Bait 1, Car 2, Soldier 2, Sniper 3, Bomb 3, Helicopter 4, CombatHelicopter 6.
 
-## Status
+## Status (12.10.2026, all code-complete; see "Verification" below for what's actually confirmed)
 
-- [ ] Phase 1 — Supply economy
-- [ ] Phase 2 — Planning + fake-door ads
-- [ ] Phase 3 — Sequential waves + breathers
-- [ ] Phase 4 — Night "Last Call" + Perfect Evacuation
-- [ ] Phase 5 — Goal bar + stars
-- [ ] Phase 6 — Signal Flare
-- [ ] Phase 7 — Instrumentation, verification, docs
+- [x] Phase 0 — Audit + system map (`1421ece3`)
+- [x] Phase 1 — Supply economy (`04b6d129`)
+- [x] Phase 2 — Planning + fake-door ads (`2bf1b3c9`)
+- [x] Phase 3 — Sequential waves + breathers (`94aac57b`)
+- [x] Phase 4 — Night Last Call + Perfect Evacuation (`dcf4cce3`)
+- [x] Phase 5 — Goal bar + stars (`13a1ecd4`)
+- [x] Phase 6 — Signal Flare (`34d18458`)
+- [x] Phase 7 — Instrumentation + docs (this commit). Live Play-mode verification is **blocked**, see below.
 
-This section is updated as each phase lands, with the commit hash.
+## Verification (what's confirmed vs. not)
+
+**Confirmed, via the Unity CLI, after every phase:** clean compile (`unity command console_status` → `compilationFailed: false`, `consoleErrors: 0`). Scene hierarchy (`Canvas/SafeAreaContainer/{TimerText, RescuedCounter, LosePopup, CardsPanel, AbilityButton, ...}`) was read directly from `Gameplay.unity` to anchor every runtime-built panel correctly, rather than guessed. All CardData/LevelData asset edits (`supplyCost`, `useCoreLoopV2`, `offerSupplyAd`, the new `LastTransportCardData` clone, `CoreLoopV2Config.lastTransportCard` wiring) were applied and saved via `unity command eval`/`eval_file`, then read back to confirm.
+
+**Not confirmed — blocked, not skipped:** Play Mode in this Editor session will not advance past frame 1 (`Time.frameCount` stuck at `1`, `Time.time` stuck at `0`) regardless of `set_autotick`, `editor_focus`, or a fresh Play Mode entry from `MainMenu.unity`. This matches CLAUDE.md's own caveat that this CLI/Editor link is beta and can misbehave, with the instruction to report instability rather than route around it silently — flagging it here rather than claiming untested things work. Nothing in this branch could be exercised live: GO/countdown, affordability dimming, wave sequencing timing, the breather preview, Night/Last Call, auto-place, Signal Flare drag, the goal bar, or `PlaytestLog` output. **Needs a real Play Mode session on your end** (this may just need the Editor window actually focused/active on your machine, or a fresh Editor restart) before trusting any of this beyond "it compiles and the logic reads correctly."
+
+## Known limitations / things to eyeball once Play Mode works
+
+- **HUD crowding on L1/L3/L5's v2 levels.** `WaveHudV2` and `GoalBarUI` both stack under `TimerText` near the top of the screen (registered into `LevelManager.topReservedUI` at runtime so the camera still reserves space for them), and `PlanningControllerV2`'s GO panel sits center-screen. None of this was seen rendered — check for overlap/crowding on a real device aspect ratio, not just logic correctness.
+- **`PlanningControllerV2`'s injected Lose-popup ad button** is added as a plain child of the existing `LosePopup` GameObject at a guessed anchor band (bottom 4-14%) rather than a position read from the popup's actual existing button layout (`RestartButton`/`MenuButton`) — check it doesn't overlap them.
+- **`BalanceProbe` was reasoned about, not run.** It calls `GameManager.Instance.StartGame()` directly after `LoadLevel()`, bypassing `PlanningControllerV2` entirely (`StartGame()`'s own `State != Planning` guard is unchanged), so it should "auto-press GO" for free without any probe-side code change. This could not be confirmed live.
+- **Last Transport visual distinction** is just a Legendary (gold) card border via the existing rarity system — no new art, per the brief's global rules.
+
+## No manual Unity Editor steps are needed for this pass
+
+Every new v2 system self-bootstraps (same pattern as `CameraZoomPanController`/`SettingsButtonInjector`) and builds its own UI in code at runtime, parented into `SafeAreaContainer` (found by name) or alongside `TimerText`/`RescuedCounter` (also found by name) — nothing was wired by hand in the Editor, and nothing needs to be.

@@ -22,6 +22,10 @@ public class GameManager : MonoBehaviour
 	[HideInInspector] public int pendingHumans = 0;
 	[HideInInspector] public int pendingScientists = 0;
 
+	// Core Loop v2 instrumentation (Docs/CORE_LOOP_V2.md Phase 7 / PlaytestLog), reset per level
+	// in SetTotalHumans.
+	public bool PerfectEvacuationTriggered { get; private set; }
+
 	private float currentTimer;
 	private float startTimerAmount;
 	private bool perfectClearStarted = false;
@@ -38,6 +42,7 @@ public class GameManager : MonoBehaviour
 		totalHumans = count;
 		rescuedHumans = 0;
 		pendingHumans = 0;
+		PerfectEvacuationTriggered = false;
 
 		totalScientists = Scientist.AllScientists.Count;
 		rescuedScientists = 0;
@@ -246,6 +251,7 @@ public class GameManager : MonoBehaviour
 			if (noOneLeftToSave && metStar2)
 			{
 				perfectClearStarted = true;
+				PerfectEvacuationTriggered = true;
 				LevelManager.Instance.StopV2WaveSequencer();
 				EndLevel(true);
 			}

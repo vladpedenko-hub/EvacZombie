@@ -103,6 +103,7 @@ GoalReached
 AbilityReady
 AbilityActivate
 BossRage
+SignalFlare
 Win
 PerfectClear
 Lose

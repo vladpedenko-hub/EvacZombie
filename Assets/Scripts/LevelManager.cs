@@ -76,6 +76,10 @@ public class LevelManager : MonoBehaviour
 	public string V2NextWaveHint { get; private set; } = "";
 	public event System.Action<string> OnV2Banner;
 
+	// Per-attempt instrumentation (Docs/CORE_LOOP_V2.md Phase 7 / PlaytestLog), reset in LoadLevel.
+	public int V2WavesClearedCount { get; private set; }
+	public int V2WavesForcedCount { get; private set; }
+
 	private Coroutine v2WaveCoroutine;
 
 	private void Awake() => Instance = this;
@@ -105,6 +109,8 @@ public class LevelManager : MonoBehaviour
 	{
 		ClearIndicators();
 		currentData = data;
+		V2WavesClearedCount = 0;
+		V2WavesForcedCount = 0;
 
 		AbilityManager.Instance?.Initialize(data);
 		SupplyManager.Instance?.OnLevelLoaded(data);
@@ -527,11 +533,13 @@ public class LevelManager : MonoBehaviour
 
 			if (cleared)
 			{
+				V2WavesClearedCount++;
 				SupplyManager.Instance?.AddWaveClearedBonus();
 				OnV2Banner?.Invoke("WAVE CLEARED");
 			}
 			else
 			{
+				V2WavesForcedCount++;
 				OnV2Banner?.Invoke("NEXT WAVE INCOMING");
 			}
 

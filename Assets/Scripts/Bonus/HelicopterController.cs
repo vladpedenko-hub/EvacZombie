@@ -430,7 +430,7 @@ public class HelicopterController : MonoBehaviour
 		if (isLastTransport)
 		{
 			GameManager.Instance.OnV2LastTransportDeparted();
-			NightLastCallController.Instance?.OnTransportDeparted();
+			NightLastCallController.Instance?.OnTransportDeparted(loadedHumanCount + loadedScientistCount);
 		}
 	}
 }

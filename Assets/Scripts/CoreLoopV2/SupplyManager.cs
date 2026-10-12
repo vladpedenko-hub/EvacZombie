@@ -13,6 +13,16 @@ public class SupplyManager : MonoBehaviour
 	public int Max { get; private set; }
 	public bool IsActive { get; private set; }
 
+	// Per-attempt instrumentation (Docs/CORE_LOOP_V2.md Phase 7 / PlaytestLog), reset in
+	// OnLevelLoaded, read by PlaytestLog when the attempt ends.
+	public int StartValue { get; private set; }
+	public int TotalEarned { get; private set; }
+	public int TotalSpent { get; private set; }
+	public int MinSeen { get; private set; }
+	public float TimeAtZero { get; private set; }
+	public bool FakeDoorAdUsedThisAttempt => fakeDoorAdUsedThisAttempt;
+	public bool RetryBonusAppliedThisAttempt { get; private set; }
+
 	/// <summary>(current, max) whenever Supply changes.</summary>
 	public event Action<int, int> OnSupplyChanged;
 
@@ -54,11 +64,17 @@ public class SupplyManager : MonoBehaviour
 
 		IsActive = data != null && data.useCoreLoopV2;
 		fakeDoorAdUsedThisAttempt = false;
+		TotalEarned = 0;
+		TotalSpent = 0;
+		TimeAtZero = 0f;
+		RetryBonusAppliedThisAttempt = pendingRetryBonus > 0;
 
 		if (!IsActive)
 		{
 			Current = 0;
 			Max = 0;
+			StartValue = 0;
+			MinSeen = 0;
 			return;
 		}
 
@@ -68,9 +84,18 @@ public class SupplyManager : MonoBehaviour
 
 		Current = Mathf.Clamp(baseStart + pendingRetryBonus, 0, Max);
 		pendingRetryBonus = 0;
+		StartValue = Current;
+		MinSeen = Current;
 
 		OnSupplyChanged?.Invoke(Current, Max);
 		trickleCoroutine = StartCoroutine(TrickleRoutine());
+	}
+
+	private void Update()
+	{
+		if (!IsActive) return;
+		if (Current <= 0 && GameManager.Instance != null && GameManager.Instance.State != GameManager.GameState.Planning)
+			TimeAtZero += Time.deltaTime;
 	}
 
 	private IEnumerator TrickleRoutine()
@@ -99,6 +124,8 @@ public class SupplyManager : MonoBehaviour
 		if (Current < cost) return false;
 
 		Current -= cost;
+		TotalSpent += cost;
+		MinSeen = Mathf.Min(MinSeen, Current);
 		OnSupplyChanged?.Invoke(Current, Max);
 		return true;
 	}
@@ -108,6 +135,7 @@ public class SupplyManager : MonoBehaviour
 		if (!IsActive || amount <= 0) return;
 
 		Current = Mathf.Min(Current + amount, Max);
+		TotalEarned += amount;
 		OnSupplyChanged?.Invoke(Current, Max);
 		OnSupplyGained?.Invoke(amount);
 	}
