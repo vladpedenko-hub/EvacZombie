@@ -56,3 +56,5 @@ MonoBehaviour:
     baseValue: 15
     valuePerLevel: 5
     unitSuffix: ' points.'
+  supplyCost: 6
+  isLastTransport: 0

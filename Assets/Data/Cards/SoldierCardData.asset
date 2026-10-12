@@ -56,3 +56,5 @@ MonoBehaviour:
     baseValue: 2
     valuePerLevel: 1
     unitSuffix: ' number.'
+  supplyCost: 2
+  isLastTransport: 0

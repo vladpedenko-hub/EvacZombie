@@ -36,3 +36,5 @@ MonoBehaviour:
     baseValue: 200
     valuePerLevel: 50
     unitSuffix: hp.
+  supplyCost: 1
+  isLastTransport: 0

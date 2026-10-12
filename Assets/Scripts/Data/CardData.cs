@@ -73,6 +73,13 @@ public class CardData : ScriptableObject
 	[Header("Stats")]
 	public List<CardStat> stats;
 
+	[Header("Core Loop v2 (Docs/CORE_LOOP_V2.md)")]
+	[Tooltip("Supply cost to place this card in a v2 level. Ignored on legacy levels (cooldown-only gating).")]
+	public int supplyCost = 0;
+
+	[Tooltip("Marks the free, one-shot Night 'LAST TRANSPORT' card (reuses the Helicopter prefab/logic via HelicopterController.ConfigureAsLastTransport). Never set this on a regular deck card.")]
+	public bool isLastTransport = false;
+
 	// Helper: use this to get the computed stat value at a given level
 	public float GetCalculatedStat(StatType type, int currentLevel)
 	{

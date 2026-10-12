@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
+using DG.Tweening;
 
 [RequireComponent(typeof(CanvasGroup))]
 public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
@@ -31,7 +32,14 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 
 	private bool isOnCooldown = false;
 	private float currentCooldown = 0f;
+	private float activeCooldownDuration = 3f;
 	private bool isCurrentlyDragging = false;
+
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 1/2): built lazily in code the first time a v2
+	// level is active, so legacy levels never pay for or show any of this.
+	private Image v2CostBadgeBg;
+	private TextMeshProUGUI v2CostBadgeText;
+	private Image v2LockOverlay;
 
 	private void Awake()
 	{
@@ -75,7 +83,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 			if (cooldownFill != null)
 			{
 				cooldownFill.gameObject.SetActive(true);
-				cooldownFill.fillAmount = currentCooldown / cooldownTime;
+				cooldownFill.fillAmount = currentCooldown / activeCooldownDuration;
 			}
 
 			if (timerText != null)
@@ -93,12 +101,103 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 				Feedback.Play(FeedbackEvent.CardReady);
 			}
 		}
+
+		UpdateV2State();
+	}
+
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 1/2): Supply cost badge, unaffordable dim, and the
+	// Planning-phase lock overlay for Evacuation-category cards. No-op (and nothing built) on
+	// legacy levels.
+	private void UpdateV2State()
+	{
+		if (myCardData == null) return;
+
+		if (!CoreLoopV2.IsActive)
+		{
+			if (v2CostBadgeBg != null) v2CostBadgeBg.gameObject.SetActive(false);
+			if (v2LockOverlay != null) v2LockOverlay.gameObject.SetActive(false);
+			return;
+		}
+
+		BuildV2VisualsIfNeeded();
+
+		bool hasCost = myCardData.supplyCost > 0 && !myCardData.isLastTransport;
+		v2CostBadgeBg.gameObject.SetActive(hasCost);
+		if (hasCost) v2CostBadgeText.text = myCardData.supplyCost.ToString();
+
+		bool unaffordable = hasCost && SupplyManager.Instance != null && !SupplyManager.Instance.CanAfford(myCardData.supplyCost);
+		if (cardImage != null && !isOnCooldown && !isCurrentlyDragging)
+			cardImage.color = unaffordable ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
+
+		bool isPlanningLocked = IsLockedDuringPlanning();
+		v2LockOverlay.gameObject.SetActive(isPlanningLocked);
+	}
+
+	private bool IsLockedDuringPlanning()
+	{
+		return myCardData != null
+			&& myCardData.category == CardCategory.Evacuation
+			&& !myCardData.isLastTransport
+			&& GameManager.Instance != null
+			&& GameManager.Instance.State == GameManager.GameState.Planning;
+	}
+
+	private void BuildV2VisualsIfNeeded()
+	{
+		if (v2CostBadgeBg != null) return;
+
+		RectTransform badgeRt = RuntimeUiKit.CreateRect("SupplyCostBadge", transform);
+		RuntimeUiKit.SetAnchors(badgeRt, 0.60f, 0.62f, 0.98f, 0.98f);
+		v2CostBadgeBg = badgeRt.gameObject.AddComponent<Image>();
+		v2CostBadgeBg.sprite = RuntimeUiKit.Rounded();
+		v2CostBadgeBg.type = Image.Type.Sliced;
+		v2CostBadgeBg.color = new Color(0.05f, 0.08f, 0.12f, 0.85f);
+		v2CostBadgeBg.raycastTarget = false;
+
+		v2CostBadgeText = RuntimeUiKit.CreateText("Text", badgeRt, "", 24f, new Color(0.65f, 1f, 0.75f, 1f), TextAlignmentOptions.Center, FontStyles.Bold);
+		RuntimeUiKit.Stretch(v2CostBadgeText.rectTransform);
+		v2CostBadgeBg.gameObject.SetActive(false);
+
+		RectTransform lockRt = RuntimeUiKit.CreateRect("LockOverlay", transform);
+		RuntimeUiKit.Stretch(lockRt);
+		v2LockOverlay = lockRt.gameObject.AddComponent<Image>();
+		v2LockOverlay.color = new Color(0f, 0f, 0f, 0.6f);
+		v2LockOverlay.raycastTarget = false;
+		TextMeshProUGUI lockLabel = RuntimeUiKit.CreateText("Text", lockRt, "LOCKED", 20f, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+		RuntimeUiKit.Stretch(lockLabel.rectTransform);
+		v2LockOverlay.gameObject.SetActive(false);
+	}
+
+	private void ShakeUnaffordable()
+	{
+		if (rectTransform == null) return;
+		rectTransform.DOKill();
+		rectTransform.DOShakeAnchorPos(0.3f, strength: 14f, vibrato: 14, randomness: 90f, snapping: false, fadeOut: true).SetUpdate(true);
 	}
 
 	public void OnBeginDrag(PointerEventData eventData)
 	{
 		// Verify that CardData is properly assigned
 		if (isOnCooldown || myCardData == null) return;
+
+		// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 1/2): Evacuation cards are locked during
+		// Planning, and an unaffordable card can't be picked up at all.
+		if (CoreLoopV2.IsActive)
+		{
+			if (IsLockedDuringPlanning())
+			{
+				Feedback.Play(FeedbackEvent.CardPlaceInvalid);
+				return;
+			}
+
+			if (myCardData.supplyCost > 0 && !myCardData.isLastTransport
+				&& SupplyManager.Instance != null && !SupplyManager.Instance.CanAfford(myCardData.supplyCost))
+			{
+				Feedback.Play(FeedbackEvent.CardPlaceInvalid);
+				ShakeUnaffordable();
+				return;
+			}
+		}
 
 		// Exclude from the Layout Group's arrangement WITHOUT leaving cardsPanel —
 		// this is what stops the other cards from reflowing.
@@ -141,6 +240,11 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 
 		if (success)
 		{
+			// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 1): Supply is spent only on a successful
+			// placement, never on a rejected one.
+			if (CoreLoopV2.IsActive && myCardData.supplyCost > 0 && !myCardData.isLastTransport)
+				SupplyManager.Instance?.TrySpend(myCardData.supplyCost);
+
 			StartCooldown();
 			OnCardPlaced?.Invoke(myCardData.cardType);
 		}
@@ -156,7 +260,15 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		if (!isOnCooldown)
 		{
 			isOnCooldown = true;
-			currentCooldown = cooldownTime;
+
+			// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 1): a flat anti-double-tap cooldown
+			// replaces each card's own prefab cooldownTime. Legacy levels are unaffected
+			// (activeCooldownDuration == cooldownTime, identical to before this field existed).
+			activeCooldownDuration = (CoreLoopV2.IsActive && myCardData != null && !myCardData.isLastTransport && CoreLoopV2Config.Active != null)
+				? CoreLoopV2Config.Active.v2CardCooldown
+				: cooldownTime;
+
+			currentCooldown = activeCooldownDuration;
 			if (cardImage != null) cardImage.color = Color.gray;
 		}
 	}

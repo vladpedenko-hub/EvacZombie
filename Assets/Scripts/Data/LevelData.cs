@@ -73,6 +73,16 @@ public class LevelData : ScriptableObject
 	[Tooltip("If a sequence is assigned, it will play at the start of the level")]
 	public TutorialSequence onStartTutorial;
 
+	[Header("Core Loop v2 (Docs/CORE_LOOP_V2.md)")]
+	[Tooltip("Enables the Core Loop v2 systems (Supply economy, real Planning, sequential waves, time-limited Night/Last Transport, Signal Flare). Legacy levels must leave this false.")]
+	public bool useCoreLoopV2 = false;
+
+	[Tooltip("Starting Supply for this level. 0 = use CoreLoopV2Config.startingSupplyDefault.")]
+	public int startingSupply = 0;
+
+	[Tooltip("Shows the Planning fake-door ad button (+Supply, mock, once per attempt). v2 only.")]
+	public bool offerSupplyAd = false;
+
 	public int GetStar1Target()
 	{
 		return star1RequiredHumans > 0 ? star1RequiredHumans : requiredRescuedHumans;

@@ -51,3 +51,5 @@ MonoBehaviour:
     baseValue: 3
     valuePerLevel: -0.2
     unitSuffix: ' sec.'
+  supplyCost: 3
+  isLastTransport: 0

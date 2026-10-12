@@ -77,22 +77,36 @@ public class GameManager : MonoBehaviour
 	public void OnFlyingTextReached(int totalAmount)
 	{
 		int totalPending = pendingHumans + pendingScientists;
+		int humansFromThis;
+		int scientistsFromThis;
 
 		if (totalPending <= 0)
 		{
+			humansFromThis = totalAmount;
+			scientistsFromThis = 0;
 			rescuedHumans += totalAmount;
 		}
 		else
 		{
 			float humansRatio = (float)pendingHumans / totalPending;
-			int humansFromThis = Mathf.RoundToInt(totalAmount * humansRatio);
-			int scientistsFromThis = totalAmount - humansFromThis;
+			humansFromThis = Mathf.RoundToInt(totalAmount * humansRatio);
+			scientistsFromThis = totalAmount - humansFromThis;
 
 			pendingHumans -= humansFromThis;
 			pendingScientists -= scientistsFromThis;
 
 			rescuedHumans += humansFromThis;
 			rescuedScientists += scientistsFromThis;
+		}
+
+		// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 1): Supply income is credited here, when the
+		// +N fly-in actually lands at the counter, not when the transport takes off.
+		if (CoreLoopV2.IsActive)
+		{
+			CoreLoopV2Config cfg = CoreLoopV2Config.Active;
+			int supplyGain = humansFromThis * (cfg != null ? cfg.supplyIncomeHuman : 1)
+				+ scientistsFromThis * (cfg != null ? cfg.supplyIncomeScientist : 3);
+			SupplyManager.Instance?.Gain(supplyGain);
 		}
 
 		UIManager.Instance.UpdateRescuedCount(GetTotalRescued(), requiredHumans, true);

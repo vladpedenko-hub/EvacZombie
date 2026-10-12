@@ -41,3 +41,5 @@ MonoBehaviour:
     baseValue: 1000
     valuePerLevel: 200
     unitSuffix: points.
+  supplyCost: 3
+  isLastTransport: 0

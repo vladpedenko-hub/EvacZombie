@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
   m_Name: Level_3_Data
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   levelPrefab: {fileID: 4058927015439930953, guid: 12ac8eca5340e3e43a1718afc0a2eba4, type: 3}
   humanCount: 55
   levelTimer: 36
@@ -25,7 +25,7 @@ MonoBehaviour:
   star1RequiredHumans: 14
   star2RequiredHumans: 26
   star3Description: Save everyone
-  missionTitleOverride:
+  missionTitleOverride: 
   missionIcon: {fileID: 0}
   missionDescription: Lure them away from two sides. The chopper needs a clear path.
   cameraType: 0
@@ -46,3 +46,6 @@ MonoBehaviour:
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
   abilityEnabled: 1
   onStartTutorial: {fileID: 0}
+  useCoreLoopV2: 1
+  startingSupply: 0
+  offerSupplyAd: 0

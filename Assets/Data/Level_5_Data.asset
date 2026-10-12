@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
   m_Name: Level_5_Data
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   levelPrefab: {fileID: 4058927015439930953, guid: 7342fa22789ce7c4db22be3fc28779e2, type: 3}
   humanCount: 65
   levelTimer: 42
@@ -26,7 +26,7 @@ MonoBehaviour:
   star1RequiredHumans: 20
   star2RequiredHumans: 36
   star3Description: Save everyone, survive the boss
-  missionTitleOverride:
+  missionTitleOverride: 
   missionIcon: {fileID: 0}
   missionDescription: Nevada Falls. A boss is coming -- hold until the chopper clears the sky.
   cameraType: 0
@@ -47,3 +47,6 @@ MonoBehaviour:
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
   abilityEnabled: 1
   onStartTutorial: {fileID: 0}
+  useCoreLoopV2: 1
+  startingSupply: 0
+  offerSupplyAd: 1

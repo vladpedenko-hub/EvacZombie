@@ -86,6 +86,8 @@ public class LevelManager : MonoBehaviour
 		currentData = data;
 
 		AbilityManager.Instance?.Initialize(data);
+		SupplyManager.Instance?.OnLevelLoaded(data);
+		SupplyHud.EnsureBuilt();
 
 		if (currentLevelEnvironment != null)
 			Destroy(currentLevelEnvironment);

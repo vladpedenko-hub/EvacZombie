@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 736e0c8224d03e54bb0573914472a85b, type: 3}
+  m_Name: CoreLoopV2Config
+  m_EditorClassIdentifier: Assembly-CSharp::CoreLoopV2Config
+  startingSupplyDefault: 6
+  supplyCap: 20
+  supplyIncomeHuman: 1
+  supplyIncomeScientist: 3
+  supplyTrickleAmount: 1
+  supplyTrickleInterval: 5
+  waveClearedBonus: 2
+  v2CardCooldown: 0.5
+  planningMaxDuration: 15
+  fakeDoorAdSupplyGrant: 3
+  loseRetryAdSupplyGrant: 5
+  waveMaxDuration: 25
+  breatherDuration: 6
+  lastCallDuration: 18
+  lastTransportBoardingInterval: 0.1
+  lastTransportAutoPlaceDelay: 6
+  flareRadius: 12
+  flareStunDuration: 4
