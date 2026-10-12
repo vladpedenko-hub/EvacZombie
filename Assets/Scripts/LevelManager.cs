@@ -32,6 +32,16 @@ public class LevelManager : MonoBehaviour
 	[Tooltip("Top-anchored HUD elements whose screen-space extent the camera should not hide the map behind (e.g. TimerText, RescuedCounter).")]
 	[SerializeField] private RectTransform[] topReservedUI;
 
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 3): runtime-built HUD (WaveHudV2, etc.) can't be
+	// wired into the serialized array above (it doesn't exist until the level loads), so it
+	// registers itself here instead. Read alongside topReservedUI in GetReservedScreenFractions().
+	private readonly List<RectTransform> runtimeTopReservedUI = new List<RectTransform>();
+
+	public void RegisterTopReservedUI(RectTransform rt)
+	{
+		if (rt != null && !runtimeTopReservedUI.Contains(rt)) runtimeTopReservedUI.Add(rt);
+	}
+
 	[Header("Lighting")]
 	public Light sunLight;
 	public Color nightColor = new Color(0.1f, 0.1f, 0.3f);
@@ -56,6 +66,17 @@ public class LevelManager : MonoBehaviour
 	public bool IsTimelineSpawningFinished { get; private set; }
 	private int activeSpawnCoroutines = 0;
 	private bool allWavesTriggered = false;
+
+	// Core Loop v2 sequential-wave state (Docs/CORE_LOOP_V2.md Phase 3), polled by WaveHudV2.
+	// Not read by any legacy/gameplay code.
+	public int V2CurrentWaveNumber { get; private set; }
+	public int V2TotalWaves { get; private set; }
+	public bool V2InBreather { get; private set; }
+	public float V2BreatherRemaining { get; private set; }
+	public string V2NextWaveHint { get; private set; } = "";
+	public event System.Action<string> OnV2Banner;
+
+	private Coroutine v2WaveCoroutine;
 
 	private void Awake() => Instance = this;
 
@@ -89,6 +110,7 @@ public class LevelManager : MonoBehaviour
 		SupplyManager.Instance?.OnLevelLoaded(data);
 		SupplyHud.EnsureBuilt();
 		PlanningControllerV2.OnLevelLoaded(data);
+		WaveHudV2.OnLevelLoaded(data);
 
 		if (currentLevelEnvironment != null)
 			Destroy(currentLevelEnvironment);
@@ -147,6 +169,13 @@ public class LevelManager : MonoBehaviour
 				rt.GetWorldCorners(corners);
 				topPixels = Mathf.Max(topPixels, Screen.height - corners[0].y);
 			}
+		}
+
+		foreach (RectTransform rt in runtimeTopReservedUI)
+		{
+			if (rt == null || !rt.gameObject.activeInHierarchy) continue;
+			rt.GetWorldCorners(corners);
+			topPixels = Mathf.Max(topPixels, Screen.height - corners[0].y);
 		}
 
 		float bottomPixels = 0f;
@@ -253,7 +282,23 @@ public class LevelManager : MonoBehaviour
 		allWavesTriggered = false;
 
 		if (timelineCoroutine != null) StopCoroutine(timelineCoroutine);
-		timelineCoroutine = StartCoroutine(WaveTimelineRoutine());
+		if (v2WaveCoroutine != null) { StopCoroutine(v2WaveCoroutine); v2WaveCoroutine = null; }
+
+		// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 3): sequential waves + breathers replace the
+		// legacy timer-driven timeline. Legacy levels are completely untouched.
+		if (currentData.useCoreLoopV2)
+			v2WaveCoroutine = StartCoroutine(WaveSequenceRoutineV2());
+		else
+			timelineCoroutine = StartCoroutine(WaveTimelineRoutine());
+	}
+
+	// Perfect-Evacuation early-out (brief Phase 4): stops the v2 wave sequencer mid-sequence so no
+	// further waves spawn once GameManager has already ended the level.
+	public void StopV2WaveSequencer()
+	{
+		if (v2WaveCoroutine != null) { StopCoroutine(v2WaveCoroutine); v2WaveCoroutine = null; }
+		isTimelineRunning = false;
+		V2InBreather = false;
 	}
 
 	private class RuntimeWaveAction
@@ -431,6 +476,139 @@ public class LevelManager : MonoBehaviour
 		}
 
 		activeSpawnCoroutines--;
+	}
+
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 3): waves play in list order (WaveData.startTime is
+	// ignored -- only each action's own delayBeforeStart/pattern/interval still applies, relative
+	// to the wave's own start). Reuses PrepareAndWarnWave/ExecuteWaveAction unchanged -- only the
+	// scheduling around them is new.
+	private IEnumerator WaveSequenceRoutineV2()
+	{
+		V2TotalWaves = currentData.waves.Count;
+		V2CurrentWaveNumber = 0;
+
+		CoreLoopV2Config cfg = CoreLoopV2Config.Active;
+		float waveMaxDuration = cfg != null ? cfg.waveMaxDuration : 25f;
+		float breatherDuration = cfg != null ? cfg.breatherDuration : 6f;
+
+		for (int i = 0; i < currentData.waves.Count; i++)
+		{
+			WaveData wave = currentData.waves[i];
+			if (wave == null) continue;
+			if (GameManager.Instance.State != GameManager.GameState.Playing) yield break;
+
+			V2CurrentWaveNumber = i + 1;
+			V2NextWaveHint = "";
+
+			var tracker = new TrackedWave { data = wave };
+			PrepareAndWarnWave(tracker);
+			yield return new WaitForSeconds(wave.warningDuration);
+
+			if (GameManager.Instance.State != GameManager.GameState.Playing) yield break;
+
+			foreach (var runtimeAction in tracker.runtimeActions)
+				StartCoroutine(ExecuteWaveAction(runtimeAction));
+
+			// Sequential model: no two waves' actions ever run concurrently, so
+			// activeSpawnCoroutines==0 unambiguously means THIS wave finished issuing spawns.
+			yield return new WaitUntil(() => activeSpawnCoroutines == 0);
+
+			float sinceSpawningDone = 0f;
+			bool cleared = false;
+			while (sinceSpawningDone < waveMaxDuration)
+			{
+				if (Zombie.AllZombies.Count == 0) { cleared = true; break; }
+				if (GameManager.Instance.State != GameManager.GameState.Playing) yield break;
+				sinceSpawningDone += Time.deltaTime;
+				yield return null;
+			}
+
+			if (cleared)
+			{
+				SupplyManager.Instance?.AddWaveClearedBonus();
+				OnV2Banner?.Invoke("WAVE CLEARED");
+			}
+			else
+			{
+				OnV2Banner?.Invoke("NEXT WAVE INCOMING");
+			}
+
+			bool hasNext = i + 1 < currentData.waves.Count;
+			if (hasNext)
+			{
+				WaveData next = currentData.waves[i + 1];
+				V2NextWaveHint = BuildNextWaveHintV2(next);
+				PreviewNextWaveSpawnPointsV2(next, breatherDuration);
+			}
+
+			V2InBreather = true;
+			float breatherTimer = 0f;
+			while (breatherTimer < breatherDuration)
+			{
+				if (GameManager.Instance.State != GameManager.GameState.Playing) { V2InBreather = false; yield break; }
+				V2BreatherRemaining = breatherDuration - breatherTimer;
+				breatherTimer += Time.deltaTime;
+				yield return null;
+			}
+			V2InBreather = false;
+		}
+
+		allWavesTriggered = true;
+		IsTimelineSpawningFinished = true;
+
+		if (GameManager.Instance.State == GameManager.GameState.Playing)
+			GameManager.Instance.StartV2Night();
+	}
+
+	private string BuildNextWaveHintV2(WaveData next)
+	{
+		int min = 0, max = 0;
+		foreach (var a in next.actions) { min += a.minCount; max += a.maxCount; }
+		return min == max ? $"NEXT WAVE: ~{min} zombies" : $"NEXT WAVE: ~{min}-{max} zombies";
+	}
+
+	// Breather-only preview of the upcoming wave's spawn points -- resolves groups the same way
+	// PrepareAndWarnWave does, but doesn't execute any spawn and doesn't play the warning sound
+	// (that still fires once, for real, when the wave itself warns).
+	private void PreviewNextWaveSpawnPointsV2(WaveData next, float duration)
+	{
+		if (indicatorPrefab == null) return;
+
+		HashSet<SpawnPointMarker> shown = new HashSet<SpawnPointMarker>();
+
+		foreach (var action in next.actions)
+		{
+			List<SpawnPointMarker> points;
+
+			if (action.spawnGroup == SpawnGroup.Any)
+			{
+				var dayPoints = allSpawnPoints.Where(sp => !sp.isNightSpawn).ToList();
+				points = dayPoints.Count > 0
+					? new List<SpawnPointMarker> { dayPoints[Random.Range(0, dayPoints.Count)] }
+					: new List<SpawnPointMarker>();
+			}
+			else if (action.spawnGroup == SpawnGroup.All)
+			{
+				points = allSpawnPoints.Where(sp => !sp.isNightSpawn).ToList();
+			}
+			else
+			{
+				points = allSpawnPoints.Where(sp => sp.group == action.spawnGroup).ToList();
+			}
+
+			foreach (var sp in points)
+			{
+				if (!shown.Add(sp)) continue;
+
+				Vector3 pos = sp.transform.position + Vector3.up * indicatorHeight;
+				GameObject indicator = Instantiate(indicatorPrefab, pos, indicatorPrefab.transform.rotation);
+
+				SpawnIndicator logic = indicator.GetComponent<SpawnIndicator>();
+				if (logic != null) logic.isPlanningIndicator = false;
+
+				Destroy(indicator, duration);
+			}
+		}
 	}
 
 	public void StartSuddenDeath()

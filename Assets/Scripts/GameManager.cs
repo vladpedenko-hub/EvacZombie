@@ -132,14 +132,22 @@ public class GameManager : MonoBehaviour
 
 	private void Update()
 	{
+		// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 3/4): the day timer and its "map empty -> win"
+		// legacy branch are replaced by the sequential wave sequencer (LevelManager) and the time-
+		// limited Night/Last Transport flow. The early-lose rule still applies to both.
+		bool isV2 = CoreLoopV2.IsActive;
+
 		if (State == GameState.Playing)
 		{
-			currentTimer -= Time.deltaTime;
-			UIManager.Instance.UpdateTimer(currentTimer, false);
+			if (!isV2)
+			{
+				currentTimer -= Time.deltaTime;
+				UIManager.Instance.UpdateTimer(currentTimer, false);
+			}
 
 			CheckPerfectClear();
 
-			if (currentTimer <= 0 && State == GameState.Playing)
+			if (!isV2 && currentTimer <= 0 && State == GameState.Playing)
 			{
 				State = GameState.SuddenDeath;
 				LevelManager.Instance.StartSuddenDeath();
@@ -149,11 +157,31 @@ public class GameManager : MonoBehaviour
 
 		if (State == GameState.Playing || State == GameState.SuddenDeath)
 		{
-			bool levelEmpty = GetAliveResidentsCount() == 0 && (pendingHumans + pendingScientists) == 0;
+			if (isV2)
+			{
+				CheckWinLoseCondition(false);
+			}
+			else
+			{
+				bool levelEmpty = GetAliveResidentsCount() == 0 && (pendingHumans + pendingScientists) == 0;
 
-			if (levelEmpty) CheckWinLoseCondition(true);
-			else CheckWinLoseCondition(false);
+				if (levelEmpty) CheckWinLoseCondition(true);
+				else CheckWinLoseCondition(false);
+			}
 		}
+	}
+
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 3/4): called by LevelManager once its sequential
+	// wave sequencer finishes (or skipped entirely by a Perfect Evacuation ending the level
+	// first). Mirrors the legacy inline Night transition in Update() above, but is its own method
+	// since v2 reaches it from a different trigger (waves done, not a timer).
+	public void StartV2Night()
+	{
+		if (State != GameState.Playing) return;
+
+		State = GameState.SuddenDeath;
+		LevelManager.Instance.StartSuddenDeath();
+		UIManager.Instance.ShowNightPopup();
 	}
 
 	private int GetAliveResidentsCount()
