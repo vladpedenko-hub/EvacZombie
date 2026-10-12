@@ -354,9 +354,19 @@ public class InputManager : MonoBehaviour
 		switch (card.cardType)
 		{
 			case CardManager.CardType.Helicopter:
+			{
 				spawnedObject = Instantiate(card.cardPrefab);
-				spawnedObject.GetComponent<HelicopterController>().Launch(spawnPos);
+				HelicopterController heli = spawnedObject.GetComponent<HelicopterController>();
+				heli.Launch(spawnPos);
+
+				// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): the free, one-shot Night card.
+				if (card.isLastTransport && NightLastCallController.Instance != null)
+				{
+					heli.ConfigureAsLastTransport(NightLastCallController.Instance.DepartAtTime);
+					NightLastCallController.Instance.NotifyPlaced();
+				}
 				break;
+			}
 
 			case CardManager.CardType.Bomb:
 				spawnedObject = Instantiate(card.cardPrefab);

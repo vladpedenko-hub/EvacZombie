@@ -50,6 +50,11 @@ public class HelicopterController : MonoBehaviour
 	private GameObject landingMarker;
 	private bool isTooHot = false;
 
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): set via ConfigureAsLastTransport when this
+	// instance is the free, one-shot Night "LAST TRANSPORT" card.
+	private bool isLastTransport = false;
+	private float lastTransportDepartAtTime;
+
 	private List<GameObject> loadedUnits = new List<GameObject>();
 
 	private void Start()
@@ -92,6 +97,24 @@ public class HelicopterController : MonoBehaviour
 			if (run.HasFlag("heli_unlimited_capacity"))
 				maxCapacity = 999;
 		}
+	}
+
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): configures this instance as the free, one-shot
+	// Night "LAST TRANSPORT". Called by InputManager right after Launch(). departAtTime is an
+	// absolute Time.time value -- the transport stays loading until then regardless of capacity
+	// or the normal load timer, then departs. panicRadius = 0 reuses the existing panic-radius
+	// check (below) to mean "no too-hot abort" without a new branch.
+	public void ConfigureAsLastTransport(float departAtTime)
+	{
+		isLastTransport = true;
+		lastTransportDepartAtTime = departAtTime;
+
+		maxCapacity = 9999;
+		panicRadius = 0f;
+		verticalSpeed = Mathf.Max(verticalSpeed, 9999f);
+
+		CoreLoopV2Config cfg = CoreLoopV2Config.Active;
+		boardingCooldown = cfg != null ? cfg.lastTransportBoardingInterval : 0.1f;
 	}
 
 	public void Launch(Vector3 pos)
@@ -217,6 +240,22 @@ public class HelicopterController : MonoBehaviour
 			}
 		}
 
+		// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): the Last Transport attracts every living
+		// civilian unconditionally, independent of attractRadius and of the roguelite flag above.
+		if (isLastTransport)
+		{
+			foreach (var h in Human.AllHumans)
+			{
+				if (h == null || h.rescueTarget != null) continue;
+				h.SetRescueTarget(transform);
+			}
+			foreach (var s in Scientist.AllScientists)
+			{
+				if (s == null || s.rescueTarget != null) continue;
+				s.SetRescueTarget(transform);
+			}
+		}
+
 		StartCoroutine(LoadRoutine());
 	}
 
@@ -230,7 +269,7 @@ public class HelicopterController : MonoBehaviour
 		const float panicCheckInterval = 0.2f;
 		float panicRadiusSqr = panicRadius * panicRadius;
 
-		while (currentLoad < maxCapacity && !isTooHot && waitTimer < loadTime)
+		while (isLastTransport ? Time.time < lastTransportDepartAtTime : (currentLoad < maxCapacity && !isTooHot && waitTimer < loadTime))
 		{
 			// Wait for time to resume — do not advance timers during pause
 			if (Time.timeScale < 0.001f)
@@ -320,13 +359,15 @@ public class HelicopterController : MonoBehaviour
 
 					// ── Early takeoff: all remaining civilians are already on board ──
 					// Don't wait for the timer — if there's no one left to load, take off immediately.
-					if (AllCiviliansHandled())
+					// Core Loop v2: the Last Transport always stays until lastTransportDepartAtTime
+					// (brief: "it stays until the countdown hits 0, then takes off").
+					if (!isLastTransport && AllCiviliansHandled())
 						break;
 				}
 			}
 
 			// One more check at the end of the iteration (in case there were no civilians at all)
-			if (currentLoad > 0 && AllCiviliansHandled())
+			if (!isLastTransport && currentLoad > 0 && AllCiviliansHandled())
 				break;
 
 			yield return null;
@@ -382,6 +423,14 @@ public class HelicopterController : MonoBehaviour
 			}
 
 			loadedUnits.Clear();
+		}
+
+		// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): the level ends when the Last Transport
+		// departs -- civilians still on the map (not boarded) are lost, matching the brief.
+		if (isLastTransport)
+		{
+			GameManager.Instance.OnV2LastTransportDeparted();
+			NightLastCallController.Instance?.OnTransportDeparted();
 		}
 	}
 }

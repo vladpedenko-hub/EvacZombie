@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c4a80989bfc0e04f8256cb7af9d54de, type: 3}
+  m_Name: LastTransportCardData
+  m_EditorClassIdentifier: 
+  cardType: 1
+  cardName: LAST TRANSPORT
+  description: Free one-shot evacuation at Night. Everyone still alive runs for it.
+  icon: {fileID: -4020335626915314013, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
+  cardPrefab: {fileID: 9141034902650517432, guid: 861eed788a6b63e4ab4d18425fb0b9a0, type: 3}
+  category: 0
+  rarity: 3
+  uiButtonPrefab: {fileID: 3048290322514774780, guid: 6438d5c0cbf5b6c47b9298fd3795fcbe, type: 3}
+  maxLevel: 5
+  upgradeCosts:
+  - duplicateCardsNeeded: 2
+    currencyCost: 60
+  - duplicateCardsNeeded: 3
+    currencyCost: 120
+  - duplicateCardsNeeded: 4
+    currencyCost: 220
+  - duplicateCardsNeeded: 6
+    currencyCost: 400
+  stats:
+  - statType: 1
+    statName: Capacity
+    baseValue: 10
+    valuePerLevel: 2
+    unitSuffix: ' human.'
+  - statType: 2
+    statName: Speed
+    baseValue: 7
+    valuePerLevel: 1
+    unitSuffix: ' m/s.'
+  - statType: 5
+    statName: Radius
+    baseValue: 8
+    valuePerLevel: 0.5
+    unitSuffix: ' m.'
+  - statType: 6
+    statName: Duration
+    baseValue: 7
+    valuePerLevel: -0.1
+    unitSuffix: ' sec.'
+  - statType: 7
+    statName: Cooldown
+    baseValue: 0.65
+    valuePerLevel: -0.1
+    unitSuffix: ' sec.'
+  supplyCost: 0
+  isLastTransport: 1

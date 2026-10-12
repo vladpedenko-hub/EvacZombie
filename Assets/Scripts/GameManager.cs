@@ -182,6 +182,36 @@ public class GameManager : MonoBehaviour
 		State = GameState.SuddenDeath;
 		LevelManager.Instance.StartSuddenDeath();
 		UIManager.Instance.ShowNightPopup();
+		NightLastCallController.Instance?.BeginLastCall();
+	}
+
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): called by HelicopterController.TakeOff() when
+	// the Last Transport departs. The level ends then, not on an empty map -- civilians not
+	// aboard are already lost (TakeOff only counts loadedUnits). Waits for any still-animating
+	// +N fly-ins so the win check sees their final rescued count, same pattern as
+	// PerfectClearRoutine above.
+	public void OnV2LastTransportDeparted()
+	{
+		if (State == GameState.GameOver || State == GameState.Lose) return;
+		StartCoroutine(V2LastTransportEndRoutine());
+	}
+
+	private IEnumerator V2LastTransportEndRoutine()
+	{
+		while (pendingHumans > 0 || pendingScientists > 0)
+			yield return null;
+
+		yield return new WaitForSeconds(0.5f);
+
+		if (State == GameState.GameOver || State == GameState.Lose) yield break;
+
+		if (GetTotalRescued() >= requiredHumans)
+			EndLevel(false);
+		else
+		{
+			State = GameState.Lose;
+			UIManager.Instance.ShowLosePopup();
+		}
 	}
 
 	private int GetAliveResidentsCount()
@@ -202,9 +232,28 @@ public class GameManager : MonoBehaviour
 	private void CheckPerfectClear()
 	{
 		if (perfectClearStarted) return;
+		if (LevelManager.Instance == null || LevelManager.Instance.currentData == null) return;
+
+		// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): Perfect Evacuation replaces the legacy
+		// auto-evacuate-survivors routine. Checked continuously ("at any point before night"),
+		// not gated on wave-timeline completion -- it can fire mid-sequence if every civilian is
+		// already rescued.
+		if (LevelManager.Instance.currentData.useCoreLoopV2)
+		{
+			bool noOneLeftToSave = GetAliveResidentsCount() == 0 && GetPendingTotal() == 0;
+			bool metStar2 = GetTotalRescued() >= LevelManager.Instance.currentData.GetStar2Target();
+
+			if (noOneLeftToSave && metStar2)
+			{
+				perfectClearStarted = true;
+				LevelManager.Instance.StopV2WaveSequencer();
+				EndLevel(true);
+			}
+			return;
+		}
 
 		// Ensure timeline spawning is complete before checking for perfect clear
-		if (LevelManager.Instance == null || !LevelManager.Instance.IsTimelineSpawningFinished) return;
+		if (!LevelManager.Instance.IsTimelineSpawningFinished) return;
 
 		// Perfect clear: all zombies are dead and survivors still remain on the map
 		if (Zombie.AllZombies.Count == 0 && GetAliveResidentsCount() > 0)

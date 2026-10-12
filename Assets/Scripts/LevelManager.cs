@@ -111,6 +111,7 @@ public class LevelManager : MonoBehaviour
 		SupplyHud.EnsureBuilt();
 		PlanningControllerV2.OnLevelLoaded(data);
 		WaveHudV2.OnLevelLoaded(data);
+		NightLastCallController.OnLevelLoaded(data);
 
 		if (currentLevelEnvironment != null)
 			Destroy(currentLevelEnvironment);

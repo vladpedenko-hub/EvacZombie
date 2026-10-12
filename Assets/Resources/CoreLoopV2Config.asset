@@ -25,6 +25,7 @@ MonoBehaviour:
   loseRetryAdSupplyGrant: 5
   waveMaxDuration: 25
   breatherDuration: 6
+  lastTransportCard: {fileID: 11400000, guid: 335651b418afdb241a63655af1257cff, type: 2}
   lastCallDuration: 18
   lastTransportBoardingInterval: 0.1
   lastTransportAutoPlaceDelay: 6

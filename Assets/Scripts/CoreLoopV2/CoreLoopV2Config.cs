@@ -66,6 +66,9 @@ public class CoreLoopV2Config : ScriptableObject
 	public float breatherDuration = 6f;
 
 	[Header("Night / Last Call")]
+	[Tooltip("The free, one-shot Night 'LAST TRANSPORT' CardData (reuses the Helicopter prefab via HelicopterController.ConfigureAsLastTransport). Referenced here so it reaches the build despite living outside a Resources folder -- a ScriptableObject in Resources pulls in anything it references.")]
+	public CardData lastTransportCard;
+
 	[Tooltip("Seconds the time-limited Night phase lasts in v2, after which the Last Transport departs and the level ends.")]
 	public float lastCallDuration = 18f;
 

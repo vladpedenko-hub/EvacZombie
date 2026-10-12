@@ -30,6 +30,19 @@ public class CardManager : MonoBehaviour
 		SpawnDeck();
 	}
 
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): injects a single card UI instance into the
+	// hand without going through currentDeck/SpawnDeck -- used for the free, one-shot Night
+	// "LAST TRANSPORT" card. uiPrefab's CardUI.myCardData is overridden to the given CardData.
+	public CardUI SpawnTemporaryCard(CardData card, GameObject uiPrefab)
+	{
+		if (card == null || uiPrefab == null || cardsPanel == null) return null;
+
+		GameObject go = Instantiate(uiPrefab, cardsPanel);
+		CardUI ui = go.GetComponent<CardUI>();
+		if (ui != null) ui.myCardData = card;
+		return ui;
+	}
+
 	private void SpawnDeck()
 	{
 		// 1. Clear existing cards
