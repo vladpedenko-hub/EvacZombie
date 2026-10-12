@@ -8,9 +8,11 @@ using DG.Tweening;
 public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
 	// Dev-only PlaytestLog's one unavoidable hook (Docs/CLAUDE_CODE_TASK_LevelProgression.md §7)
-	// -- placement is a discrete, fast event polling could miss or double-count. No gameplay code
-	// subscribes to this; it's purely observational.
-	public static event System.Action<CardManager.CardType> OnCardPlaced;
+	// -- placement is a discrete, fast event polling could miss or double-count. Also the generic
+	// tutorial-trigger vocabulary's CardPlaced completion (Docs/CORE_LOOP_V2.md Phase 3 tutorial
+	// rewrite) -- carries the full CardData (not just the type) so a step can require specifically
+	// the Last Transport card, not any Helicopter-typed card. No other gameplay code subscribes.
+	public static event System.Action<CardData> OnCardPlaced;
 
 	[Header("Card & Settings")]
 	public CardData myCardData; // Always assign CARD DATA here, not an ENUM
@@ -108,11 +110,17 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 1/2): Supply cost badge, unaffordable dim, and the
 	// Planning-phase lock overlay for Evacuation-category cards. No-op (and nothing built) on
 	// legacy levels.
+	// Core Loop v2 HUD rebuild (Docs/CORE_LOOP_V2.md section 3.3): ONE number only (Supply cost,
+	// top-left, icon + badge), gated by LevelData.v2ShowSupplyHud; lock overlay is icon-only so it
+	// never collides with the (separately shrunk/retitled) name label baked into each card prefab.
 	private void UpdateV2State()
 	{
 		if (myCardData == null) return;
 
-		if (!CoreLoopV2.IsActive)
+		bool v2 = CoreLoopV2.IsActive;
+		LevelData data = v2 ? LevelManager.Instance.currentData : null;
+
+		if (!v2)
 		{
 			if (v2CostBadgeBg != null) v2CostBadgeBg.gameObject.SetActive(false);
 			if (v2LockOverlay != null) v2LockOverlay.gameObject.SetActive(false);
@@ -121,13 +129,20 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 
 		BuildV2VisualsIfNeeded();
 
-		bool hasCost = myCardData.supplyCost > 0 && !myCardData.isLastTransport;
+		bool showSupplyHud = data != null && data.v2ShowSupplyHud;
+		bool hasCost = showSupplyHud && myCardData.supplyCost > 0 && !myCardData.isLastTransport;
 		v2CostBadgeBg.gameObject.SetActive(hasCost);
-		if (hasCost) v2CostBadgeText.text = myCardData.supplyCost.ToString();
 
 		bool unaffordable = hasCost && SupplyManager.Instance != null && !SupplyManager.Instance.CanAfford(myCardData.supplyCost);
+
+		if (hasCost)
+		{
+			v2CostBadgeText.text = myCardData.supplyCost.ToString();
+			v2CostBadgeBg.color = unaffordable ? V2Theme.LossRed : V2Theme.PanelBgLight;
+		}
+
 		if (cardImage != null && !isOnCooldown && !isCurrentlyDragging)
-			cardImage.color = unaffordable ? new Color(1f, 1f, 1f, 0.35f) : Color.white;
+			cardImage.color = unaffordable ? new Color(0.55f, 0.55f, 0.55f, 1f) : Color.white;
 
 		bool isPlanningLocked = IsLockedDuringPlanning();
 		v2LockOverlay.gameObject.SetActive(isPlanningLocked);
@@ -138,6 +153,9 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		return myCardData != null
 			&& myCardData.category == CardCategory.Evacuation
 			&& !myCardData.isLastTransport
+			&& LevelManager.Instance != null
+			&& LevelManager.Instance.currentData != null
+			&& LevelManager.Instance.currentData.v2PlanningEnabled
 			&& GameManager.Instance != null
 			&& GameManager.Instance.State == GameManager.GameState.Planning;
 	}
@@ -146,25 +164,36 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 	{
 		if (v2CostBadgeBg != null) return;
 
+		// Top-left, icon + number -- replaces the earlier top-right text-only badge.
 		RectTransform badgeRt = RuntimeUiKit.CreateRect("SupplyCostBadge", transform);
-		RuntimeUiKit.SetAnchors(badgeRt, 0.60f, 0.62f, 0.98f, 0.98f);
+		RuntimeUiKit.SetAnchors(badgeRt, 0.02f, 0.66f, 0.52f, 0.98f);
 		v2CostBadgeBg = badgeRt.gameObject.AddComponent<Image>();
 		v2CostBadgeBg.sprite = RuntimeUiKit.Rounded();
 		v2CostBadgeBg.type = Image.Type.Sliced;
-		v2CostBadgeBg.color = new Color(0.05f, 0.08f, 0.12f, 0.85f);
+		v2CostBadgeBg.color = V2Theme.PanelBgLight;
 		v2CostBadgeBg.raycastTarget = false;
 
-		v2CostBadgeText = RuntimeUiKit.CreateText("Text", badgeRt, "", 24f, new Color(0.65f, 1f, 0.75f, 1f), TextAlignmentOptions.Center, FontStyles.Bold);
-		RuntimeUiKit.Stretch(v2CostBadgeText.rectTransform);
+		Image badgeIcon = RuntimeUiKit.CreateImage("Icon", badgeRt, V2Theme.ThreatAmber, rounded: false);
+		badgeIcon.sprite = RuntimeUiKit.Diamond();
+		badgeIcon.raycastTarget = false;
+		RuntimeUiKit.SetAnchors(badgeIcon.rectTransform, 0.08f, 0.2f, 0.38f, 0.8f);
+
+		v2CostBadgeText = RuntimeUiKit.CreateText("Text", badgeRt, "", V2Theme.LabelSize, V2Theme.TextPrimary, TextAlignmentOptions.Center, FontStyles.Bold);
+		v2CostBadgeText.raycastTarget = false;
+		RuntimeUiKit.SetAnchors(v2CostBadgeText.rectTransform, 0.4f, 0f, 1f, 1f);
 		v2CostBadgeBg.gameObject.SetActive(false);
 
 		RectTransform lockRt = RuntimeUiKit.CreateRect("LockOverlay", transform);
 		RuntimeUiKit.Stretch(lockRt);
 		v2LockOverlay = lockRt.gameObject.AddComponent<Image>();
-		v2LockOverlay.color = new Color(0f, 0f, 0f, 0.6f);
+		v2LockOverlay.color = new Color(0f, 0f, 0f, 0.62f);
 		v2LockOverlay.raycastTarget = false;
-		TextMeshProUGUI lockLabel = RuntimeUiKit.CreateText("Text", lockRt, "LOCKED", 20f, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-		RuntimeUiKit.Stretch(lockLabel.rectTransform);
+
+		Image lockIcon = RuntimeUiKit.CreateImage("Icon", lockRt, V2Theme.TextPrimary, rounded: false);
+		lockIcon.sprite = RuntimeUiKit.Lock();
+		lockIcon.raycastTarget = false;
+		RuntimeUiKit.SetAnchors(lockIcon.rectTransform, 0.32f, 0.32f, 0.68f, 0.68f);
+
 		v2LockOverlay.gameObject.SetActive(false);
 	}
 
@@ -173,6 +202,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 		if (rectTransform == null) return;
 		rectTransform.DOKill();
 		rectTransform.DOShakeAnchorPos(0.3f, strength: 14f, vibrato: 14, randomness: 90f, snapping: false, fadeOut: true).SetUpdate(true);
+		SupplyManager.Instance?.NotifyCannotAfford();
 	}
 
 	public void OnBeginDrag(PointerEventData eventData)
@@ -190,7 +220,8 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 				return;
 			}
 
-			if (myCardData.supplyCost > 0 && !myCardData.isLastTransport
+			bool showSupplyHud = LevelManager.Instance.currentData != null && LevelManager.Instance.currentData.v2ShowSupplyHud;
+			if (showSupplyHud && myCardData.supplyCost > 0 && !myCardData.isLastTransport
 				&& SupplyManager.Instance != null && !SupplyManager.Instance.CanAfford(myCardData.supplyCost))
 			{
 				Feedback.Play(FeedbackEvent.CardPlaceInvalid);
@@ -246,7 +277,7 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 				SupplyManager.Instance?.TrySpend(myCardData.supplyCost);
 
 			StartCooldown();
-			OnCardPlaced?.Invoke(myCardData.cardType);
+			OnCardPlaced?.Invoke(myCardData);
 		}
 		else if (CardManager.Instance == null || !CardManager.Instance.IsScreenPointOverCardsPanel(Input.mousePosition))
 		{

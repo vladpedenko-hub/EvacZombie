@@ -73,6 +73,9 @@ public class LevelData : ScriptableObject
 	[Tooltip("If a sequence is assigned, it will play at the start of the level")]
 	public TutorialSequence onStartTutorial;
 
+	[Tooltip("If a sequence is assigned, it plays right after the Night 'LAST TRANSPORT' card spawns (Docs/CORE_LOOP_V2.md Phase 3 tutorial rewrite). v2 only.")]
+	public TutorialSequence onNightTutorial;
+
 	[Header("Core Loop v2 (Docs/CORE_LOOP_V2.md)")]
 	[Tooltip("Enables the Core Loop v2 systems (Supply economy, real Planning, sequential waves, time-limited Night/Last Transport, Signal Flare). Legacy levels must leave this false.")]
 	public bool useCoreLoopV2 = false;
@@ -80,8 +83,17 @@ public class LevelData : ScriptableObject
 	[Tooltip("Starting Supply for this level. 0 = use CoreLoopV2Config.startingSupplyDefault.")]
 	public int startingSupply = 0;
 
-	[Tooltip("Shows the Planning fake-door ad button (+Supply, mock, once per attempt). v2 only.")]
-	public bool offerSupplyAd = false;
+	[Tooltip("Enables the Planning phase (GO button, auto-start countdown, Evacuation-card lock). v2 only. When false, the level starts immediately after the camera intro shot -- no Planning, no GO, no lock.")]
+	public bool v2PlanningEnabled = true;
+
+	[Tooltip("Shows the Supply counter and card cost badges. v2 only. Supply still exists in logic even when hidden -- give the level a large startingSupply above so it never blocks.")]
+	public bool v2ShowSupplyHud = true;
+
+	[Tooltip("Shows the wave-progress pills ('WAVE n/total'). v2 only. Waves still run sequentially and breather banners still show even when this is hidden.")]
+	public bool v2ShowWaveIndicator = true;
+
+	[Tooltip("Shows the Planning fake-door ad button (+Supply) and the Lose-popup retry-with-Supply ad. v2 only.")]
+	public bool v2ShowAdOffer = false;
 
 	public int GetStar1Target()
 	{

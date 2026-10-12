@@ -119,9 +119,11 @@ public class PlaytestLog : MonoBehaviour
 		if (attemptInProgress) WriteLine("quit", 0);
 	}
 
-	private void HandleCardPlaced(CardManager.CardType type)
+	private void HandleCardPlaced(CardData card)
 	{
-		string id = type.ToString();
+		if (card == null) return;
+
+		string id = card.cardType.ToString();
 		cardsPlacedThisAttempt.TryGetValue(id, out int c);
 		cardsPlacedThisAttempt[id] = c + 1;
 

@@ -46,6 +46,10 @@ MonoBehaviour:
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
   abilityEnabled: 0
   onStartTutorial: {fileID: 11400000, guid: 71c39a47e3b0c4b4a9a093263776bc09, type: 2}
+  onNightTutorial: {fileID: 11400000, guid: 895f6ada9362733488f0a632bc5d9b03, type: 2}
   useCoreLoopV2: 1
-  startingSupply: 0
-  offerSupplyAd: 0
+  startingSupply: 20
+  v2PlanningEnabled: 0
+  v2ShowSupplyHud: 0
+  v2ShowWaveIndicator: 0
+  v2ShowAdOffer: 0

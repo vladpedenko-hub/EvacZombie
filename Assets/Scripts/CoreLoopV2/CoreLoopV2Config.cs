@@ -52,7 +52,7 @@ public class CoreLoopV2Config : ScriptableObject
 	[Tooltip("Planning auto-starts the level after this many seconds if GO isn't pressed first.")]
 	public float planningMaxDuration = 15f;
 
-	[Tooltip("Supply granted by the Planning fake-door ad button (LevelData.offerSupplyAd), once per attempt.")]
+	[Tooltip("Supply granted by the Planning fake-door ad button (LevelData.v2ShowAdOffer), once per attempt.")]
 	public int fakeDoorAdSupplyGrant = 3;
 
 	[Tooltip("Supply bonus applied to the next attempt after taking the Lose popup's fake-door ad retry offer.")]

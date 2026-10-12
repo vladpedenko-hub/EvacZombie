@@ -11,9 +11,11 @@ public static class RuntimeUiKit
 	private static Sprite roundedSprite;
 	private static Sprite gearSprite;
 	private static Sprite triangleSprite;
+	private static Sprite lockSprite;
+	private static Sprite diamondSprite;
 
 	[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-	private static void ResetStatics() { roundedSprite = null; gearSprite = null; triangleSprite = null; }
+	private static void ResetStatics() { roundedSprite = null; gearSprite = null; triangleSprite = null; lockSprite = null; diamondSprite = null; }
 
 	/// <summary>9-sliced rounded rectangle (white, tint it with Image.color).</summary>
 	public static Sprite Rounded()
@@ -103,6 +105,79 @@ public static class RuntimeUiKit
 
 		triangleSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
 		return triangleSprite;
+	}
+
+	/// <summary>Placeholder padlock silhouette (Core Loop v2 card-locked overlay). Tint with Image.color.</summary>
+	public static Sprite Lock()
+	{
+		if (lockSprite != null) return lockSprite;
+
+		const int size = 64;
+		var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+		tex.wrapMode = TextureWrapMode.Clamp;
+		tex.filterMode = FilterMode.Bilinear;
+
+		// Body: a rounded rect in the lower 60%. Shackle: a ring in the upper area, open at the bottom
+		// where it meets the body.
+		float bodyTop = size * 0.56f;
+		float bodyLeft = size * 0.18f, bodyRight = size * 0.82f;
+		Vector2 shackleCenter = new Vector2(size * 0.5f, size * 0.56f);
+		float shackleOuter = size * 0.26f, shackleInner = size * 0.15f;
+
+		for (int y = 0; y < size; y++)
+		{
+			for (int x = 0; x < size; x++)
+			{
+				float px = x + 0.5f, py = y + 0.5f;
+				float a = 0f;
+
+				if (py <= bodyTop && px >= bodyLeft && px <= bodyRight)
+					a = 1f;
+
+				if (py > bodyTop - 2f)
+				{
+					float d = Vector2.Distance(new Vector2(px, py), shackleCenter);
+					if (d <= shackleOuter && d >= shackleInner && py >= shackleCenter.y - 1f)
+						a = Mathf.Max(a, 1f);
+				}
+
+				tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+			}
+		}
+		tex.Apply();
+
+		lockSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+		return lockSprite;
+	}
+
+	/// <summary>Placeholder diamond/gem silhouette (Core Loop v2 Supply icon). Tint with Image.color.</summary>
+	public static Sprite Diamond()
+	{
+		if (diamondSprite != null) return diamondSprite;
+
+		const int size = 64;
+		var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+		tex.wrapMode = TextureWrapMode.Clamp;
+		tex.filterMode = FilterMode.Bilinear;
+
+		Vector2 top = new Vector2(size * 0.5f, size * 0.06f);
+		Vector2 left = new Vector2(size * 0.06f, size * 0.42f);
+		Vector2 right = new Vector2(size * 0.94f, size * 0.42f);
+		Vector2 bottom = new Vector2(size * 0.5f, size * 0.96f);
+
+		for (int y = 0; y < size; y++)
+		{
+			for (int x = 0; x < size; x++)
+			{
+				Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+				bool inside = PointInTriangle(p, top, left, right) || PointInTriangle(p, left, bottom, right);
+				tex.SetPixel(x, y, new Color(1f, 1f, 1f, inside ? 1f : 0f));
+			}
+		}
+		tex.Apply();
+
+		diamondSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+		return diamondSprite;
 	}
 
 	private static bool PointInTriangle(Vector2 p, Vector2 a, Vector2 b, Vector2 c)

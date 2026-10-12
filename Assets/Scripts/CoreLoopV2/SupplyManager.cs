@@ -29,6 +29,13 @@ public class SupplyManager : MonoBehaviour
 	/// <summary>Fired with the delta whenever Supply is gained (for the HUD's "+N" fly-in).</summary>
 	public event Action<int> OnSupplyGained;
 
+	/// <summary>Fired when the player tries to drag a card they can't afford (HUD rebuild: the Supply pill shakes too).</summary>
+	public event Action OnSpendFailed;
+
+	/// <summary>Fired once per attempt on the FIRST successful spend (HUD rebuild: a non-blocking SupplyHud pulse, no tutorial pause).</summary>
+	public event Action OnFirstSpendThisAttempt;
+	private bool hasSpentThisAttempt;
+
 	private Coroutine trickleCoroutine;
 	private int pendingRetryBonus = 0;
 	private bool fakeDoorAdUsedThisAttempt = false;
@@ -68,6 +75,7 @@ public class SupplyManager : MonoBehaviour
 		TotalSpent = 0;
 		TimeAtZero = 0f;
 		RetryBonusAppliedThisAttempt = pendingRetryBonus > 0;
+		hasSpentThisAttempt = false;
 
 		if (!IsActive)
 		{
@@ -127,8 +135,18 @@ public class SupplyManager : MonoBehaviour
 		TotalSpent += cost;
 		MinSeen = Mathf.Min(MinSeen, Current);
 		OnSupplyChanged?.Invoke(Current, Max);
+
+		if (!hasSpentThisAttempt)
+		{
+			hasSpentThisAttempt = true;
+			OnFirstSpendThisAttempt?.Invoke();
+		}
+
 		return true;
 	}
+
+	/// <summary>Called by CardUI when a drag is refused for being unaffordable (the card itself already shakes -- this lets the Supply pill react too).</summary>
+	public void NotifyCannotAfford() => OnSpendFailed?.Invoke();
 
 	public void Gain(int amount)
 	{

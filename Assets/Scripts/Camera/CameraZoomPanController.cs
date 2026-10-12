@@ -48,6 +48,10 @@ public class CameraZoomPanController : MonoBehaviour
 	private Coroutine introRoutine;
 	private bool introActive;
 
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md): read by PlanningControllerV2 to delay the no-Planning
+	// auto-start until the level-intro camera shot finishes.
+	public bool IsIntroActive => introActive;
+
 	private void Awake()
 	{
 		Instance = this;

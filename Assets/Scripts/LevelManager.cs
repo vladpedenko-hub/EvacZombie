@@ -32,7 +32,7 @@ public class LevelManager : MonoBehaviour
 	[Tooltip("Top-anchored HUD elements whose screen-space extent the camera should not hide the map behind (e.g. TimerText, RescuedCounter).")]
 	[SerializeField] private RectTransform[] topReservedUI;
 
-	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 3): runtime-built HUD (WaveHudV2, etc.) can't be
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 3): runtime-built HUD (TopHudV2, etc.) can't be
 	// wired into the serialized array above (it doesn't exist until the level loads), so it
 	// registers itself here instead. Read alongside topReservedUI in GetReservedScreenFractions().
 	private readonly List<RectTransform> runtimeTopReservedUI = new List<RectTransform>();
@@ -40,6 +40,15 @@ public class LevelManager : MonoBehaviour
 	public void RegisterTopReservedUI(RectTransform rt)
 	{
 		if (rt != null && !runtimeTopReservedUI.Contains(rt)) runtimeTopReservedUI.Add(rt);
+	}
+
+	// Same idea for the bottom (thumb) zone -- the v2 control row (Supply pill, GO/ad, ultimate)
+	// sits above CardsPanel, so the camera needs to reserve more than CardsPanel's own extent.
+	private readonly List<RectTransform> runtimeBottomReservedUI = new List<RectTransform>();
+
+	public void RegisterBottomReservedUI(RectTransform rt)
+	{
+		if (rt != null && !runtimeBottomReservedUI.Contains(rt)) runtimeBottomReservedUI.Add(rt);
 	}
 
 	[Header("Lighting")]
@@ -67,18 +76,22 @@ public class LevelManager : MonoBehaviour
 	private int activeSpawnCoroutines = 0;
 	private bool allWavesTriggered = false;
 
-	// Core Loop v2 sequential-wave state (Docs/CORE_LOOP_V2.md Phase 3), polled by WaveHudV2.
+	// Core Loop v2 sequential-wave state (Docs/CORE_LOOP_V2.md Phase 3), polled by TopHudV2.
 	// Not read by any legacy/gameplay code.
 	public int V2CurrentWaveNumber { get; private set; }
 	public int V2TotalWaves { get; private set; }
 	public bool V2InBreather { get; private set; }
 	public float V2BreatherRemaining { get; private set; }
 	public string V2NextWaveHint { get; private set; } = "";
-	public event System.Action<string> OnV2Banner;
 
 	// Per-attempt instrumentation (Docs/CORE_LOOP_V2.md Phase 7 / PlaytestLog), reset in LoadLevel.
 	public int V2WavesClearedCount { get; private set; }
 	public int V2WavesForcedCount { get; private set; }
+
+	// Generic tutorial-trigger vocabulary (Docs/CORE_LOOP_V2.md Phase 3 tutorial rewrite,
+	// TutorialCompletionTrigger.WaveStarted). Static since GameManager/LevelManager aren't
+	// DontDestroyOnLoad -- TutorialManager subscribes fresh per step rather than caching this.
+	public static event System.Action<int, int> OnAnyWaveStarted;
 
 	private Coroutine v2WaveCoroutine;
 
@@ -114,11 +127,11 @@ public class LevelManager : MonoBehaviour
 
 		AbilityManager.Instance?.Initialize(data);
 		SupplyManager.Instance?.OnLevelLoaded(data);
-		SupplyHud.EnsureBuilt();
+		BottomZoneV2.EnsureBuilt();
+		SupplyHud.OnLevelLoaded(data);
 		PlanningControllerV2.OnLevelLoaded(data);
-		WaveHudV2.OnLevelLoaded(data);
+		TopHudV2.OnLevelLoaded(data);
 		NightLastCallController.OnLevelLoaded(data);
-		GoalBarUI.OnLevelLoaded(data);
 
 		if (currentLevelEnvironment != null)
 			Destroy(currentLevelEnvironment);
@@ -192,6 +205,13 @@ public class LevelManager : MonoBehaviour
 		{
 			cardsPanel.GetWorldCorners(corners);
 			bottomPixels = corners[1].y; // top-left corner's screen Y == panel height from the bottom edge
+		}
+
+		foreach (RectTransform rt in runtimeBottomReservedUI)
+		{
+			if (rt == null || !rt.gameObject.activeInHierarchy) continue;
+			rt.GetWorldCorners(corners);
+			bottomPixels = Mathf.Max(bottomPixels, corners[1].y);
 		}
 
 		return (topPixels / Screen.height, bottomPixels / Screen.height);
@@ -507,6 +527,7 @@ public class LevelManager : MonoBehaviour
 
 			V2CurrentWaveNumber = i + 1;
 			V2NextWaveHint = "";
+			OnAnyWaveStarted?.Invoke(V2CurrentWaveNumber, V2TotalWaves);
 
 			var tracker = new TrackedWave { data = wave };
 			PrepareAndWarnWave(tracker);
@@ -535,12 +556,15 @@ public class LevelManager : MonoBehaviour
 			{
 				V2WavesClearedCount++;
 				SupplyManager.Instance?.AddWaveClearedBonus();
-				OnV2Banner?.Invoke("WAVE CLEARED");
+
+				// On levels with the Supply HUD hidden, the "+2" means nothing to the player.
+				bool showSupplyNote = currentData.v2ShowSupplyHud;
+				CenterBannerV2.Show(showSupplyNote ? "WAVE CLEARED +2" : "WAVE CLEARED");
 			}
 			else
 			{
 				V2WavesForcedCount++;
-				OnV2Banner?.Invoke("NEXT WAVE INCOMING");
+				CenterBannerV2.Show("NEXT WAVE INCOMING");
 			}
 
 			bool hasNext = i + 1 < currentData.waves.Count;

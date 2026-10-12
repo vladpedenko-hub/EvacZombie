@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
   m_Name: Level_8_Data
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   levelPrefab: {fileID: 4058927015439930953, guid: 8d6a82675df5cf34593ad5e7eb120e96, type: 3}
   humanCount: 65
   levelTimer: 45
@@ -26,7 +26,7 @@ MonoBehaviour:
   star1RequiredHumans: 22
   star2RequiredHumans: 39
   star3Description: Save everyone
-  missionTitleOverride:
+  missionTitleOverride: 
   missionIcon: {fileID: 0}
   missionDescription: They're tougher now. Focus fire wins this one.
   cameraType: 0
@@ -47,3 +47,10 @@ MonoBehaviour:
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
   abilityEnabled: 1
   onStartTutorial: {fileID: 0}
+  onNightTutorial: {fileID: 0}
+  useCoreLoopV2: 1
+  startingSupply: 0
+  v2PlanningEnabled: 1
+  v2ShowSupplyHud: 1
+  v2ShowWaveIndicator: 1
+  v2ShowAdOffer: 1

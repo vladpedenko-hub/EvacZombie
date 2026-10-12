@@ -26,6 +26,11 @@ public class GameManager : MonoBehaviour
 	// in SetTotalHumans.
 	public bool PerfectEvacuationTriggered { get; private set; }
 
+	// Generic tutorial-trigger vocabulary (Docs/CORE_LOOP_V2.md Phase 3 tutorial rewrite).
+	// Static since GameManager isn't DontDestroyOnLoad -- TutorialManager subscribes fresh per step.
+	public static event System.Action OnAnyRescueCredited;
+	public static event System.Action OnAnyNightStarted;
+
 	private float currentTimer;
 	private float startTimerAmount;
 	private bool perfectClearStarted = false;
@@ -115,6 +120,7 @@ public class GameManager : MonoBehaviour
 		}
 
 		UIManager.Instance.UpdateRescuedCount(GetTotalRescued(), requiredHumans, true);
+		OnAnyRescueCredited?.Invoke();
 		CheckWinLoseCondition();
 	}
 
@@ -187,7 +193,13 @@ public class GameManager : MonoBehaviour
 		State = GameState.SuddenDeath;
 		LevelManager.Instance.StartSuddenDeath();
 		UIManager.Instance.ShowNightPopup();
+		CenterBannerV2.Show("NIGHT FALLS");
 		NightLastCallController.Instance?.BeginLastCall();
+		OnAnyNightStarted?.Invoke();
+
+		LevelData level = LevelManager.Instance.currentData;
+		if (level != null && level.onNightTutorial != null && TutorialManager.Instance != null)
+			TutorialManager.Instance.StartTutorial(level.onNightTutorial);
 	}
 
 	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): called by HelicopterController.TakeOff() when
@@ -253,6 +265,7 @@ public class GameManager : MonoBehaviour
 				perfectClearStarted = true;
 				PerfectEvacuationTriggered = true;
 				LevelManager.Instance.StopV2WaveSequencer();
+				CenterBannerV2.Show("PERFECT EVACUATION");
 				EndLevel(true);
 			}
 			return;

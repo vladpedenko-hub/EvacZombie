@@ -1,18 +1,24 @@
 using System.Collections;
-using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
+using DG.Tweening;
 
-// Core Loop v2 time-limited Night / "Last Call" (Docs/CORE_LOOP_V2.md Phase 4). Shows the
-// countdown, spawns the free one-shot "LAST TRANSPORT" card into the hand, and auto-places it as
-// a safety net if the player doesn't. Scene-scoped, rebuilt per level, same pattern as the other
-// v2 controllers.
+// Core Loop v2 time-limited Night / "Last Call" (Docs/CORE_LOOP_V2.md Phase 4). Drives the
+// countdown value (displayed by TopHudV2's left region, not built here -- HUD rebuild moved every
+// persistent v2 panel into the shared zone system), spawns the free one-shot "LAST TRANSPORT"
+// card into the hand with a glow/pulse until placed, and auto-places it as a safety net if the
+// player doesn't. Scene-scoped, rebuilt per level, same pattern as the other v2 controllers.
 public class NightLastCallController : MonoBehaviour
 {
 	public static NightLastCallController Instance { get; private set; }
 
 	/// <summary>Absolute Time.time the Last Transport departs at. Read by HelicopterController.ConfigureAsLastTransport callers.</summary>
 	public float DepartAtTime { get; private set; }
+
+	/// <summary>Seconds left in Last Call. Read by TopHudV2 for the countdown display.</summary>
+	public float LastCallRemaining { get; private set; }
+
+	public bool IsLastCallActive { get; private set; }
 
 	// Per-attempt instrumentation (Docs/CORE_LOOP_V2.md Phase 7 / PlaytestLog), reset in
 	// HandleLevelLoaded.
@@ -21,14 +27,12 @@ public class NightLastCallController : MonoBehaviour
 	public bool LastTransportWasAutoPlaced { get; private set; }
 	public int RescuedInLastCall { get; private set; }
 
-	private RectTransform root;
-	private TextMeshProUGUI countdownText;
-	private bool builtUi;
 	private bool placed;
 	private Coroutine countdownCoroutine;
 	private Coroutine autoPlaceCoroutine;
 	private CardData lastTransportCardData;
 	private CardUI spawnedCardUi;
+	private Tween cardGlowTween;
 
 	private void Awake()
 	{
@@ -60,11 +64,12 @@ public class NightLastCallController : MonoBehaviour
 		placed = false;
 		spawnedCardUi = null;
 		NightReached = false;
+		IsLastCallActive = false;
+		LastCallRemaining = 0f;
 		LastTransportPlacedAt = -1f;
 		LastTransportWasAutoPlaced = false;
 		RescuedInLastCall = 0;
-
-		if (builtUi) root.gameObject.SetActive(false);
+		cardGlowTween?.Kill();
 
 		bool v2 = data != null && data.useCoreLoopV2;
 		CoreLoopV2Config cfg = CoreLoopV2Config.Active;
@@ -77,20 +82,55 @@ public class NightLastCallController : MonoBehaviour
 		if (!CoreLoopV2.IsActive) return;
 
 		NightReached = true;
-		BuildUiIfNeeded();
+		IsLastCallActive = true;
 
 		CoreLoopV2Config cfg = CoreLoopV2Config.Active;
 		float duration = cfg != null ? cfg.lastCallDuration : 18f;
 		float autoPlaceDelay = cfg != null ? cfg.lastTransportAutoPlaceDelay : 6f;
 
 		DepartAtTime = Time.time + duration;
+		LastCallRemaining = duration;
 
 		if (lastTransportCardData != null && lastTransportCardData.uiButtonPrefab != null && CardManager.Instance != null)
+		{
 			spawnedCardUi = CardManager.Instance.SpawnTemporaryCard(lastTransportCardData, lastTransportCardData.uiButtonPrefab);
+			FixSpawnedCardTutorialTarget();
+			StartCardGlow();
+		}
 
-		root.gameObject.SetActive(true);
 		countdownCoroutine = StartCoroutine(CountdownRoutine(duration));
 		autoPlaceCoroutine = StartCoroutine(AutoPlaceRoutine(autoPlaceDelay));
+	}
+
+	// The spawned card is a clone of the regular Helicopter card's uiButtonPrefab, so it inherits
+	// that prefab's TutorialTarget ("Card_Helicopter") -- wrong if a real Helicopter card is also
+	// in the hand. Give this instance its own distinct id instead.
+	private void FixSpawnedCardTutorialTarget()
+	{
+		if (spawnedCardUi == null) return;
+
+		foreach (TutorialTarget existing in spawnedCardUi.GetComponents<TutorialTarget>())
+			Destroy(existing);
+
+		TutorialTarget target = spawnedCardUi.gameObject.AddComponent<TutorialTarget>();
+		target.targetId = "Card_LastTransport";
+	}
+
+	private void StartCardGlow()
+	{
+		if (spawnedCardUi == null) return;
+
+		cardGlowTween?.Kill();
+		Transform t = spawnedCardUi.transform;
+		t.localScale = Vector3.one;
+		cardGlowTween = t.DOScale(1.08f, 0.5f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine).SetUpdate(true);
+	}
+
+	private void StopCardGlow()
+	{
+		cardGlowTween?.Kill();
+		cardGlowTween = null;
+		if (spawnedCardUi != null) spawnedCardUi.transform.localScale = Vector3.one;
 	}
 
 	// Called by InputManager right after the player manually places the Last Transport card.
@@ -98,6 +138,7 @@ public class NightLastCallController : MonoBehaviour
 	{
 		placed = true;
 		LastTransportPlacedAt = Time.time;
+		StopCardGlow();
 		if (autoPlaceCoroutine != null) { StopCoroutine(autoPlaceCoroutine); autoPlaceCoroutine = null; }
 	}
 
@@ -105,9 +146,10 @@ public class NightLastCallController : MonoBehaviour
 	public void OnTransportDeparted(int rescuedCount)
 	{
 		RescuedInLastCall = rescuedCount;
+		IsLastCallActive = false;
+		StopCardGlow();
 		if (countdownCoroutine != null) { StopCoroutine(countdownCoroutine); countdownCoroutine = null; }
 		if (autoPlaceCoroutine != null) { StopCoroutine(autoPlaceCoroutine); autoPlaceCoroutine = null; }
-		if (builtUi) root.gameObject.SetActive(false);
 	}
 
 	private IEnumerator CountdownRoutine(float duration)
@@ -115,11 +157,11 @@ public class NightLastCallController : MonoBehaviour
 		float remaining = duration;
 		while (remaining > 0f)
 		{
-			if (countdownText != null) countdownText.text = "LAST CALL: " + Mathf.CeilToInt(remaining) + "s";
+			LastCallRemaining = remaining;
 			yield return null;
 			remaining -= Time.deltaTime;
 		}
-		if (countdownText != null) countdownText.text = "LAST CALL: 0s";
+		LastCallRemaining = 0f;
 	}
 
 	private IEnumerator AutoPlaceRoutine(float delay)
@@ -150,6 +192,7 @@ public class NightLastCallController : MonoBehaviour
 		placed = true;
 		LastTransportWasAutoPlaced = true;
 		LastTransportPlacedAt = Time.time;
+		StopCardGlow();
 		if (spawnedCardUi != null) spawnedCardUi.StartCooldown();
 	}
 
@@ -162,30 +205,5 @@ public class NightLastCallController : MonoBehaviour
 		foreach (var s in Scientist.AllScientists) { if (s == null) continue; sum += s.transform.position; count++; }
 
 		return count > 0 ? sum / count : Vector3.zero;
-	}
-
-	private void BuildUiIfNeeded()
-	{
-		if (builtUi) return;
-
-		Transform safeArea = FindSafeAreaContainer();
-
-		root = RuntimeUiKit.CreateRect("LastCallCountdownV2", safeArea);
-		root.anchorMin = new Vector2(0.5f, 0.5f);
-		root.anchorMax = new Vector2(0.5f, 0.5f);
-		root.pivot = new Vector2(0.5f, 0.5f);
-		root.sizeDelta = new Vector2(520f, 90f);
-		root.anchoredPosition = new Vector2(0f, 420f);
-
-		countdownText = RuntimeUiKit.CreateText("Countdown", root, "", 40f, new Color(1f, 0.3f, 0.3f), TextAlignmentOptions.Center, FontStyles.Bold);
-		RuntimeUiKit.Stretch(countdownText.rectTransform);
-
-		builtUi = true;
-	}
-
-	private Transform FindSafeAreaContainer()
-	{
-		GameObject go = GameObject.Find("SafeAreaContainer");
-		return go != null ? go.transform : null;
 	}
 }

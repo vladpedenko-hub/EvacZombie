@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.Collections.Generic;
 
 public class CardManager : MonoBehaviour
@@ -38,6 +39,7 @@ public class CardManager : MonoBehaviour
 		if (card == null || uiPrefab == null || cardsPanel == null) return null;
 
 		GameObject go = Instantiate(uiPrefab, cardsPanel);
+		SetEqualSlotWidth(go);
 		CardUI ui = go.GetComponent<CardUI>();
 		if (ui != null) ui.myCardData = card;
 		return ui;
@@ -51,23 +53,62 @@ public class CardManager : MonoBehaviour
 			Destroy(child.gameObject);
 		}
 
+		// Core Loop v2 HUD rebuild (Docs/CORE_LOOP_V2.md section 3.3): "Always 5 equal-width
+		// slots spanning the full safe width." childControlWidth was off (cards kept their own
+		// prefab width and bunched instead of spanning the row); flexibleWidth=1 on every slot
+		// (set below) is what actually makes them equal, this just lets the layout group apply it.
+		HorizontalLayoutGroup hlg = cardsPanel.GetComponent<HorizontalLayoutGroup>();
+		if (hlg != null)
+		{
+			hlg.childControlWidth = true;
+			hlg.childForceExpandWidth = true;
+		}
+
 		if (PlayerProfile.Instance == null)
 		{
 			Debug.LogError("PlayerProfile not found! Cannot spawn cards for the deck.");
 			return;
 		}
 
-		// 2. Spawn cards from the player's deck (using CardData references)
+		// 2. Spawn cards from the player's deck (using CardData references). Always 5 slots --
+		// an empty deck entry is a dimmed placeholder instead of being skipped, so owning fewer
+		// than 5 cards no longer bunches the real ones instead of spanning the row.
 		foreach (CardData card in PlayerProfile.Instance.currentDeck)
 		{
 			if (card != null && card.uiButtonPrefab != null)
 			{
-				Instantiate(card.uiButtonPrefab, cardsPanel);
+				GameObject go = Instantiate(card.uiButtonPrefab, cardsPanel);
+				SetEqualSlotWidth(go);
 			}
-			else if (card != null && card.uiButtonPrefab == null)
+			else
 			{
-				Debug.LogWarning($"Card {card.cardName} has no UI button prefab assigned!");
+				if (card != null && card.uiButtonPrefab == null)
+					Debug.LogWarning($"Card {card.cardName} has no UI button prefab assigned!");
+
+				SpawnEmptySlot();
 			}
 		}
+	}
+
+	private void SetEqualSlotWidth(GameObject go)
+	{
+		LayoutElement le = go.GetComponent<LayoutElement>();
+		if (le == null) le = go.AddComponent<LayoutElement>();
+		le.flexibleWidth = 1f;
+	}
+
+	private void SpawnEmptySlot()
+	{
+		var go = new GameObject("EmptyCardSlot", typeof(RectTransform));
+		go.transform.SetParent(cardsPanel, false);
+
+		Image img = go.AddComponent<Image>();
+		img.sprite = RuntimeUiKit.Rounded();
+		img.type = Image.Type.Sliced;
+		img.color = new Color(1f, 1f, 1f, 0.08f);
+		img.raycastTarget = false;
+
+		LayoutElement le = go.AddComponent<LayoutElement>();
+		le.flexibleWidth = 1f;
 	}
 }
