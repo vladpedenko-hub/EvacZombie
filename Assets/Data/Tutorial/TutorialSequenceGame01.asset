@@ -14,21 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tutorialId: TutorialGame_01
   steps:
-  - stepType: 0
-    targetId: LevelGame1
-    useDarkMask: 1
-    fingerOffset: {x: 0, y: 0}
-    dropTargetId: 
-    swipeOffset: {x: 0, y: 400}
-    dialogText: Time to save some people bro!
-    characterIcon: {fileID: 9112743452827066768, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
-    dialogPosition: 2
   - stepType: 4
     targetId: Card_Helicopter
     useDarkMask: 1
     fingerOffset: {x: 0, y: 0}
     dropTargetId: 
-    swipeOffset: {x: 500, y: 900}
-    dialogText: Use helicopter!
-    characterIcon: {fileID: 9112743452827066768, guid: 215687feeab0b7445b4a1cd86c82c2e1, type: 3}
+    swipeOffset: {x: 0, y: 400}
+    dialogText: Save the people!
+    characterIcon: {fileID: 0}
     dialogPosition: 0
+    missingTargetTimeout: 0
+    wideDialogText: 0
+    completionTrigger: 1
+    requiredCardType: 1
+    requiredCount: 1
+    requireLastTransportCard: 0
+  allowSkip: 0
+  resumable: 0

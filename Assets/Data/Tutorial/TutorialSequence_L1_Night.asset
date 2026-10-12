@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 332aa137affed994d871823fcc60d0d1, type: 3}
+  m_Name: TutorialSequence_L1_Night
+  m_EditorClassIdentifier: Assembly-CSharp::TutorialSequence
+  tutorialId: TutorialGame_L1_Night
+  steps:
+  - stepType: 4
+    targetId: Card_LastTransport
+    useDarkMask: 1
+    fingerOffset: {x: 0, y: 0}
+    dropTargetId: 
+    swipeOffset: {x: 0, y: 400}
+    dialogText: "Last call \u2014 land it!"
+    characterIcon: {fileID: 0}
+    dialogPosition: 0
+    missingTargetTimeout: 0
+    wideDialogText: 0
+    completionTrigger: 1
+    requiredCardType: 1
+    requiredCount: 1
+    requireLastTransportCard: 1
+  allowSkip: 0
+  resumable: 0

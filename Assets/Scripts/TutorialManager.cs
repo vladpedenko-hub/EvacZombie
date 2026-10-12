@@ -59,6 +59,10 @@ public class TutorialManager : MonoBehaviour
 	private float waitingSince;
 	private float waitingTimeout;
 
+	// Core Loop v2 tutorial rewrite (Docs/CORE_LOOP_V2.md Phase 3): generic completion triggers.
+	private System.Action pendingTriggerCleanup;
+	private int cardPlacedCounter;
+
 	private void Awake()
 	{
 		if (Instance == null)
@@ -188,6 +192,8 @@ public class TutorialManager : MonoBehaviour
 		}
 
 		CleanUpTrackedButton();
+		CleanUpCompletionTrigger();
+		SetupCompletionTrigger(step);
 		if (fingerTween != null) fingerTween.Kill();
 		isWaitingForTarget = false;
 		OnStepChanged?.Invoke();
@@ -275,9 +281,13 @@ public class TutorialManager : MonoBehaviour
 					fingerPointer.localScale = Vector3.one;
 					fingerTween = fingerPointer.DOScale(1.15f, 0.4f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine).SetUpdate(true);
 
-					// Subscribe to the button click event
-					currentTrackedButton = targetRect.GetComponent<Button>();
-					if (currentTrackedButton != null) currentTrackedButton.onClick.AddListener(NextStep);
+					// Subscribe to the button click event (only for the Default completion trigger --
+					// a step using a generic trigger owns advancement by itself, see SetupCompletionTrigger).
+					if (step.completionTrigger == TutorialCompletionTrigger.Default)
+					{
+						currentTrackedButton = targetRect.GetComponent<Button>();
+						if (currentTrackedButton != null) currentTrackedButton.onClick.AddListener(NextStep);
+					}
 				}
 				// 2. Drag step type
 				else if (step.stepType == TutorialStepType.DragAndDrop || step.stepType == TutorialStepType.DialogAndDrag)
@@ -440,6 +450,76 @@ public class TutorialManager : MonoBehaviour
 		}
 	}
 
+	// Core Loop v2 tutorial rewrite (Docs/CORE_LOOP_V2.md Phase 3): generic, data-driven step
+	// completion. Each case subscribes to a game event that already exists for its own reason
+	// (CardUI.OnCardPlaced, AbilityManager's ready/activated events, etc.) only while a step with
+	// that trigger is current, and unsubscribes the moment the step changes.
+	private void SetupCompletionTrigger(TutorialStep step)
+	{
+		pendingTriggerCleanup = null;
+		cardPlacedCounter = 0;
+
+		switch (step.completionTrigger)
+		{
+			case TutorialCompletionTrigger.CardPlaced:
+				CardUI.OnCardPlaced += HandleCardPlacedTrigger;
+				pendingTriggerCleanup = () => CardUI.OnCardPlaced -= HandleCardPlacedTrigger;
+				break;
+
+			case TutorialCompletionTrigger.WaveStarted:
+				LevelManager.OnAnyWaveStarted += HandleWaveStartedTrigger;
+				pendingTriggerCleanup = () => LevelManager.OnAnyWaveStarted -= HandleWaveStartedTrigger;
+				break;
+
+			case TutorialCompletionTrigger.FirstRescueCredited:
+				GameManager.OnAnyRescueCredited += HandleSimpleTrigger;
+				pendingTriggerCleanup = () => GameManager.OnAnyRescueCredited -= HandleSimpleTrigger;
+				break;
+
+			case TutorialCompletionTrigger.NightStarted:
+				GameManager.OnAnyNightStarted += HandleSimpleTrigger;
+				pendingTriggerCleanup = () => GameManager.OnAnyNightStarted -= HandleSimpleTrigger;
+				break;
+
+			case TutorialCompletionTrigger.UltimateReady:
+				if (AbilityManager.Instance != null)
+				{
+					AbilityManager.Instance.OnAbilityReady += HandleSimpleTrigger;
+					pendingTriggerCleanup = () => { if (AbilityManager.Instance != null) AbilityManager.Instance.OnAbilityReady -= HandleSimpleTrigger; };
+				}
+				break;
+
+			case TutorialCompletionTrigger.UltimateUsed:
+				if (AbilityManager.Instance != null)
+				{
+					AbilityManager.Instance.OnAbilityActivated += HandleSimpleTrigger;
+					pendingTriggerCleanup = () => { if (AbilityManager.Instance != null) AbilityManager.Instance.OnAbilityActivated -= HandleSimpleTrigger; };
+				}
+				break;
+		}
+	}
+
+	private void CleanUpCompletionTrigger()
+	{
+		pendingTriggerCleanup?.Invoke();
+		pendingTriggerCleanup = null;
+	}
+
+	private void HandleSimpleTrigger() => NextStep();
+	private void HandleWaveStartedTrigger(int waveNumber, int totalWaves) => NextStep();
+
+	private void HandleCardPlacedTrigger(CardData card)
+	{
+		TutorialStep step = GetCurrentStep();
+		if (step == null || step.completionTrigger != TutorialCompletionTrigger.CardPlaced || card == null) return;
+		if (card.cardType != step.requiredCardType) return;
+		if (card.isLastTransport != step.requireLastTransportCard) return;
+
+		cardPlacedCounter++;
+		if (cardPlacedCounter >= Mathf.Max(1, step.requiredCount))
+			NextStep();
+	}
+
 	// This method is public! It must be callable from any card button.
 	public void NextStep()
 	{
@@ -528,6 +608,7 @@ public class TutorialManager : MonoBehaviour
 		currentSequence = null;
 		if (skipButton != null) skipButton.gameObject.SetActive(false);
 		CleanUpTrackedButton();
+		CleanUpCompletionTrigger();
 		if (fullScreenBlocker != null) fullScreenBlocker.SetActive(false);
 		dialogPanel.SetActive(false);
 		fingerPointer.gameObject.SetActive(false);

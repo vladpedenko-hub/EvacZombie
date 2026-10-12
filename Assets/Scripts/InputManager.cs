@@ -147,12 +147,10 @@ public class InputManager : MonoBehaviour
 			if (placed && !CoreLoopV2.IsActive && GameManager.Instance.State == GameManager.GameState.Planning)
 				GameManager.Instance.StartGame();
 
-			// --- Tutorial: advance step on card play ---
-			if (placed && TutorialManager.Instance != null)
-			{
-				TutorialManager.Instance.NextStep();
-			}
-			// ---------------------------------------------
+			// Tutorial step completion is now generic (Docs/CORE_LOOP_V2.md Phase 3 tutorial
+			// rewrite): TutorialManager subscribes to CardUI.OnCardPlaced itself when a step's
+			// completionTrigger is CardPlaced, instead of this blindly calling NextStep() on any
+			// successful placement regardless of which step (or whether one) is active.
 
 			return placed;
 		}
@@ -180,12 +178,7 @@ public class InputManager : MonoBehaviour
 			if (!CoreLoopV2.IsActive && GameManager.Instance.State == GameManager.GameState.Planning)
 				GameManager.Instance.StartGame();
 
-			// --- Tutorial: advance step on any other card play (e.g. helicopter, bait, etc.) ---
-			if (TutorialManager.Instance != null)
-			{
-				TutorialManager.Instance.NextStep();
-			}
-			// --------------------------------------------------------------------------
+			// Tutorial step completion is generic now -- see the Sniper branch above.
 
 			return true;
 		}
