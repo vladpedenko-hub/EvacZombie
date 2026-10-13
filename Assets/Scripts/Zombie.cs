@@ -58,6 +58,20 @@ public class Zombie : MonoBehaviour
 	private Bait currentBait = null;
 	private Vector3 currentBaitDestination;
 
+	// Civilian target stickiness (FindClosestVictim): straight-line "nearest" alone flips between
+	// two humans on opposite sides of a building every Brain tick, each flip re-pathing toward the
+	// new target's straight-line direction before the NavMeshAgent settles onto the real route --
+	// visible as a jerk toward the wall. A sticky target is held for at least this long unless it
+	// dies/is destroyed or a candidate's path is meaningfully shorter.
+	private const float TargetStickyDuration = 1.5f;
+	private const float TargetSwitchPathRatio = 0.7f; // candidate must be <=70% of the sticky path length (>=30% shorter) to switch early
+	private const int TargetShortlistSize = 3;
+	private Transform stickyTarget;
+	private float stickyTargetPathLength;
+	private float stickyTargetAcquiredTime = -999f;
+	private readonly List<Transform> targetShortlist = new List<Transform>(TargetShortlistSize);
+	private readonly List<float> targetShortlistSqrDist = new List<float>(TargetShortlistSize);
+
 	private Renderer[] allRenderers;
 	private Coroutine hitFlashRoutine;
 	private Coroutine deathRoutine;
@@ -309,10 +323,19 @@ public class Zombie : MonoBehaviour
 				}
 
 				Vector3 targetPos = overrideDestination ?? target.position;
-				float dist = GetPathDistance(targetPos);
+				float dist = GetPathDistance(targetPos, out bool pathReachable);
 				bool hasLOS = HasLineOfSight(targetPos);
 
-				if (dist > attackDistance || !hasLOS)
+				// A barricade's own carved hole in the NavMesh legitimately makes its exact center
+				// PathPartial even when it's the right, in-range target -- the straight-line
+				// fallback above and the barricade's wider effectiveRange (AttackRoutine) already
+				// account for that. Bait crowding targets the bait itself, not a civilian, so it's
+				// unaffected. A civilian target with no complete path means a wall in between, not
+				// open ground, so "close by straight line" must never count as in range to attack.
+				bool targetIsBarricade = currentBait == null && target.GetComponent<Barricade>() != null;
+				bool blockedByWall = currentBait == null && !targetIsBarricade && !pathReachable;
+
+				if (dist > attackDistance || !hasLOS || blockedByWall)
 				{
 					if (agent != null && agent.enabled && agent.isOnNavMesh)
 					{
@@ -402,17 +425,41 @@ public class Zombie : MonoBehaviour
 
 	protected virtual Transform FindClosestVictim()
 	{
-		// Find the nearest living target. Humans are checked first, so a scientist at the exact
-		// same distance does not displace an already-found human — same tie-break as the single
-		// combined loop this replaces.
-		Human nearestHuman = TargetScanUtil.FindNearest(Human.AllHumans, transform.position, float.MaxValue, h => h.transform.position, out float humanDist);
-		Scientist nearestScientist = TargetScanUtil.FindNearest(Scientist.AllScientists, transform.position, float.MaxValue, s => s.transform.position, out float scientistDist);
+		// Straight-line "nearest" alone picks a target through a wall, then flips to whichever
+		// side is momentarily closer -- each flip is a fresh SetDestination that jerks the agent
+		// toward the new target's straight-line direction before it settles onto the real route.
+		// Shortlist a few candidates by straight line (cheap), then only CalculatePath for those
+		// few and pick the one with the shortest COMPLETE path.
+		FindNearestEvacueeShortlist(TargetShortlistSize, targetShortlist);
 
-		Transform closest = null;
-		if (nearestHuman != null && (nearestScientist == null || humanDist <= scientistDist))
-			closest = nearestHuman.transform;
-		else if (nearestScientist != null)
-			closest = nearestScientist.transform;
+		Transform bestByPath = null;
+		float bestPathLen = float.MaxValue;
+		foreach (Transform candidate in targetShortlist)
+		{
+			if (agent != null && agent.enabled && agent.isOnNavMesh &&
+				agent.CalculatePath(candidate.position, cachedPath) &&
+				cachedPath.status == NavMeshPathStatus.PathComplete)
+			{
+				float len = PathCornersLength(cachedPath);
+				if (len < bestPathLen)
+				{
+					bestPathLen = len;
+					bestByPath = candidate;
+				}
+			}
+		}
+
+		// None of the shortlisted candidates have a complete path right now (e.g. agent not yet
+		// placed) -- fall back to the nearest by straight line rather than picking no target at all.
+		Transform closest = bestByPath;
+		float closestPathLen = bestPathLen;
+		if (closest == null && targetShortlist.Count > 0)
+		{
+			closest = targetShortlist[0];
+			closestPathLen = GetPathDistance(closest.position);
+		}
+
+		closest = ApplyTargetStickiness(closest, closestPathLen);
 
 		// Target found — check if a barricade is blocking the path to it.
 		// PathPartial = NavMesh only reached the barricade, cannot go further.
@@ -436,26 +483,100 @@ public class Zombie : MonoBehaviour
 		return null;
 	}
 
+	// Up to maxCount nearest Human/Scientist transforms by straight-line distance, nearest first.
+	// Humans are considered before scientists so an exact-distance tie keeps the same winner as
+	// the single combined loop this replaces. A small shortlist so FindClosestVictim only needs to
+	// CalculatePath for a handful of candidates instead of every evacuee on the level.
+	private void FindNearestEvacueeShortlist(int maxCount, List<Transform> result)
+	{
+		result.Clear();
+		targetShortlistSqrDist.Clear();
+
+		void Consider(Transform t)
+		{
+			float sq = (t.position - transform.position).sqrMagnitude;
+			int insertAt = result.Count;
+			for (int i = 0; i < result.Count; i++)
+			{
+				if (sq < targetShortlistSqrDist[i]) { insertAt = i; break; }
+			}
+			if (insertAt >= maxCount) return;
+
+			result.Insert(insertAt, t);
+			targetShortlistSqrDist.Insert(insertAt, sq);
+			if (result.Count > maxCount)
+			{
+				result.RemoveAt(maxCount);
+				targetShortlistSqrDist.RemoveAt(maxCount);
+			}
+		}
+
+		foreach (Human h in Human.AllHumans) if (h != null) Consider(h.transform);
+		foreach (Scientist s in Scientist.AllScientists) if (s != null) Consider(s.transform);
+	}
+
+	// Keeps the current civilian target for at least TargetStickyDuration even if straight-line
+	// "nearest" would momentarily prefer a different one (the oscillation that causes the jerk
+	// toward walls) -- released early only if it dies/is destroyed (candidate goes through Unity's
+	// null check) or a candidate's path is at least 30% shorter.
+	private Transform ApplyTargetStickiness(Transform candidate, float candidatePathLength)
+	{
+		if (stickyTarget != null)
+		{
+			if (stickyTarget == candidate)
+			{
+				stickyTargetPathLength = candidatePathLength;
+				return stickyTarget;
+			}
+
+			bool stickyExpired = Time.time - stickyTargetAcquiredTime >= TargetStickyDuration;
+			bool candidateMuchShorter = candidate != null && candidatePathLength <= stickyTargetPathLength * TargetSwitchPathRatio;
+
+			if (!stickyExpired && !candidateMuchShorter)
+				return stickyTarget;
+		}
+
+		stickyTarget = candidate;
+		stickyTargetPathLength = candidatePathLength;
+		stickyTargetAcquiredTime = Time.time;
+		return stickyTarget;
+	}
+
+	private static float PathCornersLength(NavMeshPath path)
+	{
+		float dist = 0f;
+		Vector3[] corners = path.corners;
+		for (int i = 1; i < corners.Length; i++)
+		{
+			dist += Vector3.Distance(corners[i - 1], corners[i]);
+		}
+		return dist;
+	}
+
 	/// Real distance to a point, measured along the NavMesh path rather than a straight line.
 	/// A barricade carves a hole in the NavMesh, so the path to its exact center is often
 	/// PathPartial (unreachable) — in that case we fall back to straight-line distance,
 	/// which is what the barricade's existing effectiveRange allowance was tuned against.
-	protected float GetPathDistance(Vector3 targetPos)
+	/// `reachable` reports whether a COMPLETE path was actually found, so a caller deciding
+	/// whether to stop and attack a non-barricade target can refuse to treat "close by straight
+	/// line only" (a wall in between) as being in range.
+	protected float GetPathDistance(Vector3 targetPos, out bool reachable)
 	{
 		if (agent != null && agent.enabled && agent.isOnNavMesh &&
 			agent.CalculatePath(targetPos, cachedPath) &&
 			cachedPath.status == NavMeshPathStatus.PathComplete)
 		{
-			float dist = 0f;
-			Vector3[] corners = cachedPath.corners;
-			for (int i = 1; i < corners.Length; i++)
-			{
-				dist += Vector3.Distance(corners[i - 1], corners[i]);
-			}
-			return dist;
+			reachable = true;
+			return PathCornersLength(cachedPath);
 		}
 
+		reachable = false;
 		return Vector3.Distance(transform.position, targetPos);
+	}
+
+	protected float GetPathDistance(Vector3 targetPos)
+	{
+		return GetPathDistance(targetPos, out _);
 	}
 
 	protected bool HasLineOfSight(Vector3 targetPos)
