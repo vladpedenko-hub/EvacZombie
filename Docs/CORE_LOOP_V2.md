@@ -2,6 +2,14 @@
 
 Branch: `feature/core-loop-v2`, started 12.10.2026. Brief: ad-hoc task prompt (not a `Docs/tasks/CLAUDE_CODE_TASK_*.md` file this time — kept here instead). Scope: Levels 1, 3, 5 only (`Level_1_Data`/`Level_3_Data`/`Level_5_Data.useCoreLoopV2 = true`). All other levels keep today's behavior byte-for-byte.
 
+## Changelog — UX-pass bugfix session (13.10.2026, tag `pre-ux-fix`)
+
+- Fixed WAVE CLEARED firing before any zombie spawned (per-wave spawned-zombie counter gate).
+- Fixed the Night tutorial soft-lock on L1 (removed it; raycast-block and missing-target timeout now apply globally).
+- Fixed the L1 tutorial finger pointing at the left edge instead of the Helicopter card (tutorial now starts one frame after the hand is spawned); dialog panel is now a small dark pill, not a full-width yellow bar.
+- Fixed zombies walking into buildings and getting stuck (removed a bait-crowd `DOShakePosition` tween that fought the NavMeshAgent for `transform.position`).
+- HUD cleanup: no more empty panel/placeholder slots, wave indicator on L1, top zone rebuilt to two rows (wave+rescue count / rescue bar with star ticks), all top-zone text ≥36px.
+
 ## Toggle strategy
 
 Every new system checks `LevelManager.Instance.currentData.useCoreLoopV2` before doing anything. A new static helper, `CoreLoopV2.IsActive` (`Assets/Scripts/CoreLoopV2/CoreLoopV2.cs`), centralizes that null-safe check so it isn't re-derived at every call site. Legacy branches in the six touched files (`GameManager`, `LevelManager`, `InputManager`, `CardUI`, `AbilityManager`, `HelicopterController`) are left as literal, unmoved code paths guarded by `if (!CoreLoopV2.IsActive) { ...unchanged... }` — never refactored into a shared helper that could subtly change legacy timing/order.
