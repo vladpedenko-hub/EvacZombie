@@ -63,7 +63,7 @@ public class TutorialStep
 	public DialogPosition dialogPosition = DialogPosition.Bottom;
 
 	[Header("Missing Target")]
-	[Tooltip("Seconds to wait for the target before this step is skipped. 0 = wait forever (original behaviour).")]
+	[Tooltip("Seconds to wait for the target before this step is skipped. 0 uses the global 1s floor (TutorialManager.EffectiveMissingTargetTimeout) -- set a larger value to wait longer.")]
 	public float missingTargetTimeout = 0f;
 
 	[Header("Layout")]

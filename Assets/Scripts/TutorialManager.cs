@@ -319,12 +319,9 @@ public class TutorialManager : MonoBehaviour
 				Debug.Log($"[Tutorial] Waiting for target: {step.targetId}...");
 				dialogPanel.SetActive(false);
 
-				if (step.missingTargetTimeout > 0f)
-				{
-					isWaitingForTarget = true;
-					waitingSince = Time.unscaledTime;
-					waitingTimeout = step.missingTargetTimeout;
-				}
+				isWaitingForTarget = true;
+				waitingSince = Time.unscaledTime;
+				waitingTimeout = EffectiveMissingTargetTimeout(step);
 			}
 		}
 	}
@@ -350,13 +347,19 @@ public class TutorialManager : MonoBehaviour
 		dialogText.alignment = dialogTextAlignmentDefault;
 	}
 
-	// A target is present when it is registered. Steps that opt into a missing-target timeout also need the
-	// target to be active, so a closed overlay counts as missing. Steps without a timeout keep the original rule.
+	// Every step now has an effective missing-target timeout (floor of 1s, see ShowStep) so a step
+	// whose target never shows up can't hard-lock the screen. missingTargetTimeout can still opt
+	// into a longer wait by being set explicitly above the floor.
+	private float EffectiveMissingTargetTimeout(TutorialStep step) => step.missingTargetTimeout > 0f ? step.missingTargetTimeout : 1f;
+
+	// A target is present when it is registered AND active -- a closed/inactive overlay counts as
+	// missing so the timeout above can skip the step instead of waiting on a target that will never
+	// come back.
 	private bool TryGetTarget(TutorialStep step, out RectTransform rect)
 	{
 		rect = null;
 		if (!activeTargets.TryGetValue(step.targetId, out rect) || rect == null) return false;
-		if (step.missingTargetTimeout > 0f && !rect.gameObject.activeInHierarchy) return false;
+		if (!rect.gameObject.activeInHierarchy) return false;
 		return true;
 	}
 
@@ -555,7 +558,10 @@ public class TutorialManager : MonoBehaviour
 			return !inHole; // Inside the hole — allow (false). Outside — block (true).
 		}
 
-		return true;
+		// No resolved target to cut a hole around -- there is nothing on screen for the mask to be
+		// protecting, so blocking every tap here only traps the player behind an invisible wall
+		// until EffectiveMissingTargetTimeout skips the step. Let input through instead.
+		return false;
 	}
 
 	public void FinishTutorial()
