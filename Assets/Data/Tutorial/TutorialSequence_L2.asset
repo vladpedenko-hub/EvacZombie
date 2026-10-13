@@ -24,7 +24,7 @@ MonoBehaviour:
     characterIcon: {fileID: 0}
     dialogPosition: 0
     missingTargetTimeout: 0
-    wideDialogText: 0
+    wideDialogText: 1
     completionTrigger: 0
     requiredCardType: 0
     requiredCount: 1
@@ -39,7 +39,7 @@ MonoBehaviour:
     characterIcon: {fileID: 0}
     dialogPosition: 0
     missingTargetTimeout: 0
-    wideDialogText: 0
+    wideDialogText: 1
     completionTrigger: 1
     requiredCardType: 8
     requiredCount: 2
@@ -54,7 +54,7 @@ MonoBehaviour:
     characterIcon: {fileID: 0}
     dialogPosition: 0
     missingTargetTimeout: 0
-    wideDialogText: 0
+    wideDialogText: 1
     completionTrigger: 0
     requiredCardType: 0
     requiredCount: 1

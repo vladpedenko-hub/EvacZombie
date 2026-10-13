@@ -24,7 +24,7 @@ MonoBehaviour:
     characterIcon: {fileID: 0}
     dialogPosition: 0
     missingTargetTimeout: 0
-    wideDialogText: 0
+    wideDialogText: 1
     completionTrigger: 1
     requiredCardType: 1
     requiredCount: 1

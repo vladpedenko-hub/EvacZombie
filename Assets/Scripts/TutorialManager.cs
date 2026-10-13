@@ -237,11 +237,13 @@ public class TutorialManager : MonoBehaviour
 
 			RectTransform dialogRect = dialogPanel.GetComponent<RectTransform>();
 			(float topInset, float bottomInset) = GetVerticalSafeAreaInsetsInCanvasUnits(dialogRect);
+			// Centered (non-stretching) x-anchors: the panel is a small fixed-width pill
+			// (DialogPanel's sizeDelta.x), not a full-width bar.
 			switch (step.dialogPosition)
 			{
 				case DialogPosition.Top:
-					dialogRect.anchorMin = new Vector2(0, 1);
-					dialogRect.anchorMax = new Vector2(1, 1);
+					dialogRect.anchorMin = new Vector2(0.5f, 1);
+					dialogRect.anchorMax = new Vector2(0.5f, 1);
 					dialogRect.pivot = new Vector2(0.5f, 1);
 					// -170 (was -100) clears the Gameplay HUD (timer/rescued counter sit ~0-62
 					// units below the true top edge); the safe-area inset is added on top so this
@@ -249,14 +251,14 @@ public class TutorialManager : MonoBehaviour
 					dialogRect.anchoredPosition = new Vector2(0, -170f - topInset);
 					break;
 				case DialogPosition.Center:
-					dialogRect.anchorMin = new Vector2(0, 0.5f);
-					dialogRect.anchorMax = new Vector2(1, 0.5f);
+					dialogRect.anchorMin = new Vector2(0.5f, 0.5f);
+					dialogRect.anchorMax = new Vector2(0.5f, 0.5f);
 					dialogRect.pivot = new Vector2(0.5f, 0.5f);
 					dialogRect.anchoredPosition = Vector2.zero;
 					break;
 				case DialogPosition.Bottom:
-					dialogRect.anchorMin = new Vector2(0, 0);
-					dialogRect.anchorMax = new Vector2(1, 0);
+					dialogRect.anchorMin = new Vector2(0.5f, 0);
+					dialogRect.anchorMax = new Vector2(0.5f, 0);
 					dialogRect.pivot = new Vector2(0.5f, 0);
 					dialogRect.anchoredPosition = new Vector2(0, 100f + bottomInset);
 					break;

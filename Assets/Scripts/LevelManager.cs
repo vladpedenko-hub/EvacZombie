@@ -173,11 +173,23 @@ public class LevelManager : MonoBehaviour
 		GameManager.Instance.SetTotalHumans(GameObject.FindGameObjectsWithTag("Human").Length);
 		GameManager.Instance.SetupTimer(data.levelTimer);
 
-		// --- START TUTORIAL IMMEDIATELY ON LEVEL START ---
+		// --- START TUTORIAL ON LEVEL START ---
 		if (currentData != null && currentData.onStartTutorial != null && TutorialManager.Instance != null)
 		{
-			TutorialManager.Instance.StartTutorial(currentData.onStartTutorial);
+			StartCoroutine(StartTutorialNextFrame(currentData.onStartTutorial));
 		}
+	}
+
+	// LoadLevel() runs from this object's own Start(), with no guaranteed order relative to other
+	// objects' Start() (e.g. CardManager.SpawnDeck(), which builds the card hand). Starting the
+	// tutorial here synchronously could resolve a step's target (e.g. "Card_Helicopter") before the
+	// hand exists or before its freshly-instantiated RectTransform has gone through a layout pass,
+	// pointing the finger at a stale/zero position (left screen edge). One frame is enough for every
+	// Start() in the scene -- and a layout rebuild -- to have already run.
+	private IEnumerator StartTutorialNextFrame(TutorialSequence sequence)
+	{
+		yield return null;
+		if (TutorialManager.Instance != null) TutorialManager.Instance.StartTutorial(sequence);
 	}
 
 	// Fraction of the screen height covered by top-anchored HUD elements / the bottom card hand,
