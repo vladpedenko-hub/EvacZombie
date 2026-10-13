@@ -2,7 +2,6 @@
 using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
-using DG.Tweening;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class Zombie : MonoBehaviour
@@ -41,12 +40,6 @@ public class Zombie : MonoBehaviour
 	[Tooltip("Radius within which zombies spread out slightly around the bait point")]
 	public float crowdRadius = 0.8f;
 
-	[Tooltip("Shake strength of zombies around the bait")]
-	public float crowdShakeStrength = 0.12f;
-
-	[Tooltip("Duration of one shake cycle")]
-	public float crowdShakeDuration = 0.35f;
-
 	[Header("Hit Feedback")]
 	public Color hitFlashColor = Color.white;
 	public float hitFlashDuration = 0.08f;
@@ -64,7 +57,6 @@ public class Zombie : MonoBehaviour
 
 	private Bait currentBait = null;
 	private Vector3 currentBaitDestination;
-	private Tween crowdShakeTween;
 
 	private Renderer[] allRenderers;
 	private Coroutine hitFlashRoutine;
@@ -150,7 +142,6 @@ public class Zombie : MonoBehaviour
 	protected virtual void OnDisable()
 	{
 		AllZombies.Remove(this);
-		KillCrowdTween();
 	}
 
 	protected virtual void Start()
@@ -190,8 +181,6 @@ public class Zombie : MonoBehaviour
 		currentBait = null;
 		currentBaitDestination = Vector3.zero;
 
-		KillCrowdTween();
-
 		if (hitFlashRoutine != null)
 		{
 			StopCoroutine(hitFlashRoutine);
@@ -229,8 +218,6 @@ public class Zombie : MonoBehaviour
 
 	public virtual void OnReturnedToPool()
 	{
-		KillCrowdTween();
-
 		if (brainRoutine != null)
 		{
 			StopCoroutine(brainRoutine);
@@ -616,44 +603,23 @@ public class Zombie : MonoBehaviour
 		}
 	}
 
+	// Crowding around a bait used to also DOShakePosition() the root transform for a visual
+	// wobble, directly alongside the NavMeshAgent that owns that same transform every frame. A
+	// Tween writing to transform.position while the agent is independently driving it desyncs the
+	// agent's internal corridor from the actual rendered position -- the agent can end up thinking
+	// it is somewhere it no longer is, producing exactly the "walks straight into a building and
+	// gets stuck" pathing failures seen in Docs/CORE_LOOP_V2.md. SetBaitTarget() already gives each
+	// zombie its own randomized point (crowdRadius) around the bait, which is enough on its own for
+	// zombies to visibly spread out without any extra transform writes.
 	private void StartCrowdBehaviorAroundBait()
 	{
-		if (currentBait == null || agent == null || !agent.enabled || !agent.isOnNavMesh)
-		{
-			KillCrowdTween();
-			return;
-		}
-
+		if (currentBait == null || agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 		agent.SetDestination(currentBaitDestination);
-
-		if (crowdShakeTween == null || !crowdShakeTween.IsActive())
-		{
-			crowdShakeTween = transform
-				.DOShakePosition(
-					crowdShakeDuration,
-					strength: crowdShakeStrength,
-					vibrato: 10,
-					randomness: 100f,
-					snapping: false,
-					fadeOut: true)
-				.SetLoops(-1, LoopType.Restart)
-				.SetLink(gameObject);
-		}
 	}
 
 	private void StopCrowdBehaviorIfAny()
 	{
 		currentBait = null;
-		KillCrowdTween();
-	}
-
-	private void KillCrowdTween()
-	{
-		if (crowdShakeTween != null && crowdShakeTween.IsActive())
-		{
-			crowdShakeTween.Kill();
-			crowdShakeTween = null;
-		}
 	}
 
 	public virtual void TakeDamage(int damageTaken)
@@ -732,8 +698,6 @@ public class Zombie : MonoBehaviour
 			StopCoroutine(brainRoutine);
 			brainRoutine = null;
 		}
-
-		KillCrowdTween();
 
 		if (hitFlashRoutine != null)
 		{
