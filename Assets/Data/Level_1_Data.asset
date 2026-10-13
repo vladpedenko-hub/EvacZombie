@@ -51,5 +51,5 @@ MonoBehaviour:
   startingSupply: 20
   v2PlanningEnabled: 0
   v2ShowSupplyHud: 0
-  v2ShowWaveIndicator: 0
+  v2ShowWaveIndicator: 1
   v2ShowAdOffer: 0

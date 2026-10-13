@@ -5,18 +5,23 @@ using UnityEngine.UI;
 using DG.Tweening;
 
 // Core Loop v2 TOP-zone (Docs/CORE_LOOP_V2.md "top = level state, read-only, always visible").
-// Replaces the old WaveHudV2 + GoalBarUI with one coherent bar: wave pills + "WAVE n/total" (or,
-// during Night, a big "LAST CALL" countdown) on the left; rescued/total + the progress bar with
-// star markers + "ALIVE n" in the center; a thin "PLANNING" strip underneath while Planning is
-// active. The settings gear (SettingsButtonInjector, top-right corner, 96px) is left alone --
-// this bar stops short of it. TimerText's own text is blanked while v2 is active; GoalBarUI's job
-// of hiding the legacy RescuedCounter is kept here too.
+// Exactly two rows, nothing else: row 1 is "WAVE n/total" + pills on the left (replaced by a
+// "LAST CALL" countdown during Night) and "rescued/total" on the right; row 2 is a full-width
+// rescue bar (fill = rescued / initial residents) with two star tick marks. A thin "PLANNING"
+// strip sits underneath while Planning is active. The settings gear (SettingsButtonInjector,
+// top-right corner, 96px) is left alone -- this bar stops short of it. TimerText's own text is
+// blanked while v2 is active; GoalBarUI's job of hiding the legacy RescuedCounter is kept here too.
 public class TopHudV2 : MonoBehaviour
 {
+	// Row 1 labels read at a glance mid-combat -- bigger than the shared V2Theme.LabelSize (used
+	// elsewhere for smaller UI like the card cost badge) to clear the 36px dark-panel minimum with
+	// real margin.
+	private const float RowLabelSize = 48f;
+
 	private static TopHudV2 instance;
 
 	private RectTransform mainRow;
-	private RectTransform leftRegion;
+	private RectTransform row1Left;
 	private RectTransform wavePillsRow;
 	private TextMeshProUGUI waveLabel;
 	private TextMeshProUGUI nightCountdownText;
@@ -27,9 +32,6 @@ public class TopHudV2 : MonoBehaviour
 	private Image barFill;
 	private RectTransform star1Marker;
 	private RectTransform star2Marker;
-	private TextMeshProUGUI star1Label;
-	private TextMeshProUGUI star2Label;
-	private TextMeshProUGUI aliveText;
 
 	private RectTransform planningStrip;
 	private TextMeshProUGUI planningStripText;
@@ -93,11 +95,10 @@ public class TopHudV2 : MonoBehaviour
 		mainRow.anchorMin = new Vector2(0.04f, 1f);
 		mainRow.anchorMax = new Vector2(0.87f, 1f);
 		mainRow.pivot = new Vector2(0.5f, 1f);
-		mainRow.sizeDelta = new Vector2(0f, 150f);
+		mainRow.sizeDelta = new Vector2(0f, 170f);
 		mainRow.anchoredPosition = new Vector2(0f, -14f);
 
-		BuildLeftRegion();
-		BuildCenterRegion();
+		BuildRows();
 		BuildPlanningStrip(parent);
 
 		builtUi = true;
@@ -113,35 +114,33 @@ public class TopHudV2 : MonoBehaviour
 		return rt;
 	}
 
-	private void BuildLeftRegion()
+	// Exactly two rows, full width, nothing else: row 1 is "WAVE n/total" + pills (left) and
+	// "rescued/total" (right); row 2 is the full-width rescue bar with two star tick marks.
+	private void BuildRows()
 	{
-		leftRegion = Sub(mainRow, "LeftRegion", 0f, 0f, 0.30f, 1f);
-
-		Image bg = RuntimeUiKit.CreateImage("Bg", leftRegion, V2Theme.PanelBg);
+		Image bg = RuntimeUiKit.CreateImage("Bg", mainRow, V2Theme.PanelBg);
 		RuntimeUiKit.Stretch(bg.rectTransform);
 
-		wavePillsRow = Sub(leftRegion, "Pills", 0.08f, 0.46f, 0.92f, 0.84f);
+		RectTransform row1 = Sub(mainRow, "Row1", 0f, 0.56f, 1f, 1f);
+		RectTransform row2 = Sub(mainRow, "Row2", 0f, 0f, 1f, 0.44f);
 
-		waveLabel = RuntimeUiKit.CreateText("WaveLabel", leftRegion, "", V2Theme.LabelSize, V2Theme.TextPrimary, TextAlignmentOptions.Center, FontStyles.Bold);
-		RuntimeUiKit.SetAnchors(waveLabel.rectTransform, 0.04f, 0.08f, 0.96f, 0.42f);
+		// --- Row 1: left = wave pills + label, right = rescue count ---
+		row1Left = Sub(row1, "Left", 0.03f, 0f, 0.58f, 1f);
+		wavePillsRow = Sub(row1Left, "Pills", 0f, 0.56f, 1f, 1f);
 
-		nightCountdownText = RuntimeUiKit.CreateText("NightCountdown", leftRegion, "", V2Theme.KeyNumberSize * 0.72f, V2Theme.ThreatAmber, TextAlignmentOptions.Center, FontStyles.Bold);
+		waveLabel = RuntimeUiKit.CreateText("WaveLabel", row1Left, "", RowLabelSize, V2Theme.TextPrimary, TextAlignmentOptions.Left, FontStyles.Bold);
+		RuntimeUiKit.SetAnchors(waveLabel.rectTransform, 0f, 0f, 1f, 0.5f);
+
+		nightCountdownText = RuntimeUiKit.CreateText("NightCountdown", row1Left, "", V2Theme.KeyNumberSize * 0.72f, V2Theme.ThreatAmber, TextAlignmentOptions.Left, FontStyles.Bold);
 		RuntimeUiKit.Stretch(nightCountdownText.rectTransform);
 		nightCountdownText.gameObject.SetActive(false);
-	}
 
-	private void BuildCenterRegion()
-	{
-		RectTransform centerRegion = Sub(mainRow, "CenterRegion", 0.32f, 0f, 1f, 1f);
+		rescueCountText = RuntimeUiKit.CreateText("RescueCount", row1, "", RowLabelSize, V2Theme.TextPrimary, TextAlignmentOptions.Right, FontStyles.Bold);
+		RuntimeUiKit.SetAnchors(rescueCountText.rectTransform, 0.58f, 0f, 0.97f, 1f);
 
-		RectTransform topRow = Sub(centerRegion, "TopRow", 0f, 0.5f, 1f, 1f);
-		RectTransform bottomRow = Sub(centerRegion, "BottomRow", 0f, 0f, 1f, 0.46f);
-
-		rescueCountText = RuntimeUiKit.CreateText("RescueCount", topRow, "", V2Theme.LabelSize, V2Theme.TextPrimary, TextAlignmentOptions.Left, FontStyles.Bold);
-		RuntimeUiKit.SetAnchors(rescueCountText.rectTransform, 0f, 0f, 0.20f, 1f);
-
-		RectTransform barContainer = Sub(topRow, "Bar", 0.23f, 0.15f, 1f, 0.85f);
-		Image track = RuntimeUiKit.CreateImage("Track", barContainer, V2Theme.PanelBg);
+		// --- Row 2: full-width rescue bar with two star tick marks ---
+		RectTransform barContainer = Sub(row2, "Bar", 0.03f, 0.2f, 0.97f, 0.8f);
+		Image track = RuntimeUiKit.CreateImage("Track", barContainer, V2Theme.PanelBgLight);
 		RuntimeUiKit.Stretch(track.rectTransform);
 
 		barFill = RuntimeUiKit.CreateImage("Fill", track.transform, V2Theme.SafeGreen, rounded: false);
@@ -151,31 +150,21 @@ public class TopHudV2 : MonoBehaviour
 		barFill.fillAmount = 0f;
 		RuntimeUiKit.Stretch(barFill.rectTransform);
 
-		star1Marker = BuildStarMarker(track.transform, "Star1Marker", out star1Label);
-		star2Marker = BuildStarMarker(track.transform, "Star2Marker", out star2Label);
-
-		aliveText = RuntimeUiKit.CreateText("AliveText", bottomRow, "", V2Theme.SmallLabelSize, V2Theme.ThreatAmber, TextAlignmentOptions.Left);
-		RuntimeUiKit.SetAnchors(aliveText.rectTransform, 0.23f, 0f, 0.7f, 1f);
+		star1Marker = BuildStarTick(track.transform, "Star1Marker");
+		star2Marker = BuildStarTick(track.transform, "Star2Marker");
 	}
 
-	private RectTransform BuildStarMarker(Transform trackParent, string name, out TextMeshProUGUI starLabel)
+	// Parented to the plain background Track (not the clipped/filled Fill sprite -- Image.Type
+	// .Filled only partially renders its OWN sprite, it isn't a child mask), so a raw
+	// fillAmount-fraction anchor lines the tick up with the bar's coordinate space with zero
+	// cross-parent math. Tick only -- no floating numeric label.
+	private RectTransform BuildStarTick(Transform trackParent, string name)
 	{
-		// Parented to the plain background Track (not the clipped/filled Fill sprite -- Image.Type
-		// .Filled only partially renders its OWN sprite, it isn't a child mask), so both the tick
-		// and its label share the bar's exact coordinate space and a raw fillAmount-fraction anchor
-		// lines them up correctly with zero cross-parent math.
 		Image marker = RuntimeUiKit.CreateImage(name, trackParent, V2Theme.ThreatAmber, rounded: false);
 		RectTransform rt = marker.rectTransform;
 		rt.anchorMin = new Vector2(0f, 0f);
 		rt.anchorMax = new Vector2(0f, 1f);
 		rt.sizeDelta = new Vector2(4f, 0f);
-
-		starLabel = RuntimeUiKit.CreateText(name + "Label", trackParent, "", V2Theme.SmallLabelSize, V2Theme.ThreatAmber, TextAlignmentOptions.Center, FontStyles.Bold);
-		starLabel.rectTransform.anchorMin = new Vector2(0f, 1f);
-		starLabel.rectTransform.anchorMax = new Vector2(0f, 1f);
-		starLabel.rectTransform.pivot = new Vector2(0.5f, 0f);
-		starLabel.rectTransform.sizeDelta = new Vector2(60f, 28f);
-
 		return rt;
 	}
 
@@ -216,11 +205,11 @@ public class TopHudV2 : MonoBehaviour
 		if (!show) return;
 
 		bool isNight = gm.State == GameManager.GameState.SuddenDeath;
-		UpdateLeftRegion(data, isNight);
-		UpdateCenterRegion(gm, data);
+		UpdateRow1(data, isNight);
+		UpdateRow2(gm, data);
 	}
 
-	private void UpdateLeftRegion(LevelData data, bool isNight)
+	private void UpdateRow1(LevelData data, bool isNight)
 	{
 		NightLastCallController nlc = NightLastCallController.Instance;
 
@@ -290,7 +279,7 @@ public class TopHudV2 : MonoBehaviour
 		waveLabel.text = total > 0 ? $"WAVE {Mathf.Max(1, current)}/{total}" : "";
 	}
 
-	private void UpdateCenterRegion(GameManager gm, LevelData data)
+	private void UpdateRow2(GameManager gm, LevelData data)
 	{
 		if (data == null) return;
 
@@ -298,17 +287,12 @@ public class TopHudV2 : MonoBehaviour
 		int total = Mathf.Max(1, gm.totalHumans + gm.totalScientists);
 		int star1 = data.GetStar1Target();
 		int star2 = data.GetStar2Target();
-		int alive = Human.AllHumans.Count + Scientist.AllScientists.Count;
 
 		rescueCountText.text = $"{rescued} / {total}";
 		barFill.fillAmount = Mathf.Clamp01((float)rescued / total);
 
-		float star1Frac = Mathf.Clamp01((float)star1 / total);
-		float star2Frac = Mathf.Clamp01((float)star2 / total);
-		SetMarker(star1Marker, star1Label, star1Frac, star1);
-		SetMarker(star2Marker, star2Label, star2Frac, star2);
-
-		aliveText.text = $"ALIVE {alive}";
+		SetMarker(star1Marker, Mathf.Clamp01((float)star1 / total));
+		SetMarker(star2Marker, Mathf.Clamp01((float)star2 / total));
 
 		if (!star1BannerShown && rescued >= star1)
 		{
@@ -318,14 +302,10 @@ public class TopHudV2 : MonoBehaviour
 		}
 	}
 
-	private void SetMarker(RectTransform marker, TextMeshProUGUI label, float frac, int value)
+	private void SetMarker(RectTransform marker, float frac)
 	{
 		marker.anchorMin = new Vector2(frac, 0f);
 		marker.anchorMax = new Vector2(frac, 1f);
-
-		label.rectTransform.anchorMin = new Vector2(frac, 1f);
-		label.rectTransform.anchorMax = new Vector2(frac, 1f);
-		label.text = "★" + value;
 	}
 
 	private Transform FindSafeAreaContainer()
