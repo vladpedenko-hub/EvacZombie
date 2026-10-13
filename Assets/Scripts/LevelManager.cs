@@ -76,6 +76,12 @@ public class LevelManager : MonoBehaviour
 	private int activeSpawnCoroutines = 0;
 	private bool allWavesTriggered = false;
 
+	// Core Loop v2 (Docs/CORE_LOOP_V2.md): counts zombies actually instantiated for the wave
+	// currently being sequenced by WaveSequenceRoutineV2, reset per wave. Guards against declaring
+	// a wave "cleared" when activeSpawnCoroutines hit 0 without ever spawning anything (e.g. a
+	// misconfigured spawn group with no matching points) -- see WaveSequenceRoutineV2.
+	private int v2SpawnedThisWave = 0;
+
 	// Core Loop v2 sequential-wave state (Docs/CORE_LOOP_V2.md Phase 3), polled by TopHudV2.
 	// Not read by any legacy/gameplay code.
 	public int V2CurrentWaveNumber { get; private set; }
@@ -483,6 +489,7 @@ public class LevelManager : MonoBehaviour
 				Instantiate(prefabToUse, spawnPoint.position, Quaternion.identity);
 			}
 			DaySpawnCount++;
+			v2SpawnedThisWave++;
 
 			if (i < finalSpawnCount - 1)
 			{
@@ -530,6 +537,7 @@ public class LevelManager : MonoBehaviour
 			OnAnyWaveStarted?.Invoke(V2CurrentWaveNumber, V2TotalWaves);
 
 			var tracker = new TrackedWave { data = wave };
+			v2SpawnedThisWave = 0;
 			PrepareAndWarnWave(tracker);
 			yield return new WaitForSeconds(wave.warningDuration);
 
@@ -546,7 +554,11 @@ public class LevelManager : MonoBehaviour
 			bool cleared = false;
 			while (sinceSpawningDone < waveMaxDuration)
 			{
-				if (Zombie.AllZombies.Count == 0) { cleared = true; break; }
+				// A wave can only be "cleared" once it has actually spawned something -- otherwise a
+				// misconfigured/empty wave (no matching spawn points, zero-count action) would hit
+				// activeSpawnCoroutines==0 with zero zombies ever having existed and instantly report
+				// a false "WAVE CLEARED".
+				if (v2SpawnedThisWave > 0 && Zombie.AllZombies.Count == 0) { cleared = true; break; }
 				if (GameManager.Instance.State != GameManager.GameState.Playing) yield break;
 				sinceSpawningDone += Time.deltaTime;
 				yield return null;
