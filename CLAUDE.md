@@ -1,116 +1,42 @@
-# CLAUDE.md — инструкции для Claude Code в этом репозитории
+# CLAUDE.md — EvacZombie
 
-> Читать в начале каждой сессии. Это единственный файл, который Claude Code подхватывает автоматически.
-> Факты ниже сверены с кодом репозитория 29.08.2026 (Cowork-сессия). Если что-то не совпадает с реальностью — код всегда прав, поправь этот файл заодно.
+Mobile (portrait, iOS/Android) zombie-evacuation tactics game, Unity 6000.6.4f1. Solo dev: Vlad (design) + Claude Code (code). Code is the source of truth; if this file disagrees with code, fix this file.
+Full history of past passes (refactor, responsive, balance, camera): `Docs/HISTORY.md` — read only when a task touches that area.
 
-## Проект
+## Working rules
+- One task per session. Keep reports short (≤15 lines): what changed, commit hashes, what is unverified.
+- Verify compilation via the Unity CLI after every script change. Verify behavior in Play Mode. If Play Mode can't be driven (CLI unstable), say so in the FIRST line of the report — never present unplayed code as done.
+- Don't read whole large files when a grep will do. No screenshots unless the task asks for them.
+- Never: delete assets, change save formats (`PlayerProfile`, `MetaProgressionState`), reactivate frozen roguelite objects, add SDKs — without an explicit request.
+- Stop and ask instead of working around: prefab-instance reparenting, save-format changes, unclear root cause after 2 attempts.
 
-**EvacZombie** — мобильный порт Atom Zombie Smasher (Blendo Games, 2011) под iOS/Android. Unity **6000.6.4f1** (обновлён с 6000.0.62f1 04.10.2026). Solo-разработка (Vlad, дизайн+код через Claude Code), без монетизации, цель — портфолио/сторлонч.
+## Current focus: Core Loop v2 (branch `feature/core-loop-v2`)
+Supply economy, Planning + GO, sequential waves with breathers, time-limited Night "Last Call" + Last Transport, rescue progress bar with stars, Signal Flare ultimate. Gated by `LevelData.useCoreLoopV2` + per-level `v2*` flags. Tunables: `Assets/Resources/CoreLoopV2Config.asset`. Spec/status: `Docs/CORE_LOOP_V2.md`.
 
-Полный игровой дизайн → `Docs/GDD_CORE_LOOP.md` (актуальный, MVP-скоуп). Не читай `Docs/PostLaunch/*` как активные требования — это заморожённый контент, см. ниже.
+## Key systems (where things live)
+- Flow: `GameManager` (states Planning/Playing/SuddenDeath/GameOver/Lose, win/lose, stars, `EndLevel`), `LevelManager` (level load, waves, night spawns).
+- Input/cards: `InputManager` (drag pipeline, placement rules, slow-mo), `UI/CardUI`, `CardManager` (hand; `IsScreenPointOverCardsPanel` is the only "is this UI" check — no magic screen %).
+- Units: `Assets/Scripts/Bonus/*`. Civilians: `EvacueeBase` (Human/Scientist are thin subclasses). Zombies: `Zombie`, `ZombieBoss`, `ZombiePool`.
+- Card stats: `CardData` (`baseValue + valuePerLevel*(lvl-1)`), level read from `PlayerProfile.ownedCardsProgress`.
+- Meta: `Assets/Scripts/Meta/*` (Base city, Research tree → `MetaRuntime.Modifiers`), own save `MetaProgressionState`. Currency only via `MetaRuntime.Currency`.
+- Feedback (SFX/haptics/VFX): `Feedback.Play(FeedbackEvent.X, pos)`; new event = one table row in `Feedback.cs`.
+- Tutorial: `TutorialManager` / `TutorialSequence` / `TutorialTarget`.
+- Dev tools (editor/debug only): `Dev/BalanceProbe`, `Dev/PlaytestLog`, `CheatManager`.
+- Frozen (post-launch): `Scripts/Roguelite/*` (`RunSessionData` etc., inactive in scene; code reads via `?.`), `Docs/PostLaunch/*`, narrative.
 
-## Текущий статус MVP v1 (актуально на 29.08.2026)
+## UI rules (portrait, ref 1080x1920)
+- Zones: TOP = read-only level state; CENTER = gameplay + transient banners only; BOTTOM = everything touchable.
+- Everything under `Gameplay/Canvas/SafeAreaContainer`. New Canvas with CanvasScaler → add `AspectAwareCanvasScaler`.
+- New top HUD element → add to `LevelManager.topReservedUI` (camera fit). Bottom UI must be covered by the cards-panel hit-test.
+- Can't reparent inside prefab instances — solve in code (see `TutorialManager` safe-area inset).
 
-Core loop реализован и работает: `GameManager`, `LevelManager` — не трогать без явного запроса.
+## Intentional mechanics (not bugs)
+- Bomb kills civilians/own Soldier/Sniper in radius (risk mechanic).
+- Transports abort loading ("too hot") when a zombie is within panic radius.
 
-**Сознательно выключено/заморожено для MVP** (не включать обратно без явного запроса Влада):
-- В `Assets/Scenes/Gameplay.unity` объекты `RunSessionData`, `XPManager`, `UpgradeManager`, `LevelUpScreen` имеют `m_IsActive: 0`. Скрипты в `Assets/Scripts/Roguelite/` и 14 ScriptableObject'ов в `Assets/Resources/Upgrades/` НЕ удалены — просто без активного `Instance` в сцене. Весь код, который читает эти синглтоны через `?.` (например `Sniper.cs`, `Barricade.cs`), безопасно это переживает.
-- В `Assets/Scripts/UI/CardUI.cs` (строка ~120) закомментирован вызов `EnergyManager.Instance.TrySpendEnergy(cost)`. Карты гейтятся только собственным cooldown. `EnergyManager.cs` в проекте остаётся (энергия всё ещё гейтит *попытку сыграть уровень* через `PlayerProfile`, это другая система — не путать).
-- `AbilityManager` / `AbilityButtonUI` (ultimate-способность спасённых, speed-boost) — это ОТДЕЛЬНАЯ система, НЕ заморожена, остаётся в игре.
-- Нарративный слой (катсцены, биографии героев, диалоги, boss-регионы, дневник) — не реализован и не в скоупе MVP. Не предлагать и не начинать без явного запроса.
+## Docs
+`Docs/CORE_LOOP_V2.md` (current), `Docs/LEVEL_BALANCE.md` (level numbers), `Docs/CAMERA_READABILITY.md` (camera tunables), `Docs/mechanics/*` (system specs), `Docs/HISTORY.md` (past passes). Backlog lives in Notion (not accessible from Claude Code).
 
-**Контент MVP**: 10 уровней (`Assets/Data/Level_1_Data.asset` … `Level_10_Data.asset`), 8 карт (`Assets/Data/Cards/*.asset`: Bait, Barricade, Bomb, Car, CombatHelicopter, Helicopter, Sniper, Soldier). Новые уровни/карты сейчас не нужны — фокус на балансе существующих.
-
-## Известные незакрытые баги
-
-*(На 29.08.2026 открытых пунктов нет — единственный известный баг ниже уже исправлен.)*
-
-- ~~**Drag-reflow HUD**~~ — ИСПРАВЛЕНО в `f47e1762` (29.08.2026). `CardUI.OnBeginDrag` больше не делает `transform.SetParent(transform.root, false)`. Вместо этого: `LayoutElement.ignoreLayout = true` на перетаскиваемой карте + собственный `Canvas` с `overrideSorting=true` на время драга (поднимает карту визуально без реродителинга). `cardsPanel` Layout Group не видит изменения количества детей — остальные карты не "прыгают".
-
-## Незавершённые ручные шаги в Unity Editor (не код — не забыть сделать руками)
-
-- Тот же коммит `f47e1762` добавил поля `rarityBorder` (`Image`) в `CardUI.cs` и `MetaCardUI.cs` — рамка карты по редкости через новый `CardVisuals.GetRarityColor()`. Поля null-guarded, так что ничего не сломается, но рамка не появится на экране, пока не назначишь Image-компонент рамки на это поле в инспекторе — в HUD-префабе карты (`CardUI`) и в плитке колоды (`MetaCardUI`). Claude Code не может сделать это за тебя — это чисто ручной шаг в Unity Editor.
-
-## Намеренные риск-механики (НЕ баги — не чинить без явного запроса)
-
-- **Bomb friendly fire**: `Bomb.cs` (`Assets/Scripts/Bonus/Bomb.cs`, ~130-148) в радиусе взрыва **уничтожает** (`Destroy()`, не просто урон) `Human`-объекты и объекты с тегами `Soldier`/`Sniper`. Подтверждено Владом (29.08.2026): это намеренная механика риска — бомба единственная карта, которой можно случайно убить спасаемых людей или свой же юнит при неаккуратном размещении (в духе оригинала Atom Zombie Smasher). Level-5 milestone-бонус карты снимает этот риск как награду за прокачку (см. `Docs/mechanics/card-milestone-bonuses.md`) — значит правку кода делать ТОЛЬКО как guard за флагом бонуса, а не как безусловный фикс.
-
-## Текущий рефакторинг архитектуры (начат 09.10.2026)
-
-Ветка `refactor/architecture`. Полный аудит + фазированный план → `Docs/REFACTOR_AUDIT.md` (Phase 0/1). Жёсткое правило: ноль изменений геймплея/поведения на каждом шаге. Статус по фазам:
-
-- **Phase 2A (готово, 09.10.2026)**: `Human.cs` и `Scientist.cs` были на ~95% идентичны (блуждание/паника/бегство от зомби/эвакуация/посадка в транспорт — один и тот же код в обоих файлах). Вынесено в общий `EvacueeBase.cs`; `Human`/`Scientist` теперь ~8-строчные подклассы, у которых свой — только статический список (`Human.AllHumans`/`Scientist.AllScientists`) и регистрация в нём через `OnEnable`/`OnDisable`. Имена и типы полей не менялись — сериализованные значения в `Human.prefab`/`Scientist.prefab` переживают рефакторинг без доп. действий (проверено).
-- **Phase 2B (готово, 09.10.2026)**: убраны GC-аллокации в боевых корутинах без изменения поведения. `WaitForSeconds` теперь кэшируется (не создаётся заново на каждый выстрел/атаку/хит) в `Zombie.cs`, `Sniper.cs`, `Soldier.cs`, `CombatHelicopter.cs`, `CarController.cs`, `Barricade.cs`, `Bait.cs`. Новый `SharedMaterials.cs` — один общий `Material` для "Sprites/Default" (как `VfxManager.EnsureMaterial`), используется вместо `new Material(Shader.Find(...))` на каждую размещённую карту в `Sniper.cs`, `Soldier.cs`, `CombatHelicopter.cs`, `Bomb.cs`, `Bait.cs`, `InputManager.cs`. **Исключение**: `HelicopterController.cs` (маркер посадки) мутирует `.material.color` напрямую — туда шарить инстанс материала нельзя (утечёт цвет на всех остальных), там закэширован только `Shader.Find`.
-- **Phase C (готово, 09.10.2026)**: `Physics.OverlapSphere`/`RaycastAll` заменены на `*NonAlloc` + переиспользуемый буфер без изменения поведения. Новый `PhysicsNonAlloc.cs` — хелпер, который сам растит `ref`-буфер вызывающей стороны, если он заполнился целиком (иначе `NonAlloc`-варианты молча бы обрезали результат при большом количестве коллайдеров — так зафиксировано точное соответствие поведению безлимитного `Physics.OverlapSphere`). Буфер — поле конкретного вызывающего сайта, не общий: `Bomb.cs`, `Barricade.cs`, `CombatHelicopter.cs` — один буфер на класс (вызовы внутри одного метода идут последовательно, без yield между ними); `CarController.cs` — два отдельных буфера (`crushHitsBuffer`/`boardingHitsBuffer`), потому что посадочная проверка читает результат через `yield return StartCoroutine(...)`, и её нельзя делить с покадровой проверкой наезда. Это закрывает единственный подтверждённый истинно покадровый `OverlapSphere`-алок (`CarController.cs:148`, внутри `Update()`). `Sniper.cs`: `RaycastAll` → `RaycastNonAlloc`, плюс `System.Array.Sort` с лямбдой заменён на кэшированный `IComparer<RaycastHit>` — убирает скрытый алок `Comparer<T>`-обёртки, который .NET создаёт для перегрузки с `Comparison<T>`.
-- **Не включено в Phase C**: `ZombieBoss.cs:129` имеет тот же паттерн `Physics.OverlapSphere`, но не входил в согласованный список файлов для этой фазы (см. `Docs/REFACTOR_AUDIT.md` §Phase C) — не трогать без отдельного "go".
-- **Phase D (готово, 09.10.2026)**: дедуп паттерна "скан статического ростера `AllX`, оставить ближайшего" в новый `TargetScanUtil.FindNearest<T>()` (generic, с опциональным `accept`-предикатом для различий по месту вроде Soldier-овской проверки `IsDead` или радиуса притяжения бейта). Применено в `EvacueeBase.cs` (цель паники), `Soldier.cs` (`FindTarget`), `CombatHelicopter.cs` (`FindClosestZombie`), `Zombie.cs` (поиск бейта, `FindClosestVictim`, `TryFindNearestBarricade`). Те же точки вызова, та же частота, тот же tie-break (при равном расстоянии остаётся тот, кто найден первым) — поведение не менялось. **Сознательно не трогали**: мультикритериальный скоринг угрозы в `Sniper.cs`, булева проверка "есть ли хоть один зомби в радиусе" в `HelicopterController.cs` (ранний `break`, не "найти ближайшего"), и циклы "собрать все совпадения в радиусе и подействовать на каждое" в `CarController.cs`/`HelicopterController.cs` — это другая форма алгоритма, а не копия того же паттерна; загонять их в `FindNearest` поменяло бы характеристики раннего выхода без выгоды от дедупа.
-- **Phase E (готово, 09.10.2026)**: `EnergyManager` (внутрибоевая энергия, которой с Phase-2A-подобного момента уже никто не тратит — единственный вызов траты закомментирован в `CardUI.cs`) удалён целиком вместе с UI. Подтверждено: `EnergyBar`-иерархия (`Canvas/EnergyBar/Fill Area/Fill` + `EnergyText`) в `Gameplay.unity` уже была выключена (`activeSelf: 0` на самом `EnergyBar`) — бар физически не показывался, а `EnergyManager.Update()` всё равно каждый кадр регенерировал значение в пустоту. Удалено: `EnergyManager.cs`, его компонент на `Managers`, HUD-иерархия `EnergyBar`, поля `manaText`/`manaFillBar` + подписка на `OnEnergyChanged` в `UIManager.cs`, F4-чит "Fill Energy" в `CheatManager.cs`. **Не путать и не трогать**: `PlayerProfile.currentEnergy`/`maxEnergy` — другая система (мета-гейт "попытки сыграть уровень"), осталась как есть.
-- **Phase F (готово, 09.10.2026)**: `Docs/mechanics/persistent-modifier-store.md` помечен архивным — он специфицировал отдельное персистентное хранилище для Talent Tree, но тот вопрос закрылся иначе (см. пункт про мета-слой выше): модификаторы живут в `MetaRuntime.Modifiers`/`MetaProgressionState`, не в этом хранилище. Файл оставлен как архив дизайн-рационале, со статусом "закрыто иначе" в начале. Это последняя фаза из плана `Docs/REFACTOR_AUDIT.md` — Phases A–F все выполнены.
-
-## Архитектурные паттерны, которые стоит знать
-
-- **Общая AI у гражданских**: см. "Phase 2A" выше — `EvacueeBase.cs` теперь единственное место с логикой Human/Scientist.
-- **Модификаторы/флаги (внутриуровневые, roguelite)**: `RunSessionData.cs` (`Assets/Scripts/Roguelite/`) — синглтон с `AddModifier(key, value)` / `GetModifier(key, default)` / `SetFlag(id)` / `HasFlag(id)`. Карточные контроллеры (`Sniper.cs`, `Barricade.cs`, `CombatHelicopter.cs`) читают из него через `RunSessionData.Instance?.GetModifier(...)`. Сейчас `Instance` = null (roguelite заморожен для MVP). **Это НЕ прототип будущего персистентного хранилища** — персистентное хранилище для Talent Tree уже реализовано отдельно, см. следующий пункт (старая формулировка здесь и в `Docs/mechanics/persistent-modifier-store.md` была верна на 23.08, но устарела к 09.10 — вопрос закрыт).
-- **Мета-слой "город" + Talent Tree (реализован, но не упоминался в этом файле до 09.10.2026)**: `Assets/Scripts/Meta/*` — восстанавливаемые здания (`Meta/Base/BaseView.cs`, `BaseHouseView.cs`, `Meta/City/MetaBuildingPanel.cs`) и дерево прокачки (`Meta/Research/MetaSkillTreeScreen.cs`), применяется глобально ко всем картам через `MetaRuntime.Modifiers` (`Meta/Modifiers/MetaModifiers.cs`) — именно этот механизм закрывает вопрос из `Docs/mechanics/persistent-modifier-store.md`. Своё сохранение, отдельное от `PlayerProfile`: `MetaProgressionState` + `MetaSaveService` (`Meta/Save/*`), один JSON-блоб под ключом `"MetaProgression"`. Composition root — `MetaRuntime.EnsureInitialized()`. UI строится полностью в коде через `Meta/UI/MetaUI.cs` (без сцен/префабов). Полная карта системы → `Docs/REFACTOR_AUDIT.md` §1.
-- **Статы карт**: `CardData.cs` — `StatType` enum + `CardStat{ baseValue, valuePerLevel, unitSuffix }`, значение на уровне = `baseValue + valuePerLevel * (currentLevel - 1)`. `CardCategory` (Evacuation/Combat/Utility), `CardRarity` (Common/Rare/Epic/Legendary).
-- **Звук / вибро / VFX / настройки**: всё идёт через фасад `Feedback.Play(FeedbackEvent.X[, worldPos])` (`Assets/Scripts/Feedback/`) — таблица событий в `Feedback.cs`. Менеджеры создаются сами (`RuntimeInitializeOnLoadMethod`), сцены не трогаются. Новый звук/эффект = строка в таблице + одна строка-хук в коде. Заглушки синтезируются кодом; реальный звук — файл `Resources/Audio/Sfx/<SfxId>`. Новые `AudioSource` должны проверять `AudioManager.SfxAllowed`. Детали → `Docs/mechanics/feedback-audio-vfx-haptics.md`.
-- **Сохранения**: `PlayerProfile.cs` — синглтон, `DontDestroyOnLoad`, персистит через `PlayerPrefs` + `JsonUtility` (списки вроде `ownedCardsProgress` сериализуются через `SerializationWrapper<T>`-обёртку). Валюта (People/Scientists) живёт здесь же, читается/пишется через `MetaRuntime.Currency`, а не напрямую — не обходи фасад. **Важно**: это не единственный персистентный слой — `MetaProgressionState` (мета-прогресс: здания, узлы дерева) сохраняется отдельно, см. пункт про мета-слой выше. Вопрос "куда класть новое персистентное состояние" решается по месту (talent-tree-подобное → рядом с `MetaProgressionState`; валюта/карты/world-map позиция → `PlayerProfile`), не трогать формат сохранений без явного запроса.
-
-## Респонсив-лейаут (мобильный UI, портрет-онли, сделано 10.10.2026)
-
-Полный responsive-пасс: портрет-лок, SafeArea, aspect-aware CanvasScaler, fit-to-width камера, реальный хит-тест карточной панели вместо `Screen.height * 0.25f`, фикс баннера туториала. Правила ниже — чтобы будущий UI не ломал то, что уже исправлено.
-
-- **Зоны экрана**: верх = HUD (таймер, счётчики), низ = карточная рука (`CardsPanel`), центр = карта/город. Край-анкорные элементы цепляются к рёбрам safe area, не к абсолютным пикселям экрана.
-- **Portrait-only**: `ProjectSettings.defaultScreenOrientation = Portrait` (0), остальные `allowedAutorotateTo*` выключены кроме `Portrait`. Правь через `PlayerSettings`-API (`unity command eval`), а не руками в `ProjectSettings.asset` — редактор держит эти значения в памяти и не перечитывает файл на лету.
-- **SafeArea**: `Assets/Scripts/UI/SafeArea.cs` — ставится на контейнер, который стягивает `anchorMin/Max` к `Screen.safeArea`; ВСЕ дети контейнера наследуют инсет, но объекты-СИБЛИНГИ контейнера — нет (это была реальная причина бага в `Gameplay.unity`/`MainMenu.unity` — HUD-элементы стояли рядом с Container, а не внутри). Сейчас: `Gameplay.unity/Canvas/SafeAreaContainer` держит весь HUD/карточную руку/попапы кроме замороженного roguelite (`XPBar`, `LevelUpScreen` — те НЕ трогать, остаются прямыми детьми `Canvas`); `MainMenu.unity/Canvas/Container` держит всё, включая счётчики/`BottomNav`/попапы.
-  - **Исключение**: `TutorialManager`'s `DialogPanel` (баннер туториала: портрет персонажа + текст) — часть `TutorialCanvas`-префаб-инстанса, Unity **не даёт** репарентить объект изнутри префаб-инстанса в новый сейф-эриа контейнер (`"Setting the parent of a transform which resides in a Prefab instance is not possible"`). Фикс сделан в коде: `TutorialManager.ShowStep()` добавляет safe-area-инсет (через `Screen.safeArea` + `Canvas.scaleFactor`) прямо в `anchoredPosition` для Top/Bottom позиций — см. `GetVerticalSafeAreaInsetsInCanvasUnits()`. Если понадобится похожий фикс для другого объекта внутри префаб-инстанса — тот же паттерн (инсет в коде, не через scene-репарентинг).
-- **CanvasScaler**: `Assets/Scripts/UI/AspectAwareCanvasScaler.cs` — на каждом Canvas с CanvasScaler (`Gameplay/Canvas`, `MainMenu/Canvas`, `MainMenu/TutorialCanvas`). Сравнивает текущий аспект экрана с аспектом `referenceResolution` (1080x1920) и переключает `matchWidthOrHeight` между 0 (MatchWidth) и 1 (MatchHeight) — держит 16:9-20:9 телефоны и 4:3 планшеты на одном сетапе без ручной подгонки. Новый Canvas с CanvasScaler — добавляй этот компонент. Вложенные Canvas без своего CanvasScaler (например, `CardUI`'s драг-сорт-канвас) его не требуют — они наследуют масштаб от родителя.
-- **Камера (fit-to-width)**: `Assets/Scripts/CameraFraming.cs` + `CameraController.SetupCamera()` + `CameraSwitcher`. **Важно**: это НЕ пересчёт "идеальной" рамки из геометрии уровня — пробовали мерить bounds по тегу `Building`+спавн-поинтам, но на Level_1 это улетало в неадекват (один тегнутый billing стоит ~40° в стороне от исходной камеры — контент уровня не source of truth для того, что камера должна показывать). Вместо этого код доверяет авторским `LevelData.orthographicSize`/`cameraPosition`/`cameraFieldOfView` как правильным для референс-аспекта 1080x1920 и только РАСШИРЯЕТ рамку (уже снятое авторское позиционирование — fallback/min, никогда не ужимается и не двигается ближе). `LevelManager.GetReservedScreenFractions()` меряет реальную on-screen высоту HUD (`topReservedUI` — массив RectTransform, сейчас `TimerText`+`RescuedCounter`) и карточной руки (`CardManager.cardsPanel`) через `GetWorldCorners` (Screen Space - Overlay → это уже пиксели экрана, safe area уже внутри). Если добавляешь новый top-HUD элемент, который может торчать ниже текущих — добавь его в `LevelManager.topReservedUI` (через инспектор или `unity command set_serialized_field`/`SerializedObject` — массив object-ref'ов).
-- **Карточная рука / input-зона**: `InputManager.cs` (2 места) и `CardUI.cs` раньше гейтили "это UI-зона" через `Screen.height * 0.25f`. Теперь — `CardManager.IsScreenPointOverCardsPanel(screenPoint)`, реальный `RectTransformUtility.RectangleContainsScreenPoint` по настоящему `cardsPanel`. Если появится ещё одно место с похожей проверкой — используй этот метод, не вводи новый магический процент.
-- **Известные ограничения проверки (10.10.2026)**: Device Simulator пакет (`com.unity.device-simulator`) не установлен — верификация по 5 целевым разрешениям (1080x1920, 1080x2400, 1170x2532, 750x1334, 1536x2048) сделана через `capture_game_view` с реальным `Screen.width/height` этого размера, но БЕЗ симуляции настоящего notch/cutout (Editor без Device Simulator отдаёт `Screen.safeArea` = весь экран, инсет = 0). Это значит: пропорции/аспекты/safe-area-МЕХАНИЗМ проверены, а то, что safe area реально подожмёт контент под живым вырезом на настоящем 1170x2532-устройстве — нет. Если нужна точная проверка под нотч — ставить Device Simulator (спросить Влада) или тестить на реальном телефоне.
-- **`unity command eval`**: `Transform.SetParent` на объекте внутри PrefabInstance молча проваливается (объект остаётся на месте) — ни голый `eval`, ни команда `set_parent` не могут вынести ребёнка префаб-инстанса в чужого родителя. Если нужно переместить такой объект — либо распаковать инстанс (`PrefabUtility.UnpackPrefabInstance`, меняет линковку с префабом — спросить Влада), либо решать задачу в коде (как с `DialogPanel` выше), а не в сцене.
-
-## Level Progression & Balance Pass (ветка `feature/level-progression`, начато 10.10.2026)
-
-Бриф → `Docs/CLAUDE_CODE_TASK_LevelProgression.md`. Все цифры (per-level PI/таймеры/волны/экономика) → `Docs/LEVEL_BALANCE.md`, это единственный источник правды, сюда — только указатель.
-
-## Camera Readability Pass (ветка `feature/camera-readability`, начато 11.10.2026)
-
-Проблема была: fit-to-width камера (см. пункт выше про респонсив-лейаут) только РАСШИРЯЛА рамку под HUD/аспект, из-за чего на L4-L10 (108-154 построек) игрок видел весь город сразу — люди/зомби были ~2-3мм на экране. Полный список тюнаблов, их дефолты и что крутить первым при жалобах "слишком мелко/крупно" → `Docs/CAMERA_READABILITY.md`, это единственный источник правды для этой фичи.
-
-Коротко: `CameraZoomPanController` (новый, на том же GameObject что `CameraController`) добавляется САМ через код в `CameraController.Awake()` — ручных шагов в Unity Editor для этой фичи нет, в отличие от других UI-пассов. Все тюнаблы (диапазон зума, чувствительность pan, edge-auto-pan, тайминги интро-шота, инвентарь off-screen-индикаторов, глобальный множитель масштаба акторов) лежат в одном ScriptableObject-ассете `Assets/Resources/CameraReadabilityConfig.asset` — открыть в инспекторе и крутить, без пересборки кода.
-
-## Core Loop v2 — vertical slice (ветка `feature/core-loop-v2`, начата 12.10.2026)
-
-Экономика Supply, реальный Planning (GO/countdown + fake-door реклама), последовательные волны с breather'ами, ограниченная по времени Night + "Last Call"/Last Transport, видимая цель/прогресс-бар, и переработанный ultimate "Signal Flare" — всё за флагом `LevelData.useCoreLoopV2`, включено только на Level_1/3/5. Полный system map, статус по фазам и известные ограничения → `Docs/CORE_LOOP_V2.md`, это единственный источник правды для этой фичи. **Важно**: живая проверка в Play Mode для этой ветки заблокирована нестабильностью CLI-линка этой сессии (Play Mode не продвигался дальше 1 кадра даже с `set_autotick`/`editor_focus`) — код чистo компилируется, но ничего не было реально сыграно. Нужна проверка руками/на твоей машине перед тем как доверять этому дальше, чем "компилируется и логика читается верно".
-
-## Документация — где что лежит
-
-- `Docs/GDD_CORE_LOOP.md` — актуальный GDD MVP-скоупа.
-- `Docs/REFACTOR_AUDIT.md` — аудит архитектуры + фазированный план рефакторинга (ветка `refactor/architecture`, начат 09.10.2026). Читать перед любой работой в этой ветке — там system map, известные проблемы связности, хотспоты производительности с file:line, и что уже сделано/что дальше.
-- `Docs/mechanics/*.md` — спеки конкретных систем (source of truth по дизайну, живут дольше одной сессии). Читать перед работой над соответствующей механикой.
-- `Docs/tasks/CLAUDE_CODE_TASK_*.md` — одноразовые брифы на сессию сборки (что делать, что не трогать, критерии приёмки).
-- `Docs/PostLaunch/` — заморожённый контент (roguelite, нарратив) — архив, не активные требования.
-- `MARKET_RESEARCH.md`, `UX_DesignPhilosophy.md` (корень репо) — рыночный контекст и UX-принципы.
-- **Notion "EvacZombie — Dev Board"** — https://app.notion.com/p/a2dce6c7c84c41d794a674f42cc2fc2d — канонический бэклог задач (Task/Phase/Priority/Status). Вне репозитория, недоступен Claude Code напрямую (нет MCP-доступа из этого окружения) — но это единственное место, куда попадают НОВЫЕ задачи. Когда в ходе Cowork-сессии находится что-то actionable (баг, недостающая фича, tech debt, решение) — заводится карточка в Notion, а не только строчка в `Docs/*.md`. `Docs/mechanics/*.md` — это "как это устроено технически" (спека для Claude Code), Notion — это "что и в каком порядке делать" (бэклог для Влада). Карточки в Notion могут ссылаться на конкретные `Docs/mechanics/*.md` файлы за деталями (и наоборот) — см. пример в карточке "Мета: дерево прокачки".
-
-## Инструменты
-
-**Связь с живым Unity Editor — официальный Unity CLI** (бета, тестируется с 04.10.2026). Старый MCP от CoplayDev (`com.coplaydev.unity-mcp`) выведен из использования — не предлагать и не настраивать его.
-
-- Работает через CLI `unity` + пакет `com.unity.pipeline` в проекте. Редактор с этим проектом должен быть **открыт**, иначе команды не дойдут.
-- Проверка связи: `unity status` (нужно состояние `ready`). Если команда не найдена — это, скорее всего, устаревший PATH в сессии, а не отсутствие CLI: перезапустить терминал/сессию. Если CLI или пакет реально не установлены — предложить команду установки и дождаться ответа Влада, ничего не ставить молча (`unity pipeline install` для пакета).
-- Обзор возможностей: `unity list` (список команд), `unity command` (подробная схема аргументов), `unity <команда> --help`.
-- Выполнить C# в редакторе: `unity command eval --code '<C#>'`. Результат приходит JSON с `"success": true`.
-- Через CLI можно: пересобирать проект и смотреть ошибки компиляции, запускать тесты и Play mode, читать Console, править сцены/префабы/ассеты.
-- Плагин `unity@unity-agent-plugin` (скиллы `/unity:...`) установлен; требует Unity 6+ — проект на 6000.6.4f1, ок.
-- После любой правки скриптов на диске проверять компиляцию через CLI, а не считать, что код собрался.
-- Если что-то в этой связке ведёт себя нестабильно (бета, пакет экспериментальный) — сначала сообщить Владу, а не обходить молча через правку файлов сцены вручную.
-
-## Git на этом репозитории (только если работаешь через смонтированную папку, не через обычный локальный git-клиент Влада)
-
-- Широкий/неограниченный `git status` и порцелейн `git commit` надёжно **виснут** на этом mount (не поддерживается настоящий `unlink`, стейл lock-файлы). Не гадать — если команда не вернулась за разумное время, не повторять её как есть.
-- Рабочий способ закоммитить: `git write-tree` → `git commit-tree <tree> -p <parent-sha> -F <msgfile>` → `git update-ref refs/heads/<branch> <new-sha>`. Предупреждения `unable to unlink tmp_obj/*.lock` игнорировать.
-- При ошибках вида `Unable to create .git/index.lock/HEAD.lock/refs/heads/main.lock: File exists` — переименовать (`mv`) lock-файл в сторону (новый суффикс каждый раз, `rm` тоже не работает) и повторить. Не гейтить `mv` через `ls` с `&&` по нескольким файлам — двигать каждый отдельно.
-- Это же может аукнуться в обычном локальном git-клиенте Влада (GitHub Desktop и т.п.) — залипший `.git/HEAD.lock` от Cowork/Claude-Code сессии блокирует локальный коммит с ошибкой "A lock file already exists". Если Влад сообщает об этом после сессии, которая трогала репо — сначала проверить/переименовать `.git/*.lock`.
-- **Известный мусор в `refs/heads`** (найден 29.08.2026, не убран): `main.lock.stale` и `main.lock.stale3` — это переименованные stale lock-файлы от предыдущих сессий, git видит их как настоящие ветки (`git branch -a` их покажет). Это НЕ реальные ветки, игнорировать/не мержить. `origin/main` на момент проверки == локальный `main` (репозиторий запушен, актуален).
+## Tools / git
+- Unity CLI: `unity status` must be `ready`; `unity command eval --code '<C#>'`. Ask before installing anything.
+- If `.git/*.lock` errors appear: rename the lock file aside (`mv`), don't delete. Vlad merges branches himself via GitHub Desktop; never merge to main.
