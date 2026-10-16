@@ -260,9 +260,12 @@ public class CrowdFieldManager : MonoBehaviour
 
 	private void RecomputeFields()
 	{
+		// feature/azs-crowd-feel (3): infected civilians stop seeding F_civ the instant
+		// BeginInfection runs, even though they stay in AllHumans/AllScientists until they
+		// actually turn (other systems, e.g. the car/heli siren loops, still iterate that list).
 		civSources.Clear();
-		foreach (var h in Human.AllHumans) if (h != null) AddSource(civSources, h.transform.position);
-		foreach (var s in Scientist.AllScientists) if (s != null) AddSource(civSources, s.transform.position);
+		foreach (var h in Human.AllHumans) if (h != null && !h.IsInfected) AddSource(civSources, h.transform.position);
+		foreach (var s in Scientist.AllScientists) if (s != null && !s.IsInfected) AddSource(civSources, s.transform.position);
 
 		zedSources.Clear();
 		foreach (var z in Zombie.AllZombies) if (z != null && !z.IsDead) AddSource(zedSources, z.transform.position);

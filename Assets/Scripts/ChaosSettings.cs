@@ -97,5 +97,19 @@ public class ChaosSettings : ScriptableObject
 	public float evacRadiusTiles = 8f;
 
 	[Tooltip("Seconds between zombie contact and actually turning into a zombie. Killing the infected civilian before this elapses prevents the turn.")]
-	public float turnDelay = 1.5f;
+	public float turnDelay = 0.7f;
+
+	// ── feature/azs-crowd-feel: AZS-style individual-goal chasing + bite-on-contact. ──────────
+	[Header("Street AI — Crowd Feel")]
+	[Tooltip("A Hunter picks its chase target at random among this many nearest reachable civilians, instead of always the single closest one — spreads zombies onto individual targets instead of one shared gradient.")]
+	public int hunterCandidateCount = 4;
+
+	[Tooltip("At most this many zombies may have the same civilian as their current hunt target; others pick a different candidate.")]
+	public int maxZombiesPerTarget = 2;
+
+	[Tooltip("Per-zombie move-speed variance rolled at spawn, as a fraction of base speed (e.g. 0.15 = ±15%) -- stops a wave from moving as one uniform blob.")]
+	public float speedVariance = 0.15f;
+
+	[Tooltip("A/B toggle: sets every zombie's NavMeshAgent.obstacleAvoidanceType to LowQuality instead of the prefab's authored value.")]
+	public bool zombieAvoidanceLow = false;
 }

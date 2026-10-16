@@ -21,3 +21,26 @@ MonoBehaviour:
   humanPanicDuration: 0.4
   humanPanicMoveDistance: 3
   humanPanicTriggerRadius: 4.5
+  fieldRefresh: 0.3
+  roadGridMinCellSize: 2
+  roadGridTargetCellsPerAxis: 48
+  roadGridSnapTolerance: 0.35
+  barricadePathCost: 15
+  hunterShare: 0.7
+  nightHunterShare: 1
+  aggroRadiusTiles: 5
+  lateWaveHunterThreshold: 0.2
+  retargetCooldown: 1.5
+  lookaheadCells: 6
+  closeChaseMaxPath: 6
+  victimLockTime: 1
+  civCalmSpeedMult: 0.6
+  fearRadiusTiles: 4
+  panicSpeedMult: 1.7
+  panicDuration: 2.5
+  evacRadiusTiles: 8
+  turnDelay: 0.7
+  hunterCandidateCount: 4
+  maxZombiesPerTarget: 2
+  speedVariance: 0.15
+  zombieAvoidanceLow: 0

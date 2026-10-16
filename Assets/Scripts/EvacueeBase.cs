@@ -39,6 +39,10 @@ public abstract class EvacueeBase : MonoBehaviour
 
 	public bool IsInfected { get; private set; }
 
+	// feature/azs-crowd-feel (3): lets Zombie's hunt-target validity check see "is this civilian
+	// already being lifted away" without a new flag — isBoarding already tracks exactly that.
+	public bool IsBoarding => isBoarding;
+
 	private bool isPanicking = false;
 	private float panicEndTime = 0f;
 	private bool panicUsesEvac = false;
