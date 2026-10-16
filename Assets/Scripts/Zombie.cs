@@ -58,19 +58,23 @@ public class Zombie : MonoBehaviour
 	private Bait currentBait = null;
 	private Vector3 currentBaitDestination;
 
-	// Civilian target stickiness (FindClosestVictim): straight-line "nearest" alone flips between
-	// two humans on opposite sides of a building every Brain tick, each flip re-pathing toward the
-	// new target's straight-line direction before the NavMeshAgent settles onto the real route --
-	// visible as a jerk toward the wall. A sticky target is held for at least this long unless it
-	// dies/is destroyed or a candidate's path is meaningfully shorter.
-	private const float TargetStickyDuration = 1.5f;
-	private const float TargetSwitchPathRatio = 0.7f; // candidate must be <=70% of the sticky path length (>=30% shorter) to switch early
-	private const int TargetShortlistSize = 3;
-	private Transform stickyTarget;
-	private float stickyTargetPathLength;
-	private float stickyTargetAcquiredTime = -999f;
-	private readonly List<Transform> targetShortlist = new List<Transform>(TargetShortlistSize);
-	private readonly List<float> targetShortlistSqrDist = new List<float>(TargetShortlistSize);
+	// Street AI (feature/zombie-street-ai): Hunter descends the shared F_civ distance field toward
+	// civilians; Wanderer patrols random road-grid intersections until it spots a civilian down the
+	// same straight street within aggroRadius, at which point it becomes a Hunter (one-way — it
+	// never reverts, so this can't become a new source of flip-flopping). Rolled per spawn/pool
+	// reuse in StartBrainIfNeeded(), from chaosSettings.hunterShare (or nightHunterShare during
+	// GameManager.GameState.SuddenDeath).
+	private enum ZombieRole { Hunter, Wanderer }
+	private ZombieRole role = ZombieRole.Hunter;
+
+	// Field-descent/wander navigation decisions (picking the next grid step or a new wander
+	// intersection) happen at most once per RetargetCooldown — see "F" in the task brief. The
+	// opportunistic close-range civilian scan below is NOT gated by this; it only runs when the
+	// shared field already reports a civilian within CloseRangeTiles, which keeps it cheap.
+	private const float CloseRangeTiles = 2f;
+	private float nextDecisionTime = 0f;
+	private Vector3 wanderDestination;
+	private bool hasWanderDestination = false;
 
 	private Renderer[] allRenderers;
 	private Coroutine hitFlashRoutine;
@@ -106,6 +110,21 @@ public class Zombie : MonoBehaviour
 	protected static float HealthMultiplier =>
 		LevelManager.Instance != null && LevelManager.Instance.currentData != null
 			? LevelManager.Instance.currentData.zombieHealthMultiplier : 1f;
+
+	private float RetargetCooldown => chaosSettings != null ? Mathf.Max(0.1f, chaosSettings.retargetCooldown) : 1.5f;
+	private float AggroRadiusWorld =>
+		(chaosSettings != null ? chaosSettings.aggroRadiusTiles : 5f) *
+		(CrowdFieldManager.Instance != null && CrowdFieldManager.Instance.GridReady ? CrowdFieldManager.Instance.CellSize : 2f);
+
+	private float HunterShareForSpawn
+	{
+		get
+		{
+			if (chaosSettings == null) return 0.7f;
+			bool night = GameManager.Instance != null && GameManager.Instance.State == GameManager.GameState.SuddenDeath;
+			return night ? chaosSettings.nightHunterShare : chaosSettings.hunterShare;
+		}
+	}
 
 	protected virtual void Awake()
 	{
@@ -165,11 +184,16 @@ public class Zombie : MonoBehaviour
 			agent.speed = moveSpeed * SpeedMultiplier;
 		}
 
+		CrowdFieldManager.Instance?.EnsureConfigured(chaosSettings);
 		StartBrainIfNeeded();
 	}
 
 	protected void StartBrainIfNeeded()
 	{
+		role = Random.value < HunterShareForSpawn ? ZombieRole.Hunter : ZombieRole.Wanderer;
+		nextDecisionTime = 0f;
+		hasWanderDestination = false;
+
 		if (brainRoutine != null)
 		{
 			StopCoroutine(brainRoutine);
@@ -311,7 +335,8 @@ public class Zombie : MonoBehaviour
 
 			Transform target;
 			Vector3? overrideDestination;
-			FindTargetWithBaitPriority(out target, out overrideDestination);
+			bool isCruising;
+			FindTargetWithBaitPriority(out target, out overrideDestination, out isCruising);
 
 			if (target != null)
 			{
@@ -359,8 +384,13 @@ public class Zombie : MonoBehaviour
 					}
 				}
 			}
-			else
+			else if (!isCruising)
 			{
+				// Only a genuine "nothing to do" (no bait, no close civilian/barricade, and the
+				// shared road grid isn't ready yet either) resets the path. When isCruising is true,
+				// FindTargetWithBaitPriority already issued its own (cooldown-gated) SetDestination
+				// toward the next field-descent step or wander intersection — resetting here would
+				// undo that every single tick and reintroduce the old jitter.
 				StopCrowdBehaviorIfAny();
 
 				if (agent != null && agent.enabled && agent.isOnNavMesh)
@@ -396,10 +426,11 @@ public class Zombie : MonoBehaviour
 		isDistracted = false;
 	}
 
-	protected virtual void FindTargetWithBaitPriority(out Transform target, out Vector3? overrideDestination)
+	protected virtual void FindTargetWithBaitPriority(out Transform target, out Vector3? overrideDestination, out bool isCruising)
 	{
 		target = null;
 		overrideDestination = null;
+		isCruising = false;
 
 		currentBait = TargetScanUtil.FindNearest(Bait.AllBaits, transform.position, float.MaxValue,
 			bait => bait.hasValidAttractPoint ? bait.attractPoint : bait.transform.position, out _,
@@ -419,127 +450,121 @@ public class Zombie : MonoBehaviour
 		}
 
 		currentBaitDestination = Vector3.zero;
-		target = FindClosestVictim();
+		target = DecideStreetTarget(out isCruising);
 		overrideDestination = null;
 	}
 
-	protected virtual Transform FindClosestVictim()
+	// Street AI (feature/zombie-street-ai): replaces the old per-tick 3-candidate shortlist +
+	// CalculatePath + sticky-target damping. Long-range navigation is now just an O(1) read of the
+	// shared F_civ field at this zombie's own cell plus its 4 neighbors, decided at most once per
+	// RetargetCooldown — SetDestination is issued directly from here for that case (isCruising =
+	// true, target = null) rather than being handed back up to Brain(). A Transform target is only
+	// returned for the two cases Brain() still needs exact position/LOS/attack-range handling for:
+	// a civilian already close enough to engage, or a barricade blocking the chosen step.
+	protected virtual Transform DecideStreetTarget(out bool isCruising)
 	{
-		// Straight-line "nearest" alone picks a target through a wall, then flips to whichever
-		// side is momentarily closer -- each flip is a fresh SetDestination that jerks the agent
-		// toward the new target's straight-line direction before it settles onto the real route.
-		// Shortlist a few candidates by straight line (cheap), then only CalculatePath for those
-		// few and pick the one with the shortest COMPLETE path.
-		FindNearestEvacueeShortlist(TargetShortlistSize, targetShortlist);
+		isCruising = false;
+		CrowdFieldManager cfm = CrowdFieldManager.Instance;
+		bool fieldReady = cfm != null && cfm.GridReady;
 
-		Transform bestByPath = null;
-		float bestPathLen = float.MaxValue;
-		foreach (Transform candidate in targetShortlist)
+		// Opportunistic close-range engagement, independent of Hunter/Wanderer role: the shared
+		// field already tells us (O(1)) whether a civilian is within a couple of tiles, so the
+		// heavier exact-nearest scan below only runs when it's actually likely to matter.
+		if (fieldReady)
 		{
-			if (agent != null && agent.enabled && agent.isOnNavMesh &&
-				agent.CalculatePath(candidate.position, cachedPath) &&
-				cachedPath.status == NavMeshPathStatus.PathComplete)
+			float civTiles = cfm.SampleField(transform.position, CrowdFieldType.Civilian) / Mathf.Max(0.01f, cfm.CellSize);
+			if (civTiles <= CloseRangeTiles)
 			{
-				float len = PathCornersLength(cachedPath);
-				if (len < bestPathLen)
-				{
-					bestPathLen = len;
-					bestByPath = candidate;
-				}
+				Transform close = FindNearestCivilianDirect();
+				if (close != null) return close;
+			}
+		}
+		else
+		{
+			// Grid not ready yet (first frame or two of a level) — simple direct fallback so
+			// zombies don't stand idle while the grid finishes building.
+			Transform direct = FindNearestCivilianDirect();
+			if (direct != null) return direct;
+		}
+
+		if (Time.time < nextDecisionTime)
+		{
+			// Already cruising toward a previously chosen step/intersection — nothing new to
+			// decide this tick, but we ARE still moving, so Brain() must not ResetPath().
+			isCruising = true;
+			return null;
+		}
+
+		nextDecisionTime = Time.time + RetargetCooldown;
+
+		bool isHunterNow = role == ZombieRole.Hunter || (cfm != null && cfm.ForceAllHunters);
+
+		if (isHunterNow)
+		{
+			if (fieldReady && cfm.TryGetDescentDirection(transform.position, CrowdFieldType.Civilian, out Vector3 step))
+			{
+				if (agent != null && agent.enabled && agent.isOnNavMesh) agent.SetDestination(step);
+				isCruising = true;
+			}
+
+			// Stepping toward a barricade-occupied tile: NavMesh carves a hole there, so the agent
+			// naturally stalls at its edge — TryFindNearestBarricade (existing barricadeCheckRadius
+			// logic, unchanged) catches that and hands Brain() a precise attack target.
+			if (TryFindNearestBarricade(out Barricade blocker)) return blocker.transform;
+
+			return null;
+		}
+
+		// Wanderer: patrol a random intersection; promote to Hunter if a civilian is visible down
+		// the same straight street within aggroRadius (one-way — never reverts to Wanderer).
+		if (fieldReady)
+		{
+			Transform sighted = FindNearestCivilianDirect(AggroRadiusWorld);
+			if (sighted != null && cfm.IsSameStreetVisible(transform.position, sighted.position))
+			{
+				role = ZombieRole.Hunter;
+				isCruising = true;
+				return null;
 			}
 		}
 
-		// None of the shortlisted candidates have a complete path right now (e.g. agent not yet
-		// placed) -- fall back to the nearest by straight line rather than picking no target at all.
-		Transform closest = bestByPath;
-		float closestPathLen = bestPathLen;
-		if (closest == null && targetShortlist.Count > 0)
+		bool arrived = agent != null && agent.enabled && agent.isOnNavMesh &&
+			!agent.pathPending && (!agent.hasPath || agent.remainingDistance < 0.5f);
+
+		if (!hasWanderDestination || arrived)
 		{
-			closest = targetShortlist[0];
-			closestPathLen = GetPathDistance(closest.position);
+			if (fieldReady && cfm.TryGetRandomIntersection(out Vector3 dest))
+			{
+				wanderDestination = dest;
+				hasWanderDestination = true;
+			}
 		}
 
-		closest = ApplyTargetStickiness(closest, closestPathLen);
-
-		// Target found — check if a barricade is blocking the path to it.
-		// PathPartial = NavMesh only reached the barricade, cannot go further.
-		if (closest != null)
+		if (hasWanderDestination && agent != null && agent.enabled && agent.isOnNavMesh)
 		{
-			bool pathBlocked = agent != null
-				&& agent.enabled
-				&& agent.isOnNavMesh
-				&& agent.pathStatus == NavMeshPathStatus.PathPartial;
-
-			if (pathBlocked && TryFindNearestBarricade(out Barricade blocker))
-				return blocker.transform;
-
-			return closest;
+			agent.SetDestination(wanderDestination);
+			isCruising = true;
 		}
 
-		// No targets at all — use barricade as fallback target
-		if (TryFindNearestBarricade(out Barricade fallback))
-			return fallback.transform;
+		if (TryFindNearestBarricade(out Barricade wanderBlocker)) return wanderBlocker.transform;
 
 		return null;
 	}
 
-	// Up to maxCount nearest Human/Scientist transforms by straight-line distance, nearest first.
-	// Humans are considered before scientists so an exact-distance tie keeps the same winner as
-	// the single combined loop this replaces. A small shortlist so FindClosestVictim only needs to
-	// CalculatePath for a handful of candidates instead of every evacuee on the level.
-	private void FindNearestEvacueeShortlist(int maxCount, List<Transform> result)
+	// Exact-nearest Human/Scientist by straight-line distance. Only called when the shared field
+	// (or, as a fallback, the caller) already narrowed things down to "close" or "within aggro
+	// range" — never scans the whole level every Brain tick the way the old shortlist did.
+	private Transform FindNearestCivilianDirect(float maxDistance = float.MaxValue)
 	{
-		result.Clear();
-		targetShortlistSqrDist.Clear();
+		Human nearestHuman = TargetScanUtil.FindNearest(Human.AllHumans, transform.position, maxDistance, h => h.transform.position, out float distH);
+		Scientist nearestScientist = TargetScanUtil.FindNearest(Scientist.AllScientists, transform.position, maxDistance, s => s.transform.position, out float distS);
 
-		void Consider(Transform t)
-		{
-			float sq = (t.position - transform.position).sqrMagnitude;
-			int insertAt = result.Count;
-			for (int i = 0; i < result.Count; i++)
-			{
-				if (sq < targetShortlistSqrDist[i]) { insertAt = i; break; }
-			}
-			if (insertAt >= maxCount) return;
+		if (nearestHuman != null && nearestScientist != null)
+			return distH <= distS ? nearestHuman.transform : nearestScientist.transform;
 
-			result.Insert(insertAt, t);
-			targetShortlistSqrDist.Insert(insertAt, sq);
-			if (result.Count > maxCount)
-			{
-				result.RemoveAt(maxCount);
-				targetShortlistSqrDist.RemoveAt(maxCount);
-			}
-		}
-
-		foreach (Human h in Human.AllHumans) if (h != null) Consider(h.transform);
-		foreach (Scientist s in Scientist.AllScientists) if (s != null) Consider(s.transform);
-	}
-
-	// Keeps the current civilian target for at least TargetStickyDuration even if straight-line
-	// "nearest" would momentarily prefer a different one (the oscillation that causes the jerk
-	// toward walls) -- released early only if it dies/is destroyed (candidate goes through Unity's
-	// null check) or a candidate's path is at least 30% shorter.
-	private Transform ApplyTargetStickiness(Transform candidate, float candidatePathLength)
-	{
-		if (stickyTarget != null)
-		{
-			if (stickyTarget == candidate)
-			{
-				stickyTargetPathLength = candidatePathLength;
-				return stickyTarget;
-			}
-
-			bool stickyExpired = Time.time - stickyTargetAcquiredTime >= TargetStickyDuration;
-			bool candidateMuchShorter = candidate != null && candidatePathLength <= stickyTargetPathLength * TargetSwitchPathRatio;
-
-			if (!stickyExpired && !candidateMuchShorter)
-				return stickyTarget;
-		}
-
-		stickyTarget = candidate;
-		stickyTargetPathLength = candidatePathLength;
-		stickyTargetAcquiredTime = Time.time;
-		return stickyTarget;
+		if (nearestHuman != null) return nearestHuman.transform;
+		if (nearestScientist != null) return nearestScientist.transform;
+		return null;
 	}
 
 	private static float PathCornersLength(NavMeshPath path)
@@ -664,11 +689,18 @@ public class Zombie : MonoBehaviour
 
 	protected virtual void InfectHuman(Human human)
 	{
-		if (human == null) return;
+		if (human == null || human.IsInfected) return;
 
+		Feedback.Play(FeedbackEvent.ZombieInfect, human.transform.position + Vector3.up * 0.5f);
+
+		float delay = chaosSettings != null ? chaosSettings.turnDelay : 1.5f;
+		human.BeginInfection(delay, evacuee => TurnIntoZombie((Human)evacuee));
+	}
+
+	private void TurnIntoZombie(Human human)
+	{
 		Vector3 pos = human.transform.position;
 		Quaternion rot = human.transform.rotation;
-		Feedback.Play(FeedbackEvent.ZombieInfect, pos + Vector3.up * 0.5f);
 
 		Human.AllHumans.Remove(human);
 		Destroy(human.gameObject);
@@ -686,11 +718,18 @@ public class Zombie : MonoBehaviour
 
 	protected virtual void InfectScientist(Scientist scientist)
 	{
-		if (scientist == null) return;
+		if (scientist == null || scientist.IsInfected) return;
 
+		Feedback.Play(FeedbackEvent.ZombieInfect, scientist.transform.position + Vector3.up * 0.5f);
+
+		float delay = chaosSettings != null ? chaosSettings.turnDelay : 1.5f;
+		scientist.BeginInfection(delay, evacuee => TurnIntoZombie((Scientist)evacuee));
+	}
+
+	private void TurnIntoZombie(Scientist scientist)
+	{
 		Vector3 pos = scientist.transform.position;
 		Quaternion rot = scientist.transform.rotation;
-		Feedback.Play(FeedbackEvent.ZombieInfect, pos + Vector3.up * 0.5f);
 
 		Scientist.AllScientists.Remove(scientist);
 		Destroy(scientist.gameObject);

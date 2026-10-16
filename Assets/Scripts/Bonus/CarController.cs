@@ -5,10 +5,19 @@ using System.Collections.Generic;
 using TMPro;
 
 [RequireComponent(typeof(NavMeshAgent))]
-public class CarController : MonoBehaviour
+public class CarController : MonoBehaviour, IEvacPoint
 {
 	public enum CarState { DrivingToTarget, Loading, Leaving }
 	public CarState currentState;
+
+	// IEvacPoint: only counts as an active evac point for the street-AI F_evac field while
+	// actually loading (siren already fired, still accepting boarders) — matches the window
+	// during which the siren itself recruits civilians.
+	public Vector3 EvacPosition => transform.position;
+	public bool IsAcceptingPassengers => currentState == CarState.Loading;
+
+	private void OnEnable() => CrowdFieldManager.Instance?.RegisterEvacPoint(this);
+	private void OnDisable() => CrowdFieldManager.Instance?.UnregisterEvacPoint(this);
 
 	[Header("Card & Settings")]
 	public CardData myCardData;

@@ -1,0 +1,517 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.AI;
+
+// Shared road-grid + distance-field crowd system (feature/zombie-street-ai). Builds one walkable
+// grid from the baked NavMesh per level, then every chaosSettings.fieldRefresh seconds recomputes
+// three multi-source Dijkstra distance fields over that grid:
+//   F_civ  — distance-to-nearest-civilian, consumed by Zombie (Hunter descent)
+//   F_zed  — distance-to-nearest-zombie,   consumed by EvacueeBase (Panic ascent)
+//   F_evac — distance-to-nearest-active-evac-point, consumed by EvacueeBase (Evacuating descent)
+// F_civ/F_zed share the "zombie" cost structure (a tile with an active Barricade costs
+// barricadePathCost instead of 1 — barricades slow zombies down but don't block them outright).
+// F_evac uses uniform cost 1: civilians pass through barricades freely.
+//
+// Individual agents never run their own per-frame pathfinding against these fields — they just
+// read the precomputed value at their own cell and its 4 neighbors (O(1)) to pick a direction,
+// at most once per chaosSettings.retargetCooldown. This is what actually removes the old
+// per-tick-shortlist-and-CalculatePath jitter in Zombie.cs, not a patch on top of it.
+//
+// Auto-created the same way AudioManager/etc. are (RuntimeInitializeOnLoadMethod) — no scene setup.
+public enum CrowdFieldType { Civilian, Zombie, Evac }
+
+public class CrowdFieldManager : MonoBehaviour
+{
+	public static CrowdFieldManager Instance { get; private set; }
+
+	public bool GridReady { get; private set; }
+	public float CellSize => cellSize;
+
+	// Whether every zombie on the level should currently be forced into the Hunter role
+	// (aliveCivilians dropped below chaosSettings.lateWaveHunterThreshold of the level's peak).
+	public bool ForceAllHunters { get; private set; }
+
+	private ChaosSettings cachedSettings;
+
+	private float cellSize;
+	private int gridW;
+	private int gridH;
+	private Vector3 originWorld;
+
+	private bool[] walkable;
+	private Vector3[] cellWorldPos;
+	private readonly List<int> intersectionCells = new List<int>();
+
+	private float[] fieldCiv;
+	private float[] fieldZed;
+	private float[] fieldEvac;
+
+	private bool pendingRebuild;
+	private float nextRefreshTime;
+
+	private int initialCivilianCountSeen;
+
+	private readonly List<IEvacPoint> evacPoints = new List<IEvacPoint>();
+
+	private readonly List<int> civSources = new List<int>();
+	private readonly List<int> zedSources = new List<int>();
+	private readonly List<int> evacSources = new List<int>();
+	private readonly HashSet<int> barricadeCellsThisRefresh = new HashSet<int>();
+	private float barricadePathCostCached = 15f;
+
+	// Reusable binary min-heap for Dijkstra — sized to the grid's cell count once, cleared (not
+	// reallocated) on every refresh, so recomputing the three fields every 0.3s does not allocate.
+	private float[] heapKey;
+	private int[] heapNode;
+	private int[] heapIndexOf;
+	private int heapSize;
+
+	[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+	private static void ResetStatics() => Instance = null;
+
+	[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+	private static void Bootstrap()
+	{
+		if (Instance != null) return;
+		var go = new GameObject("[CrowdFieldManager]");
+		DontDestroyOnLoad(go);
+		Instance = go.AddComponent<CrowdFieldManager>();
+	}
+
+	private void Awake()
+	{
+		if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+		Instance = this;
+	}
+
+	private void Update()
+	{
+		if (pendingRebuild)
+		{
+			pendingRebuild = false;
+			BuildGrid();
+		}
+
+		if (!GridReady) return;
+
+		float refresh = cachedSettings != null ? Mathf.Max(0.05f, cachedSettings.fieldRefresh) : 0.3f;
+		if (Time.time < nextRefreshTime) return;
+
+		nextRefreshTime = Time.time + refresh;
+		RecomputeFields();
+	}
+
+	// Called from LevelManager right after navSurface.BuildNavMesh(). The actual grid build is
+	// deferred to this object's own next Update() rather than done synchronously here: at this
+	// exact point in LoadLevel() no civilian/zombie has spawned yet, so EnsureConfigured() hasn't
+	// cached a ChaosSettings reference for grid-resolution tuning. Humans/Scientists spawn later in
+	// the same LoadLevel() call and their Start() runs before this object's next Update(), so by
+	// rebuild time a settings reference is already cached in the common case (deliberately NOT
+	// reset here — the same ChaosSettings asset is shared project-wide, so keeping the last-known
+	// reference across level loads means even a level with zero initial civilians gets correctly
+	// tuned grid resolution instead of falling back to field defaults).
+	public void OnLevelLoaded()
+	{
+		GridReady = false;
+		pendingRebuild = true;
+		initialCivilianCountSeen = 0;
+		ForceAllHunters = false;
+	}
+
+	public void EnsureConfigured(ChaosSettings settings)
+	{
+		if (cachedSettings == null && settings != null) cachedSettings = settings;
+	}
+
+	public void RegisterEvacPoint(IEvacPoint point)
+	{
+		if (!evacPoints.Contains(point)) evacPoints.Add(point);
+	}
+
+	public void UnregisterEvacPoint(IEvacPoint point)
+	{
+		evacPoints.Remove(point);
+	}
+
+	// ── Grid build ──────────────────────────────────────────────────────
+
+	private void BuildGrid()
+	{
+		NavMeshTriangulation tri = NavMesh.CalculateTriangulation();
+		if (tri.vertices == null || tri.vertices.Length == 0)
+		{
+			GridReady = false;
+			return;
+		}
+
+		float minX = float.MaxValue, maxX = float.MinValue;
+		float minZ = float.MaxValue, maxZ = float.MinValue;
+		double sumY = 0d;
+
+		for (int i = 0; i < tri.vertices.Length; i++)
+		{
+			Vector3 v = tri.vertices[i];
+			if (v.x < minX) minX = v.x;
+			if (v.x > maxX) maxX = v.x;
+			if (v.z < minZ) minZ = v.z;
+			if (v.z > maxZ) maxZ = v.z;
+			sumY += v.y;
+		}
+
+		float avgY = (float)(sumY / tri.vertices.Length);
+		float spanX = Mathf.Max(1f, maxX - minX);
+		float spanZ = Mathf.Max(1f, maxZ - minZ);
+
+		float minCell = cachedSettings != null ? Mathf.Max(0.25f, cachedSettings.roadGridMinCellSize) : 2f;
+		int targetPerAxis = cachedSettings != null ? Mathf.Max(4, cachedSettings.roadGridTargetCellsPerAxis) : 48;
+		float neededCell = Mathf.Max(spanX, spanZ) / targetPerAxis;
+		cellSize = Mathf.Max(minCell, neededCell);
+
+		originWorld = new Vector3(minX, avgY, minZ);
+		gridW = Mathf.Max(1, Mathf.CeilToInt(spanX / cellSize) + 1);
+		gridH = Mathf.Max(1, Mathf.CeilToInt(spanZ / cellSize) + 1);
+
+		int count = gridW * gridH;
+		walkable = new bool[count];
+		cellWorldPos = new Vector3[count];
+
+		float sampleRadius = cellSize * 0.6f;
+		for (int y = 0; y < gridH; y++)
+		{
+			for (int x = 0; x < gridW; x++)
+			{
+				int idx = y * gridW + x;
+				Vector3 center = new Vector3(originWorld.x + x * cellSize, avgY, originWorld.z + y * cellSize);
+				if (NavMesh.SamplePosition(center, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
+				{
+					walkable[idx] = true;
+					cellWorldPos[idx] = hit.position;
+				}
+			}
+		}
+
+		BuildIntersections();
+
+		heapKey = new float[count];
+		heapNode = new int[count];
+		heapIndexOf = new int[count];
+
+		fieldCiv = new float[count];
+		fieldZed = new float[count];
+		fieldEvac = new float[count];
+
+		GridReady = true;
+		nextRefreshTime = 0f; // recompute immediately on the next Update
+	}
+
+	private void BuildIntersections()
+	{
+		intersectionCells.Clear();
+
+		for (int idx = 0; idx < walkable.Length; idx++)
+		{
+			if (!walkable[idx]) continue;
+
+			int x = idx % gridW;
+			int y = idx / gridW;
+			bool n = IsWalkableAt(x, y + 1);
+			bool s = IsWalkableAt(x, y - 1);
+			bool e = IsWalkableAt(x + 1, y);
+			bool w = IsWalkableAt(x - 1, y);
+			int degree = (n ? 1 : 0) + (s ? 1 : 0) + (e ? 1 : 0) + (w ? 1 : 0);
+			bool corner = degree == 2 && !((n && s) || (e && w));
+
+			if (degree >= 3 || corner) intersectionCells.Add(idx);
+		}
+
+		// Sparse/degenerate road shapes (no true junction) — fall back to any walkable cell so
+		// Wanderers always have somewhere to pick.
+		if (intersectionCells.Count == 0)
+		{
+			for (int idx = 0; idx < walkable.Length; idx++)
+				if (walkable[idx]) intersectionCells.Add(idx);
+		}
+	}
+
+	private bool IsWalkableAt(int x, int y)
+	{
+		if (x < 0 || x >= gridW || y < 0 || y >= gridH) return false;
+		return walkable[y * gridW + x];
+	}
+
+	// ── Field recompute ─────────────────────────────────────────────────
+
+	private void RecomputeFields()
+	{
+		civSources.Clear();
+		foreach (var h in Human.AllHumans) if (h != null) AddSource(civSources, h.transform.position);
+		foreach (var s in Scientist.AllScientists) if (s != null) AddSource(civSources, s.transform.position);
+
+		zedSources.Clear();
+		foreach (var z in Zombie.AllZombies) if (z != null && !z.IsDead) AddSource(zedSources, z.transform.position);
+
+		evacSources.Clear();
+		for (int i = 0; i < evacPoints.Count; i++)
+		{
+			IEvacPoint e = evacPoints[i];
+			if (e != null && e.IsAcceptingPassengers) AddSource(evacSources, e.EvacPosition);
+		}
+
+		barricadeCellsThisRefresh.Clear();
+		for (int i = 0; i < Barricade.AllBarricades.Count; i++)
+		{
+			Barricade b = Barricade.AllBarricades[i];
+			if (b == null) continue;
+			int idx = WorldToCellIndex(b.transform.position);
+			if (idx >= 0) barricadeCellsThisRefresh.Add(idx);
+		}
+
+		barricadePathCostCached = cachedSettings != null ? Mathf.Max(1f, cachedSettings.barricadePathCost) : 15f;
+
+		ComputeField(civSources, true, fieldCiv);
+		ComputeField(zedSources, true, fieldZed);
+		ComputeField(evacSources, false, fieldEvac);
+
+		int aliveCivilians = Human.AllHumans.Count + Scientist.AllScientists.Count;
+		if (aliveCivilians > initialCivilianCountSeen) initialCivilianCountSeen = aliveCivilians;
+
+		float threshold = cachedSettings != null ? cachedSettings.lateWaveHunterThreshold : 0.2f;
+		ForceAllHunters = initialCivilianCountSeen > 0 && aliveCivilians < initialCivilianCountSeen * threshold;
+	}
+
+	private void AddSource(List<int> list, Vector3 worldPos)
+	{
+		int idx = WorldToCellIndex(worldPos);
+		if (idx >= 0) list.Add(idx);
+	}
+
+	private void ComputeField(List<int> sources, bool useBarricadeCost, float[] outField)
+	{
+		for (int i = 0; i < outField.Length; i++) outField[i] = float.PositiveInfinity;
+
+		heapSize = 0;
+		for (int i = 0; i < heapIndexOf.Length; i++) heapIndexOf[i] = -1;
+
+		for (int i = 0; i < sources.Count; i++)
+		{
+			int s = sources[i];
+			if (s < 0 || s >= outField.Length || !walkable[s]) continue;
+			if (outField[s] <= 0f) continue; // already seeded at 0 by an earlier source in this same call
+			outField[s] = 0f;
+			HeapPush(s, 0f);
+		}
+
+		while (heapSize > 0)
+		{
+			int node = HeapPopMin();
+			float d = outField[node];
+			int x = node % gridW;
+			int y = node / gridW;
+
+			TryRelax(x + 1, y, d, useBarricadeCost, outField);
+			TryRelax(x - 1, y, d, useBarricadeCost, outField);
+			TryRelax(x, y + 1, d, useBarricadeCost, outField);
+			TryRelax(x, y - 1, d, useBarricadeCost, outField);
+		}
+	}
+
+	private void TryRelax(int nx, int ny, float dFrom, bool useBarricadeCost, float[] outField)
+	{
+		if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) return;
+		int nIdx = ny * gridW + nx;
+		if (!walkable[nIdx]) return;
+
+		float cost = (useBarricadeCost && barricadeCellsThisRefresh.Contains(nIdx)) ? barricadePathCostCached : 1f;
+		float nd = dFrom + cost;
+
+		if (nd < outField[nIdx])
+		{
+			outField[nIdx] = nd;
+			HeapDecreaseOrPush(nIdx, nd);
+		}
+	}
+
+	// ── Queries used by Zombie / EvacueeBase ───────────────────────────
+
+	public float SampleField(Vector3 worldPos, CrowdFieldType type)
+	{
+		if (!GridReady) return float.PositiveInfinity;
+		int idx = WorldToCellIndex(worldPos);
+		if (idx < 0) return float.PositiveInfinity;
+		return SelectField(type)[idx];
+	}
+
+	public bool TryGetDescentDirection(Vector3 fromWorld, CrowdFieldType type, out Vector3 targetWorldPos)
+	{
+		return TryGetDirectionalStep(fromWorld, type, steepestDescent: true, out targetWorldPos);
+	}
+
+	public bool TryGetAscentDirection(Vector3 fromWorld, CrowdFieldType type, out Vector3 targetWorldPos)
+	{
+		return TryGetDirectionalStep(fromWorld, type, steepestDescent: false, out targetWorldPos);
+	}
+
+	public bool TryGetRandomIntersection(out Vector3 worldPos)
+	{
+		worldPos = Vector3.zero;
+		if (!GridReady || intersectionCells.Count == 0) return false;
+		int pick = intersectionCells[Random.Range(0, intersectionCells.Count)];
+		worldPos = cellWorldPos[pick];
+		return true;
+	}
+
+	// True if a and b sit on the same grid row/column with every intervening cell walkable — the
+	// "same straight street" check a Wanderer uses to notice a civilian and become a Hunter.
+	public bool IsSameStreetVisible(Vector3 a, Vector3 b)
+	{
+		if (!GridReady) return false;
+		int ia = WorldToCellIndex(a);
+		int ib = WorldToCellIndex(b);
+		if (ia < 0 || ib < 0) return false;
+
+		int ax = ia % gridW, ay = ia / gridW;
+		int bx = ib % gridW, by = ib / gridW;
+
+		if (ax == bx)
+		{
+			int lo = Mathf.Min(ay, by), hi = Mathf.Max(ay, by);
+			for (int y = lo; y <= hi; y++) if (!walkable[y * gridW + ax]) return false;
+			return true;
+		}
+
+		if (ay == by)
+		{
+			int lo = Mathf.Min(ax, bx), hi = Mathf.Max(ax, bx);
+			for (int x = lo; x <= hi; x++) if (!walkable[ay * gridW + x]) return false;
+			return true;
+		}
+
+		return false;
+	}
+
+	private bool TryGetDirectionalStep(Vector3 fromWorld, CrowdFieldType type, bool steepestDescent, out Vector3 targetWorldPos)
+	{
+		targetWorldPos = fromWorld;
+		if (!GridReady) return false;
+
+		int idx = WorldToCellIndex(fromWorld);
+		if (idx < 0 || !walkable[idx]) return false;
+
+		float[] field = SelectField(type);
+		int x = idx % gridW, y = idx / gridW;
+
+		int best = idx;
+		float bestVal = field[idx];
+
+		CheckNeighbor(x + 1, y, field, steepestDescent, ref best, ref bestVal);
+		CheckNeighbor(x - 1, y, field, steepestDescent, ref best, ref bestVal);
+		CheckNeighbor(x, y + 1, field, steepestDescent, ref best, ref bestVal);
+		CheckNeighbor(x, y - 1, field, steepestDescent, ref best, ref bestVal);
+
+		if (best == idx) return false;
+		targetWorldPos = cellWorldPos[best];
+		return true;
+	}
+
+	private void CheckNeighbor(int nx, int ny, float[] field, bool steepestDescent, ref int best, ref float bestVal)
+	{
+		if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) return;
+		int nIdx = ny * gridW + nx;
+		if (!walkable[nIdx]) return;
+
+		float v = field[nIdx];
+		if (float.IsPositiveInfinity(v)) return;
+
+		bool better = steepestDescent ? v < bestVal : v > bestVal;
+		if (better) { bestVal = v; best = nIdx; }
+	}
+
+	private float[] SelectField(CrowdFieldType type)
+	{
+		switch (type)
+		{
+			case CrowdFieldType.Civilian: return fieldCiv;
+			case CrowdFieldType.Zombie: return fieldZed;
+			default: return fieldEvac;
+		}
+	}
+
+	private int WorldToCellIndex(Vector3 pos)
+	{
+		if (!GridReady) return -1;
+		int x = Mathf.RoundToInt((pos.x - originWorld.x) / cellSize);
+		int y = Mathf.RoundToInt((pos.z - originWorld.z) / cellSize);
+		if (x < 0 || x >= gridW || y < 0 || y >= gridH) return -1;
+		return y * gridW + x;
+	}
+
+	// ── Binary min-heap (Dijkstra) — parallel arrays, decrease-key via heapIndexOf ──────────────
+
+	private void HeapPush(int node, float key)
+	{
+		int i = heapSize++;
+		heapNode[i] = node;
+		heapKey[i] = key;
+		heapIndexOf[node] = i;
+
+		while (i > 0)
+		{
+			int parent = (i - 1) / 2;
+			if (heapKey[parent] <= heapKey[i]) break;
+			HeapSwap(parent, i);
+			i = parent;
+		}
+	}
+
+	private void HeapDecreaseOrPush(int node, float key)
+	{
+		int i = heapIndexOf[node];
+		if (i < 0) { HeapPush(node, key); return; }
+		if (key >= heapKey[i]) return;
+
+		heapKey[i] = key;
+		while (i > 0)
+		{
+			int parent = (i - 1) / 2;
+			if (heapKey[parent] <= heapKey[i]) break;
+			HeapSwap(parent, i);
+			i = parent;
+		}
+	}
+
+	private int HeapPopMin()
+	{
+		int rootNode = heapNode[0];
+		heapIndexOf[rootNode] = -1;
+		heapSize--;
+
+		if (heapSize > 0)
+		{
+			heapNode[0] = heapNode[heapSize];
+			heapKey[0] = heapKey[heapSize];
+			heapIndexOf[heapNode[0]] = 0;
+
+			int i = 0;
+			while (true)
+			{
+				int l = i * 2 + 1, r = i * 2 + 2, smallest = i;
+				if (l < heapSize && heapKey[l] < heapKey[smallest]) smallest = l;
+				if (r < heapSize && heapKey[r] < heapKey[smallest]) smallest = r;
+				if (smallest == i) break;
+				HeapSwap(i, smallest);
+				i = smallest;
+			}
+		}
+
+		return rootNode;
+	}
+
+	private void HeapSwap(int a, int b)
+	{
+		int na = heapNode[a], nb = heapNode[b];
+		float ka = heapKey[a], kb = heapKey[b];
+
+		heapNode[a] = nb; heapKey[a] = kb; heapIndexOf[nb] = a;
+		heapNode[b] = na; heapKey[b] = ka; heapIndexOf[na] = b;
+	}
+}

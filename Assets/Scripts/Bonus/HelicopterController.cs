@@ -4,10 +4,17 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.AI;
 
-public class HelicopterController : MonoBehaviour
+public class HelicopterController : MonoBehaviour, IEvacPoint
 {
 	public enum HeliState { Landing, Loading, TakingOff }
 	public HeliState currentState;
+
+	// IEvacPoint: see CarController — only "active" for the street-AI F_evac field while Loading.
+	public Vector3 EvacPosition => transform.position;
+	public bool IsAcceptingPassengers => currentState == HeliState.Loading;
+
+	private void OnEnable() => CrowdFieldManager.Instance?.RegisterEvacPoint(this);
+	private void OnDisable() => CrowdFieldManager.Instance?.UnregisterEvacPoint(this);
 
 	[Header("Card Data")]
 	public CardData myCardData;

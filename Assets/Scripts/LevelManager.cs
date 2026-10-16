@@ -153,6 +153,8 @@ public class LevelManager : MonoBehaviour
 		if (navSurface != null)
 			navSurface.BuildNavMesh();
 
+		CrowdFieldManager.Instance?.OnLevelLoaded();
+
 		allSpawnPoints.Clear();
 		nightSpawnPoints.Clear();
 

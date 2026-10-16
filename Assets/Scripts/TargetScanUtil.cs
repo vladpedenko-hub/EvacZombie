@@ -4,7 +4,7 @@ using UnityEngine;
 
 // Shared "scan a static AllX roster, keep the single nearest match" loop — the same shape used to
 // be hand-copied in EvacueeBase (panic target), Soldier.FindTarget, CombatHelicopter.FindClosestZombie,
-// and Zombie's FindClosestVictim/TryFindNearestBarricade/bait search, each with its own
+// and Zombie's TryFindNearestBarricade/bait search/civilian lookups, each with its own
 // Vector3.Distance + "if closer, keep it" loop. One implementation here, zero change to which
 // target gets picked or how often each caller runs — see Docs/REFACTOR_AUDIT.md, Phase D.
 //

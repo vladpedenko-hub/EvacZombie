@@ -31,4 +31,59 @@ public class ChaosSettings : ScriptableObject
 
 	[Tooltip("Zombie must be within this radius to trigger human panic")]
 	public float humanPanicTriggerRadius = 4.5f;
+
+	// ── Street AI (feature/zombie-street-ai): shared road-grid + distance-field crowd system.
+	// Supersedes the probabilistic panic trigger above for the zombie-proximity check specifically
+	// (humanPanicChance/humanPanicTriggerRadius are left in place, unread by the new path, so
+	// existing asset values aren't lost if this feature is ever reverted).
+	[Header("Street AI — Shared Grid/Fields")]
+	[Tooltip("How often (seconds) the shared F_civ/F_zed/F_evac distance fields are recalculated. No per-agent pathing happens between refreshes.")]
+	public float fieldRefresh = 0.3f;
+
+	[Tooltip("Base/minimum road-grid cell size (world units). The grid auto-grows cell size on large levels to keep the node count near roadGridTargetCellsPerAxis.")]
+	public float roadGridMinCellSize = 2f;
+
+	[Tooltip("Target number of grid cells per axis — the actual cell size scales up on large levels so width/height stay roughly at this value.")]
+	public int roadGridTargetCellsPerAxis = 48;
+
+	[Header("Street AI — Zombies")]
+	[Tooltip("Path cost (vs. 1 for open road) a zombie's distance field assigns to stepping into a tile occupied by an active barricade. Finite — zombies will route through/attack it if that's still the best option.")]
+	public float barricadePathCost = 15f;
+
+	[Range(0f, 1f)]
+	[Tooltip("Fraction of a normal-wave zombie's spawns that roll as Hunter (descend F_civ) vs Wanderer (patrol intersections).")]
+	public float hunterShare = 0.7f;
+
+	[Range(0f, 1f)]
+	[Tooltip("hunterShare used instead, for zombies spawned while GameManager.State == SuddenDeath (the Night phase).")]
+	public float nightHunterShare = 1.0f;
+
+	[Tooltip("Grid tiles. A Wanderer that has a civilian within this range on the same straight street becomes a Hunter (one-way; it never reverts to Wanderer).")]
+	public float aggroRadiusTiles = 5f;
+
+	[Range(0f, 1f)]
+	[Tooltip("If aliveCivilians / initialCivilians drops below this fraction, every zombie on the level becomes a Hunter regardless of hunterShare.")]
+	public float lateWaveHunterThreshold = 0.2f;
+
+	[Tooltip("Minimum time between a zombie's street-AI navigation decisions (picking a new grid direction/intersection). Opportunistic close-range attacks are not gated by this.")]
+	public float retargetCooldown = 1.5f;
+
+	[Header("Street AI — Civilians")]
+	[Tooltip("Multiplier applied to a civilian's own walkSpeed while Calm (wandering intersection to intersection).")]
+	public float civCalmSpeedMult = 0.6f;
+
+	[Tooltip("Grid tiles. A zombie within this range triggers civilian Panic.")]
+	public float fearRadiusTiles = 4f;
+
+	[Tooltip("Multiplier applied to walkSpeed for the Panic sprint.")]
+	public float panicSpeedMult = 1.7f;
+
+	[Tooltip("Seconds a Panic direction is locked before the civilian re-evaluates threats.")]
+	public float panicDuration = 2.5f;
+
+	[Tooltip("Grid tiles. Within this range of an active evac point (car/helicopter present and accepting passengers), a Calm civilian walks toward it (F_evac) instead of wandering.")]
+	public float evacRadiusTiles = 8f;
+
+	[Tooltip("Seconds between zombie contact and actually turning into a zombie. Killing the infected civilian before this elapses prevents the turn.")]
+	public float turnDelay = 1.5f;
 }
