@@ -46,6 +46,9 @@ public class ChaosSettings : ScriptableObject
 	[Tooltip("Target number of grid cells per axis — the actual cell size scales up on large levels so width/height stay roughly at this value.")]
 	public int roadGridTargetCellsPerAxis = 48;
 
+	[Tooltip("fix/zombie-corner-stuck (4): a grid cell is only walkable if the baked NavMesh is within this fraction of cellSize from the cell's own center. Too high lets the walkable region cut through building corners.")]
+	public float roadGridSnapTolerance = 0.35f;
+
 	[Header("Street AI — Zombies")]
 	[Tooltip("Path cost (vs. 1 for open road) a zombie's distance field assigns to stepping into a tile occupied by an active barricade. Finite — zombies will route through/attack it if that's still the best option.")]
 	public float barricadePathCost = 15f;
@@ -65,8 +68,17 @@ public class ChaosSettings : ScriptableObject
 	[Tooltip("If aliveCivilians / initialCivilians drops below this fraction, every zombie on the level becomes a Hunter regardless of hunterShare.")]
 	public float lateWaveHunterThreshold = 0.2f;
 
-	[Tooltip("Minimum time between a zombie's street-AI navigation decisions (picking a new grid direction/intersection). Opportunistic close-range attacks are not gated by this.")]
+	[Tooltip("Minimum time between a zombie's street-AI navigation decisions (picking a new grid direction/intersection) -- unless it arrives at its current destination first (within ~1 cell), which also forces an early re-decide.")]
 	public float retargetCooldown = 1.5f;
+
+	[Tooltip("fix/zombie-corner-stuck (3): a Hunter's gradient-descent destination is chosen by walking up to this many grid cells ahead (or until an intersection), instead of one cell at a time -- avoids a decision (and a stop) every single cell.")]
+	public int lookaheadCells = 6;
+
+	[Tooltip("fix/zombie-corner-stuck (2): a civilian only becomes a direct opportunistic-chase target if the zombie's NavMesh path to it is at most this long (world units) -- straight-line 'nearby' alone can point through a wall.")]
+	public float closeChaseMaxPath = 6f;
+
+	[Tooltip("fix/zombie-corner-stuck (2): once a close-range victim is picked, it's held for this long before re-evaluating, instead of re-scanning (and potentially flip-flopping against the field direction) every Brain tick.")]
+	public float victimLockTime = 1f;
 
 	[Header("Street AI — Civilians")]
 	[Tooltip("Multiplier applied to a civilian's own walkSpeed while Calm (wandering intersection to intersection).")]

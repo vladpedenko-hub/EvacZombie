@@ -68,13 +68,21 @@ public class Zombie : MonoBehaviour
 	private ZombieRole role = ZombieRole.Hunter;
 
 	// Field-descent/wander navigation decisions (picking the next grid step or a new wander
-	// intersection) happen at most once per RetargetCooldown — see "F" in the task brief. The
-	// opportunistic close-range civilian scan below is NOT gated by this; it only runs when the
-	// shared field already reports a civilian within CloseRangeTiles, which keeps it cheap.
+	// intersection) happen at most once per RetargetCooldown, or sooner if the zombie arrives at
+	// its current destination first (fix/zombie-corner-stuck 3). The opportunistic close-range
+	// civilian scan below is NOT gated by this; it only runs when the shared field already reports
+	// a civilian within CloseRangeTiles, which keeps it cheap.
 	private const float CloseRangeTiles = 2f;
 	private float nextDecisionTime = 0f;
 	private Vector3 wanderDestination;
 	private bool hasWanderDestination = false;
+
+	// fix/zombie-corner-stuck (2): a close-range civilian is only adopted as a direct chase target
+	// if its NavMesh path is short enough (CloseChaseMaxPath), and then held for VictimLockTime —
+	// re-scanning by straight line every tick could pick a civilian behind a wall and fight the
+	// field direction every single Brain tick.
+	private Transform closeChaseLockTarget;
+	private float closeChaseLockUntil = -999f;
 
 	private Renderer[] allRenderers;
 	private Coroutine hitFlashRoutine;
@@ -112,9 +120,12 @@ public class Zombie : MonoBehaviour
 			? LevelManager.Instance.currentData.zombieHealthMultiplier : 1f;
 
 	private float RetargetCooldown => chaosSettings != null ? Mathf.Max(0.1f, chaosSettings.retargetCooldown) : 1.5f;
-	private float AggroRadiusWorld =>
-		(chaosSettings != null ? chaosSettings.aggroRadiusTiles : 5f) *
-		(CrowdFieldManager.Instance != null && CrowdFieldManager.Instance.GridReady ? CrowdFieldManager.Instance.CellSize : 2f);
+	private int LookaheadCells => chaosSettings != null ? Mathf.Max(1, chaosSettings.lookaheadCells) : 6;
+	private float CloseChaseMaxPath => chaosSettings != null ? Mathf.Max(0.1f, chaosSettings.closeChaseMaxPath) : 6f;
+	private float VictimLockTime => chaosSettings != null ? Mathf.Max(0f, chaosSettings.victimLockTime) : 1f;
+	private float CellSizeOrDefault =>
+		CrowdFieldManager.Instance != null && CrowdFieldManager.Instance.GridReady ? CrowdFieldManager.Instance.CellSize : 2f;
+	private float AggroRadiusWorld => (chaosSettings != null ? chaosSettings.aggroRadiusTiles : 5f) * CellSizeOrDefault;
 
 	private float HunterShareForSpawn
 	{
@@ -193,6 +204,8 @@ public class Zombie : MonoBehaviour
 		role = Random.value < HunterShareForSpawn ? ZombieRole.Hunter : ZombieRole.Wanderer;
 		nextDecisionTime = 0f;
 		hasWanderDestination = false;
+		closeChaseLockTarget = null;
+		closeChaseLockUntil = -999f;
 
 		if (brainRoutine != null)
 		{
@@ -454,29 +467,50 @@ public class Zombie : MonoBehaviour
 		overrideDestination = null;
 	}
 
-	// Street AI (feature/zombie-street-ai): replaces the old per-tick 3-candidate shortlist +
-	// CalculatePath + sticky-target damping. Long-range navigation is now just an O(1) read of the
-	// shared F_civ field at this zombie's own cell plus its 4 neighbors, decided at most once per
-	// RetargetCooldown — SetDestination is issued directly from here for that case (isCruising =
-	// true, target = null) rather than being handed back up to Brain(). A Transform target is only
-	// returned for the two cases Brain() still needs exact position/LOS/attack-range handling for:
-	// a civilian already close enough to engage, or a barricade blocking the chosen step.
+	// Street AI (feature/zombie-street-ai, patched by fix/zombie-corner-stuck): replaces the old
+	// per-tick 3-candidate shortlist + CalculatePath + sticky-target damping. Long-range
+	// navigation is now a read of the shared F_civ field at this zombie's own cell, decided at
+	// most once per RetargetCooldown (or sooner on arrival) — SetDestination is issued directly
+	// from here for that case (isCruising = true, target = null) rather than being handed back up
+	// to Brain(). A Transform target is only returned for the two cases Brain() still needs exact
+	// position/LOS/attack-range handling for: a civilian already close enough to engage, or a
+	// barricade blocking the chosen step.
 	protected virtual Transform DecideStreetTarget(out bool isCruising)
 	{
 		isCruising = false;
 		CrowdFieldManager cfm = CrowdFieldManager.Instance;
 		bool fieldReady = cfm != null && cfm.GridReady;
 
-		// Opportunistic close-range engagement, independent of Hunter/Wanderer role: the shared
-		// field already tells us (O(1)) whether a civilian is within a couple of tiles, so the
-		// heavier exact-nearest scan below only runs when it's actually likely to matter.
+		// fix/zombie-corner-stuck (2): a locked close-range victim is held for VictimLockTime
+		// regardless of everything else below, so chasing it can't fight the field direction
+		// every single Brain tick. The Unity null check clears the lock the moment it dies.
+		if (closeChaseLockTarget != null && Time.time < closeChaseLockUntil)
+		{
+			return closeChaseLockTarget;
+		}
+
 		if (fieldReady)
 		{
-			float civTiles = cfm.SampleField(transform.position, CrowdFieldType.Civilian) / Mathf.Max(0.01f, cfm.CellSize);
-			if (civTiles <= CloseRangeTiles)
+			// Cheap O(1) pre-filter: the field value IS already a step count (1 per open tile,
+			// barricadePathCost per barricaded one), so compare it to CloseRangeTiles directly —
+			// dividing by CellSize here was the bug that made this trigger far too early.
+			float civSteps = cfm.SampleField(transform.position, CrowdFieldType.Civilian);
+			if (civSteps <= CloseRangeTiles)
 			{
-				Transform close = FindNearestCivilianDirect();
-				if (close != null) return close;
+				Transform candidate = FindNearestCivilianDirect();
+				if (candidate != null)
+				{
+					// Only commit to a direct chase if the real NavMesh path is short — straight-
+					// line "nearby" can point through a wall, which is exactly what fought the
+					// field direction and produced the corner stutter.
+					float pathLen = GetPathDistance(candidate.position, out bool reachable);
+					if (reachable && pathLen <= CloseChaseMaxPath)
+					{
+						closeChaseLockTarget = candidate;
+						closeChaseLockUntil = Time.time + VictimLockTime;
+						return candidate;
+					}
+				}
 			}
 		}
 		else
@@ -487,10 +521,16 @@ public class Zombie : MonoBehaviour
 			if (direct != null) return direct;
 		}
 
-		if (Time.time < nextDecisionTime)
+		// fix/zombie-corner-stuck (3): re-decide early on arrival (within ~1 cell of the current
+		// destination) instead of always waiting out the full RetargetCooldown — otherwise a short
+		// lookahead step finishes well before the cooldown and the zombie just stands still.
+		bool arrivedAtDestination = agent != null && agent.enabled && agent.isOnNavMesh &&
+			!agent.pathPending && agent.hasPath && agent.remainingDistance < CellSizeOrDefault;
+
+		if (Time.time < nextDecisionTime && !arrivedAtDestination)
 		{
-			// Already cruising toward a previously chosen step/intersection — nothing new to
-			// decide this tick, but we ARE still moving, so Brain() must not ResetPath().
+			// Already cruising toward a previously chosen destination — nothing new to decide
+			// this tick, but we ARE still moving, so Brain() must not ResetPath() (fix 1).
 			isCruising = true;
 			return null;
 		}
@@ -501,10 +541,14 @@ public class Zombie : MonoBehaviour
 
 		if (isHunterNow)
 		{
-			if (fieldReady && cfm.TryGetDescentDirection(transform.position, CrowdFieldType.Civilian, out Vector3 step))
+			// fix/zombie-corner-stuck (1): mark cruising BEFORE attempting a new step. A failed
+			// lookahead (e.g. truly isolated cell) must never fall through to Brain()'s
+			// ResetPath() — that was the permanent corner stall.
+			isCruising = true;
+
+			if (fieldReady && cfm.TryGetLookaheadDescent(transform.position, CrowdFieldType.Civilian, LookaheadCells, out Vector3 step))
 			{
 				if (agent != null && agent.enabled && agent.isOnNavMesh) agent.SetDestination(step);
-				isCruising = true;
 			}
 
 			// Stepping toward a barricade-occupied tile: NavMesh carves a hole there, so the agent
@@ -517,21 +561,19 @@ public class Zombie : MonoBehaviour
 
 		// Wanderer: patrol a random intersection; promote to Hunter if a civilian is visible down
 		// the same straight street within aggroRadius (one-way — never reverts to Wanderer).
+		isCruising = true;
+
 		if (fieldReady)
 		{
 			Transform sighted = FindNearestCivilianDirect(AggroRadiusWorld);
 			if (sighted != null && cfm.IsSameStreetVisible(transform.position, sighted.position))
 			{
 				role = ZombieRole.Hunter;
-				isCruising = true;
 				return null;
 			}
 		}
 
-		bool arrived = agent != null && agent.enabled && agent.isOnNavMesh &&
-			!agent.pathPending && (!agent.hasPath || agent.remainingDistance < 0.5f);
-
-		if (!hasWanderDestination || arrived)
+		if (!hasWanderDestination || arrivedAtDestination)
 		{
 			if (fieldReady && cfm.TryGetRandomIntersection(out Vector3 dest))
 			{
@@ -543,7 +585,6 @@ public class Zombie : MonoBehaviour
 		if (hasWanderDestination && agent != null && agent.enabled && agent.isOnNavMesh)
 		{
 			agent.SetDestination(wanderDestination);
-			isCruising = true;
 		}
 
 		if (TryFindNearestBarricade(out Barricade wanderBlocker)) return wanderBlocker.transform;

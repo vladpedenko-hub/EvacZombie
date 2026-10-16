@@ -41,6 +41,7 @@ public class CrowdFieldManager : MonoBehaviour
 	private bool[] walkable;
 	private Vector3[] cellWorldPos;
 	private readonly List<int> intersectionCells = new List<int>();
+	private bool[] isIntersectionCell; // parallel to walkable — O(1) membership test for lookahead stepping
 
 	private float[] fieldCiv;
 	private float[] fieldZed;
@@ -175,7 +176,15 @@ public class CrowdFieldManager : MonoBehaviour
 		walkable = new bool[count];
 		cellWorldPos = new Vector3[count];
 
-		float sampleRadius = cellSize * 0.6f;
+		// fix/zombie-corner-stuck: a wide acceptance radius here (previously 0.6*cellSize) let a
+		// cell snap to a NavMesh point near a building corner that was really outside this cell's
+		// footprint, making the walkable region cut diagonally through corners -- the field then
+		// pointed zombies through geometry that wasn't actually open, and NavMeshAgent fighting the
+		// field's intent every decision tick looked like "stuck at the corner." Tightening to
+		// roadGridSnapTolerance (default 0.35) means a cell is only walkable if NavMesh is genuinely
+		// close to ITS OWN center.
+		float snapTolerance = cachedSettings != null ? Mathf.Clamp(cachedSettings.roadGridSnapTolerance, 0.05f, 1f) : 0.35f;
+		float sampleRadius = cellSize * snapTolerance;
 		for (int y = 0; y < gridH; y++)
 		{
 			for (int x = 0; x < gridW; x++)
@@ -207,6 +216,7 @@ public class CrowdFieldManager : MonoBehaviour
 	private void BuildIntersections()
 	{
 		intersectionCells.Clear();
+		isIntersectionCell = new bool[walkable.Length];
 
 		for (int idx = 0; idx < walkable.Length; idx++)
 		{
@@ -221,11 +231,18 @@ public class CrowdFieldManager : MonoBehaviour
 			int degree = (n ? 1 : 0) + (s ? 1 : 0) + (e ? 1 : 0) + (w ? 1 : 0);
 			bool corner = degree == 2 && !((n && s) || (e && w));
 
-			if (degree >= 3 || corner) intersectionCells.Add(idx);
+			if (degree >= 3 || corner)
+			{
+				intersectionCells.Add(idx);
+				isIntersectionCell[idx] = true;
+			}
 		}
 
 		// Sparse/degenerate road shapes (no true junction) — fall back to any walkable cell so
-		// Wanderers always have somewhere to pick.
+		// Wanderers always have somewhere to pick. Deliberately NOT marked in isIntersectionCell:
+		// that array means "a real junction", used to stop the Hunter lookahead early (fix 3) —
+		// treating every walkable cell as a junction there would collapse the lookahead back to
+		// single-cell steps, the exact stop-and-go this branch exists to avoid.
 		if (intersectionCells.Count == 0)
 		{
 			for (int idx = 0; idx < walkable.Length; idx++)
@@ -351,6 +368,55 @@ public class CrowdFieldManager : MonoBehaviour
 		return TryGetDirectionalStep(fromWorld, type, steepestDescent: false, out targetWorldPos);
 	}
 
+	// fix/zombie-corner-stuck (3): follows the gradient for up to maxCells steps (or until it
+	// reaches an intersection cell), returning the furthest point reached instead of just the
+	// immediate neighbor. One SetDestination call then covers several cells of smooth NavMeshAgent
+	// travel instead of a decision firing every single cell — which, combined with the
+	// retargetCooldown, was producing a stop-and-go walk.
+	public bool TryGetLookaheadDescent(Vector3 fromWorld, CrowdFieldType type, int maxCells, out Vector3 targetWorldPos)
+	{
+		return TryGetLookahead(fromWorld, type, maxCells, steepestDescent: true, out targetWorldPos);
+	}
+
+	public bool TryGetLookaheadAscent(Vector3 fromWorld, CrowdFieldType type, int maxCells, out Vector3 targetWorldPos)
+	{
+		return TryGetLookahead(fromWorld, type, maxCells, steepestDescent: false, out targetWorldPos);
+	}
+
+	private bool TryGetLookahead(Vector3 fromWorld, CrowdFieldType type, int maxCells, bool steepestDescent, out Vector3 targetWorldPos)
+	{
+		targetWorldPos = fromWorld;
+		if (!GridReady) return false;
+
+		int current = ResolveWalkableCell(fromWorld);
+		if (current < 0) return false;
+
+		float[] field = SelectField(type);
+		int reached = current;
+
+		for (int steps = 0; steps < Mathf.Max(1, maxCells); steps++)
+		{
+			int x = reached % gridW, y = reached / gridW;
+			int best = reached;
+			float bestVal = field[reached];
+
+			CheckNeighbor(x + 1, y, field, steepestDescent, ref best, ref bestVal);
+			CheckNeighbor(x - 1, y, field, steepestDescent, ref best, ref bestVal);
+			CheckNeighbor(x, y + 1, field, steepestDescent, ref best, ref bestVal);
+			CheckNeighbor(x, y - 1, field, steepestDescent, ref best, ref bestVal);
+
+			if (best == reached) break; // local optimum — can't go any further this direction
+
+			reached = best;
+
+			if (isIntersectionCell[reached]) break;
+		}
+
+		if (reached == current) return false;
+		targetWorldPos = cellWorldPos[reached];
+		return true;
+	}
+
 	public bool TryGetRandomIntersection(out Vector3 worldPos)
 	{
 		worldPos = Vector3.zero;
@@ -394,8 +460,8 @@ public class CrowdFieldManager : MonoBehaviour
 		targetWorldPos = fromWorld;
 		if (!GridReady) return false;
 
-		int idx = WorldToCellIndex(fromWorld);
-		if (idx < 0 || !walkable[idx]) return false;
+		int idx = ResolveWalkableCell(fromWorld);
+		if (idx < 0) return false;
 
 		float[] field = SelectField(type);
 		int x = idx % gridW, y = idx / gridW;
@@ -443,6 +509,49 @@ public class CrowdFieldManager : MonoBehaviour
 		int y = Mathf.RoundToInt((pos.z - originWorld.z) / cellSize);
 		if (x < 0 || x >= gridW || y < 0 || y >= gridH) return -1;
 		return y * gridW + x;
+	}
+
+	// fix/zombie-corner-stuck (1): the cell nearest a world position (via rounding) is commonly
+	// non-walkable right at a building corner — e.g. a civilian/zombie standing just off the
+	// corner of a road tile. Previously that made every directional query fail outright, and
+	// Zombie.Brain() treated "no step" as "nothing to do" and called agent.ResetPath() every tick,
+	// a permanent stall. This walks outward (8 neighbors, then a radius-2 ring) and returns the
+	// walkable cell nearest the actual position instead of giving up immediately.
+	private int ResolveWalkableCell(Vector3 worldPos)
+	{
+		int idx = WorldToCellIndex(worldPos);
+		if (idx < 0) return -1;
+		if (walkable[idx]) return idx;
+
+		int cx = idx % gridW;
+		int cy = idx / gridW;
+
+		for (int radius = 1; radius <= 2; radius++)
+		{
+			int best = -1;
+			float bestSqr = float.MaxValue;
+
+			for (int dy = -radius; dy <= radius; dy++)
+			{
+				for (int dx = -radius; dx <= radius; dx++)
+				{
+					if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) != radius) continue; // this radius's ring only
+
+					int nx = cx + dx, ny = cy + dy;
+					if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) continue;
+
+					int nIdx = ny * gridW + nx;
+					if (!walkable[nIdx]) continue;
+
+					float sqr = (cellWorldPos[nIdx] - worldPos).sqrMagnitude;
+					if (sqr < bestSqr) { bestSqr = sqr; best = nIdx; }
+				}
+			}
+
+			if (best >= 0) return best;
+		}
+
+		return -1;
 	}
 
 	// ── Binary min-heap (Dijkstra) — parallel arrays, decrease-key via heapIndexOf ──────────────
@@ -514,4 +623,45 @@ public class CrowdFieldManager : MonoBehaviour
 		heapNode[a] = nb; heapKey[a] = kb; heapIndexOf[nb] = a;
 		heapNode[b] = na; heapKey[b] = ka; heapIndexOf[na] = b;
 	}
+
+#if UNITY_EDITOR
+	// fix/zombie-corner-stuck (5): visual sanity check for the grid/field bugs above — walkable
+	// cells and each cell's F_civ descent direction, so a bad corner (non-walkable gap, wrong
+	// arrow) is visible in the Scene view instead of only inferred from zombie behavior.
+	[Header("Debug Gizmos (Editor only)")]
+	public bool drawGizmos = false;
+	public Color gizmoWalkableColor = new Color(0f, 1f, 0f, 0.15f);
+	public Color gizmoDescentArrowColor = new Color(1f, 0.5f, 0f, 0.85f);
+
+	private void OnDrawGizmos()
+	{
+		if (!drawGizmos || !GridReady || walkable == null || fieldCiv == null) return;
+
+		for (int i = 0; i < walkable.Length; i++)
+		{
+			if (!walkable[i]) continue;
+
+			Gizmos.color = gizmoWalkableColor;
+			Gizmos.DrawCube(cellWorldPos[i] + Vector3.up * 0.02f, new Vector3(cellSize * 0.85f, 0.02f, cellSize * 0.85f));
+
+			float val = fieldCiv[i];
+			if (float.IsPositiveInfinity(val)) continue;
+
+			int x = i % gridW, y = i / gridW;
+			int best = i;
+			float bestVal = val;
+			CheckNeighbor(x + 1, y, fieldCiv, true, ref best, ref bestVal);
+			CheckNeighbor(x - 1, y, fieldCiv, true, ref best, ref bestVal);
+			CheckNeighbor(x, y + 1, fieldCiv, true, ref best, ref bestVal);
+			CheckNeighbor(x, y - 1, fieldCiv, true, ref best, ref bestVal);
+			if (best == i) continue;
+
+			Gizmos.color = gizmoDescentArrowColor;
+			Vector3 from = cellWorldPos[i] + Vector3.up * 0.05f;
+			Vector3 to = Vector3.Lerp(cellWorldPos[i], cellWorldPos[best], 0.6f) + Vector3.up * 0.05f;
+			Gizmos.DrawLine(from, to);
+			Gizmos.DrawSphere(to, cellSize * 0.08f);
+		}
+	}
+#endif
 }
