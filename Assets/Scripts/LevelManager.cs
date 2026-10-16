@@ -101,6 +101,16 @@ public class LevelManager : MonoBehaviour
 
 	private Coroutine v2WaveCoroutine;
 
+	// feature/sandbox-level: set by SandboxButtonInjector right before loading the Gameplay scene,
+	// consumed (and cleared) by Start() below. Bypasses the normal region/index lookup entirely --
+	// the sandbox level is deliberately not in any RegionConfig.levels list.
+	public static LevelData PendingSandboxLevel;
+
+	// feature/sandbox-level: waves and SuddenDeathRoutine both check this before spawning, so the
+	// dev panel's pause/resume button can freeze new spawns without touching Time.timeScale
+	// (zombies/civilians already on the map keep moving).
+	public bool wavesPaused = false;
+
 	private void Awake() => Instance = this;
 
 	private void Start()
@@ -109,6 +119,14 @@ public class LevelManager : MonoBehaviour
 		{
 			dayColor = sunLight.color;
 			dayIntensity = sunLight.intensity;
+		}
+
+		if (PendingSandboxLevel != null)
+		{
+			LevelData sandboxLevel = PendingSandboxLevel;
+			PendingSandboxLevel = null;
+			LoadLevel(sandboxLevel);
+			return;
 		}
 
 		int regionIdx = PlayerProfile.Instance.currentRegionIndex;
@@ -491,6 +509,10 @@ public class LevelManager : MonoBehaviour
 
 		for (int i = 0; i < finalSpawnCount; i++)
 		{
+			// feature/sandbox-level: dev panel pause/resume -- holds here (zombies/civilians
+			// already on the map keep moving) rather than skipping the spawn outright.
+			while (wavesPaused) yield return null;
+
 			Transform spawnPoint = validPoints[Random.Range(0, validPoints.Count)].transform;
 			GameObject prefabToUse = runtimeAction.actionData.zombiePrefab != null ? runtimeAction.actionData.zombiePrefab : zombiePrefab;
 
@@ -720,6 +742,8 @@ public class LevelManager : MonoBehaviour
 		while (GameManager.Instance.State == GameManager.GameState.SuddenDeath)
 		{
 			yield return new WaitForSeconds(currentData.suddenDeathSpawnRate);
+
+			if (wavesPaused) continue; // feature/sandbox-level: dev panel pause/resume
 
 			if (nightSpawnPoints.Count <= 0) continue;
 

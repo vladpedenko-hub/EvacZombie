@@ -95,6 +95,10 @@ public class LevelData : ScriptableObject
 	[Tooltip("Shows the Planning fake-door ad button (+Supply) and the Lose-popup retry-with-Supply ad. v2 only.")]
 	public bool v2ShowAdOffer = false;
 
+	[Header("Dev Sandbox (feature/sandbox-level)")]
+	[Tooltip("True only on the dev-only sandbox level. Gates the sandbox dev panel, all-cards-unlocked deck, etc. Must stay false on every normal level.")]
+	public bool isSandboxLevel = false;
+
 	public int GetStar1Target()
 	{
 		return star1RequiredHumans > 0 ? star1RequiredHumans : requiredRescuedHumans;

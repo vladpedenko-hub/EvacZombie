@@ -154,6 +154,15 @@ public class CrowdFieldManager : MonoBehaviour
 		if (cachedSettings == null && settings != null) cachedSettings = settings;
 	}
 
+	// feature/sandbox-level: lets the dev panel's preset dropdown force-switch the active
+	// CrowdTuning asset at runtime (unlike EnsureConfigured, which only ever sets it once).
+	public CrowdTuning ActiveTuning => cachedSettings;
+
+	public void OverrideTuning(CrowdTuning tuning)
+	{
+		if (tuning != null) cachedSettings = tuning;
+	}
+
 	public void RegisterEvacPoint(IEvacPoint point)
 	{
 		if (!evacPoints.Contains(point)) evacPoints.Add(point);

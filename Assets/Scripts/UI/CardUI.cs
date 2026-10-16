@@ -303,4 +303,15 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 			if (cardImage != null) cardImage.color = Color.gray;
 		}
 	}
+
+	// feature/sandbox-level: lets the sandbox dev panel's noCooldowns toggle clear an
+	// in-progress cooldown immediately. Never called on a normal level.
+	public void ClearCooldown()
+	{
+		isOnCooldown = false;
+		currentCooldown = 0f;
+		if (cooldownFill != null) cooldownFill.fillAmount = 0;
+		if (timerText != null) timerText.text = "";
+		if (cardImage != null) cardImage.color = Color.white;
+	}
 }

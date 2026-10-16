@@ -9,10 +9,20 @@ public class CardManager : MonoBehaviour
 
 	public static CardManager Instance;
 
+	// feature/sandbox-level: when true, SpawnDeck() shows every card in SandboxAllCards instead
+	// of the player's real PlayerProfile.currentDeck. Set/cleared only by SandboxDevPanel, and
+	// only while the active level has LevelData.isSandboxLevel == true -- never true otherwise.
+	public static bool SandboxAllCardsActive = false;
+	public static List<CardData> SandboxAllCards = null;
+
 	[Header("Where to spawn cards?")]
 	public Transform cardsPanel;
 
 	private void Awake() => Instance = this;
+
+	// feature/sandbox-level: lets SandboxDevPanel force a rebuild after setting the statics
+	// above, regardless of Awake/Start ordering between the two components.
+	public void RefreshDeck() => SpawnDeck();
 
 	// Real hit-test against the actual card-hand panel, used in place of a hardcoded
 	// "bottom N% of screen is UI" assumption so this works on any aspect ratio / safe area.
@@ -61,6 +71,17 @@ public class CardManager : MonoBehaviour
 			hlg.childControlWidth = false;
 			hlg.childForceExpandWidth = false;
 			hlg.childAlignment = TextAnchor.MiddleCenter;
+		}
+
+		// feature/sandbox-level: all 8 cards, bypassing the player's real 5-slot deck entirely.
+		if (SandboxAllCardsActive && SandboxAllCards != null)
+		{
+			foreach (CardData card in SandboxAllCards)
+			{
+				if (card != null && card.uiButtonPrefab != null)
+					Instantiate(card.uiButtonPrefab, cardsPanel);
+			}
+			return;
 		}
 
 		if (PlayerProfile.Instance == null)

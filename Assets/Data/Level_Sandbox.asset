@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
+  m_Name: Level_Sandbox
+  m_EditorClassIdentifier: Assembly-CSharp::LevelData
+  levelPrefab: {fileID: 4058927015439930953, guid: d3b33cbf6ce2c0b4c83e4033ada3ced4, type: 3}
+  humanCount: 150
+  levelTimer: 600
+  suddenDeathSpawnRate: 0.2
+  zombieSpeedMultiplier: 1
+  zombieHealthMultiplier: 1
+  waves:
+  - {fileID: 11400000, guid: 73a824c9876ca7842a3c65e3838c6582, type: 2}
+  - {fileID: 11400000, guid: 36336ab9e0be3c1469f0c0c7355581d7, type: 2}
+  - {fileID: 11400000, guid: f12b097f74c4cd84abb4346858b9ce7c, type: 2}
+  - {fileID: 11400000, guid: 3ca26d5b536f065439966ddcb1e3a9a7, type: 2}
+  - {fileID: 11400000, guid: 7271d62df66cd2f4ea7ff291fe73357d, type: 2}
+  - {fileID: 11400000, guid: 82514a0131f74f24bba6f3ec16fe4745, type: 2}
+  - {fileID: 11400000, guid: 125dee9105538514b97fd4d4907b8859, type: 2}
+  - {fileID: 11400000, guid: f89d23ee0aa959746842e4265300d8f6, type: 2}
+  requiredRescuedHumans: 0
+  star1RequiredHumans: 0
+  star2RequiredHumans: 0
+  star3Description: 
+  missionTitleOverride: SANDBOX
+  missionIcon: {fileID: 0}
+  missionDescription: 
+  cameraType: 0
+  cameraPosition: {x: 0, y: 20, z: -15}
+  cameraRotation: {x: 60, y: 0, z: 0}
+  cameraFieldOfView: 60
+  orthographicSize: 10
+  currencyReward: 0
+  levelRewardLootbox: {fileID: 0}
+  clearGrants: []
+  scientistCount: 20
+  scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
+  abilityEnabled: 1
+  onStartTutorial: {fileID: 0}
+  onNightTutorial: {fileID: 0}
+  useCoreLoopV2: 1
+  startingSupply: 999
+  v2PlanningEnabled: 1
+  v2ShowSupplyHud: 1
+  v2ShowWaveIndicator: 1
+  v2ShowAdOffer: 0
+  isSandboxLevel: 1
