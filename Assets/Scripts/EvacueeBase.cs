@@ -8,20 +8,17 @@ using System.Collections;
 // otherwise identical except which static roster they register themselves in
 // (Human.AllHumans vs Scientist.AllScientists) — see each subclass's OnEnable/OnDisable.
 //
-// Note: ChaosSettings' OLDER panic tuning fields are named "human..." (humanPanicChance, etc.)
-// even though both Human and Scientist read them — that predates this extraction and predates
-// the street-AI pass (which superseded them with fearRadiusTiles/panicDuration/panicSpeedMult;
-// see ChaosSettings.cs), so they're left in place but unread here.
+// feature/crowd-tuning-pass: walkSpeed/runSpeed/panicRadius used to be duplicated per-prefab
+// fields here — they now live on the single shared CrowdTuning asset (civCalmSpeed,
+// civPanicSpeed, fearRadiusCells), as ABSOLUTE world-units/second speeds, not multipliers.
+// "Running" (rescue sprint and panic flee) both now read civPanicSpeed — they already shared the
+// exact same runSpeed value before this pass, so this isn't a behavior change, just one fewer
+// field saying the same number twice.
 [RequireComponent(typeof(NavMeshAgent))]
 public abstract class EvacueeBase : MonoBehaviour
 {
-	[Header("Movement Settings")]
-	public float walkSpeed = 1.5f;
-	public float runSpeed = 4.0f;
-	public float panicRadius = 8f;
-
-	[Header("Chaos")]
-	public ChaosSettings chaosSettings;
+	[Header("Tuning")]
+	public CrowdTuning crowdTuning;
 
 	[Header("Stopping Distances")]
 	public float carStoppingDistance = 1.4f;
@@ -43,14 +40,17 @@ public abstract class EvacueeBase : MonoBehaviour
 	// already being lifted away" without a new flag — isBoarding already tracks exactly that.
 	public bool IsBoarding => isBoarding;
 
+	// feature/crowd-tuning-pass (Part B.4): lets a nearby Calm civilian detect this one is
+	// already panicking (contagion), without exposing any more state than that.
+	public bool IsPanicking => isPanicking;
+
 	private bool isPanicking = false;
 	private float panicEndTime = 0f;
 	private bool panicUsesEvac = false;
 
-	// Street-AI decisions (Calm wander target, Evacuating step, Panic step) are only ever issued
-	// at most once per RetargetCooldown — see "F" in the task brief. Movement stays smooth via the
-	// NavMeshAgent's own path-following in between; this is what stops the old per-frame
-	// re-steering jitter at the root instead of damping it after the fact.
+	// Street-AI decisions (Calm wander target, Evacuating step) are only ever issued at most once
+	// per RetargetCooldown or on arrival. Panic (Part B.3) no longer uses this timer at all — it
+	// re-steps purely on arrival, so it can't freeze mid-flight waiting out a cooldown.
 	private float nextStreetDecisionTime = 0f;
 	private bool hasWanderDestination = false;
 	private Vector3 wanderDestination;
@@ -59,16 +59,33 @@ public abstract class EvacueeBase : MonoBehaviour
 	private Vector3 rescueApproachPoint;
 	private bool isBoarding = false;
 
+	// feature/crowd-tuning-pass: every tunable below reads crowdTuning directly (a property, not
+	// a cached field) so Inspector edits apply immediately in Play Mode.
+	private float CalmSpeed => crowdTuning != null ? crowdTuning.civCalmSpeed : 0.45f;
+	private float PanicSpeed => crowdTuning != null ? crowdTuning.civPanicSpeed : 1.4f;
+	private float PanicDuration => crowdTuning != null ? crowdTuning.panicDuration : 2.5f;
+	private float RetargetCooldown => crowdTuning != null ? Mathf.Max(0.1f, crowdTuning.retargetCooldown) : 1.5f;
+	private int PanicLookaheadCells => crowdTuning != null ? Mathf.Max(1, crowdTuning.panicLookaheadCells) : 6;
+
 	private float CellSizeOrDefault =>
 		CrowdFieldManager.Instance != null && CrowdFieldManager.Instance.GridReady
 			? CrowdFieldManager.Instance.CellSize : 2f;
 
-	private float FearRadiusWorld => (chaosSettings != null ? chaosSettings.fearRadiusTiles : 4f) * CellSizeOrDefault;
-	private float EvacRadiusWorld => (chaosSettings != null ? chaosSettings.evacRadiusTiles : 8f) * CellSizeOrDefault;
-	private float PanicDuration => chaosSettings != null ? chaosSettings.panicDuration : 2.5f;
-	private float PanicSpeedMult => chaosSettings != null ? chaosSettings.panicSpeedMult : 1.7f;
-	private float CalmSpeedMult => chaosSettings != null ? chaosSettings.civCalmSpeedMult : 0.6f;
-	private float RetargetCooldown => chaosSettings != null ? Mathf.Max(0.1f, chaosSettings.retargetCooldown) : 1.5f;
+	// Part B.1: a single radius, compared against a straight-line zombie distance — no more
+	// panicRadius pre-cap shrinking the effective trigger range.
+	private float FearRadiusWorld => (crowdTuning != null ? crowdTuning.fearRadiusCells : 4f) * CellSizeOrDefault;
+
+	// Part B.4: contagion range, also a straight-line comparison (same reasoning as fear radius).
+	private float PanicContagionWorld => (crowdTuning != null ? crowdTuning.panicContagionCells : 2f) * CellSizeOrDefault;
+
+	// Part B.5: Calm civilians only wander to intersections at least this many F_zed *steps* away.
+	private float CalmSafeDistanceCells => crowdTuning != null ? crowdTuning.calmSafeDistanceCells : 6f;
+
+	// Part B.6: F_evac is sampled as a step count, so the threshold must be a step count too — no
+	// *CellSizeOrDefault conversion here. (Previously compared a step count against a world-unit
+	// threshold, which silently shrank or inflated the effective evac radius depending on cell
+	// size — exactly the unit mismatch this pass fixes.)
+	private float EvacRadiusCells => crowdTuning != null ? crowdTuning.evacRadiusCells : 8f;
 
 	private void Awake()
 	{
@@ -78,7 +95,7 @@ public abstract class EvacueeBase : MonoBehaviour
 
 	private void Start()
 	{
-		agent.speed = walkSpeed;
+		agent.speed = CalmSpeed;
 
 		if (GameManager.Instance != null && GameManager.Instance.State != GameManager.GameState.Planning)
 		{
@@ -111,12 +128,12 @@ public abstract class EvacueeBase : MonoBehaviour
 
 		float boost = AbilityManager.Instance != null ? AbilityManager.Instance.GetSpeedMultiplier() : 1f;
 
-		CrowdFieldManager.Instance?.EnsureConfigured(chaosSettings);
+		CrowdFieldManager.Instance?.EnsureConfigured(crowdTuning);
 
 		// --- Priority 1: Rescue ---
 		if (isRescuing && rescueTarget != null)
 		{
-			agent.speed = runSpeed * boost;
+			agent.speed = PanicSpeed * boost;
 
 			Vector3 targetPoint = hasRescueApproachPoint
 				? rescueApproachPoint
@@ -131,41 +148,49 @@ public abstract class EvacueeBase : MonoBehaviour
 			return;
 		}
 
-		// --- Priority 2: Panic — deterministic trigger (a zombie within fearRadius tiles), then
-		// direction is LOCKED for panicDuration without re-checking threats (brief "E"). Locked
-		// only means the choice of "flee the zombie" vs "run for a nearby evac point" is held;
-		// the actual next-step destination is still refreshed every RetargetCooldown so the
-		// civilian keeps moving along that same locked direction instead of freezing mid-flight.
+		// --- Priority 2: Panic — deterministic trigger (a zombie within fearRadius cells,
+		// straight line, Part B.1), then direction is LOCKED for panicDuration without
+		// re-checking threats. Locked only means the choice of "flee the zombie" vs "run for a
+		// nearby evac point" is held; re-stepping itself is now purely arrival-based (Part B.3).
 		if (isPanicking)
 		{
-			agent.speed = walkSpeed * PanicSpeedMult * boost;
+			agent.speed = PanicSpeed * boost;
 
 			if (Time.time >= panicEndTime)
 			{
 				isPanicking = false;
 			}
-			else if (Time.time >= nextStreetDecisionTime)
+			else
 			{
-				nextStreetDecisionTime = Time.time + RetargetCooldown;
-				StepPanic();
+				bool arrived = !agent.pathPending && (!agent.hasPath || agent.remainingDistance < CellSizeOrDefault);
+				if (arrived) StepPanic();
 			}
 
 			return;
 		}
 
-		Zombie nearestZombie = TargetScanUtil.FindNearest(Zombie.AllZombies, transform.position, panicRadius, z => z.transform.position, out float minD);
+		Zombie nearestZombie = TargetScanUtil.FindNearest(Zombie.AllZombies, transform.position, float.MaxValue, z => z.transform.position, out float minD);
 		if (nearestZombie != null && minD <= FearRadiusWorld)
 		{
 			StartPanic();
 			return;
 		}
 
+		// --- Priority 2.5: Panic contagion (Part B.4) — a nearby civilian is already panicking.
+		EvacueeBase nearestPanicker = FindNearestPanickingCivilian(PanicContagionWorld);
+		if (nearestPanicker != null)
+		{
+			StartPanic();
+			return;
+		}
+
 		// --- Priority 3: Evacuating — an active evac point (car/heli currently loading) is
-		// within evacRadius tiles; descend F_evac instead of wandering.
+		// within evacRadiusCells field-steps; descend F_evac instead of wandering.
 		if (StepEvacuatingIfInRange(boost)) return;
 
-		// --- Priority 4: Calm — slow wander between intersections.
-		agent.speed = walkSpeed * CalmSpeedMult * boost;
+		// --- Priority 4: Calm — slow wander between intersections that are far enough from
+		// zombies (Part B.5); flee instead if none qualify.
+		agent.speed = CalmSpeed * boost;
 		StepCalmWander();
 	}
 
@@ -173,13 +198,16 @@ public abstract class EvacueeBase : MonoBehaviour
 	{
 		isPanicking = true;
 		panicEndTime = Time.time + PanicDuration;
-		nextStreetDecisionTime = 0f; // step immediately, then on the normal cooldown
 
 		CrowdFieldManager cfm = CrowdFieldManager.Instance;
 		panicUsesEvac = cfm != null && cfm.GridReady &&
-			cfm.SampleField(transform.position, CrowdFieldType.Evac) <= EvacRadiusWorld;
+			cfm.SampleField(transform.position, CrowdFieldType.Evac) <= EvacRadiusCells;
+
+		StepPanic();
 	}
 
+	// Part B.3: a multi-cell lookahead step (not a single grid cell) in one SetDestination,
+	// re-called only on arrival from Update() above — no fixed-cooldown freeze mid-flight.
 	private void StepPanic()
 	{
 		CrowdFieldManager cfm = CrowdFieldManager.Instance;
@@ -190,11 +218,27 @@ public abstract class EvacueeBase : MonoBehaviour
 		}
 
 		bool got = panicUsesEvac
-			? cfm.TryGetDescentDirection(transform.position, CrowdFieldType.Evac, out Vector3 step)
-			: cfm.TryGetAscentDirection(transform.position, CrowdFieldType.Zombie, out step);
+			? cfm.TryGetLookaheadDescent(transform.position, CrowdFieldType.Evac, PanicLookaheadCells, out Vector3 step)
+			: cfm.TryGetLookaheadAscent(transform.position, CrowdFieldType.Zombie, PanicLookaheadCells, out step);
 
 		if (got) agent.SetDestination(step);
 		else SetRandomDest();
+	}
+
+	// Part B.4: nearest OTHER civilian (Human or Scientist) currently panicking, straight-line.
+	private EvacueeBase FindNearestPanickingCivilian(float maxDistance)
+	{
+		Human nearestHuman = TargetScanUtil.FindNearest(Human.AllHumans, transform.position, maxDistance,
+			h => h.transform.position, out float distH, accept: (h, d) => !ReferenceEquals(h, this) && h.IsPanicking);
+		Scientist nearestScientist = TargetScanUtil.FindNearest(Scientist.AllScientists, transform.position, maxDistance,
+			s => s.transform.position, out float distS, accept: (s, d) => !ReferenceEquals(s, this) && s.IsPanicking);
+
+		if (nearestHuman != null && nearestScientist != null)
+			return distH <= distS ? (EvacueeBase)nearestHuman : nearestScientist;
+
+		if (nearestHuman != null) return nearestHuman;
+		if (nearestScientist != null) return nearestScientist;
+		return null;
 	}
 
 	private bool StepEvacuatingIfInRange(float boost)
@@ -202,10 +246,12 @@ public abstract class EvacueeBase : MonoBehaviour
 		CrowdFieldManager cfm = CrowdFieldManager.Instance;
 		if (cfm == null || !cfm.GridReady) return false;
 
+		// Part B.6: evacDist is a field STEP COUNT — compare directly to EvacRadiusCells, no
+		// world-unit conversion.
 		float evacDist = cfm.SampleField(transform.position, CrowdFieldType.Evac);
-		if (float.IsPositiveInfinity(evacDist) || evacDist > EvacRadiusWorld) return false;
+		if (float.IsPositiveInfinity(evacDist) || evacDist > EvacRadiusCells) return false;
 
-		agent.speed = walkSpeed * boost;
+		agent.speed = CalmSpeed * boost;
 
 		if (Time.time >= nextStreetDecisionTime)
 		{
@@ -217,6 +263,10 @@ public abstract class EvacueeBase : MonoBehaviour
 		return true;
 	}
 
+	// Part B.5: only ever picks an intersection whose F_zed reading is at least
+	// CalmSafeDistanceCells; if none of the grid's intersections currently qualify (zombies have
+	// spread out enough to make everywhere "close"), flee-steps (ascend F_zed) instead of
+	// wandering into danger.
 	private void StepCalmWander()
 	{
 		bool arrived = !agent.pathPending &&
@@ -227,11 +277,19 @@ public abstract class EvacueeBase : MonoBehaviour
 		nextStreetDecisionTime = Time.time + RetargetCooldown;
 
 		CrowdFieldManager cfm = CrowdFieldManager.Instance;
-		if (cfm != null && cfm.GridReady && cfm.TryGetRandomIntersection(out Vector3 dest))
+		if (cfm != null && cfm.GridReady && cfm.TryGetRandomSafeIntersection(CrowdFieldType.Zombie, CalmSafeDistanceCells, out Vector3 dest))
 		{
 			wanderDestination = dest;
 			hasWanderDestination = true;
 			agent.SetDestination(wanderDestination);
+			return;
+		}
+
+		hasWanderDestination = false;
+
+		if (cfm != null && cfm.GridReady && cfm.TryGetLookaheadAscent(transform.position, CrowdFieldType.Zombie, PanicLookaheadCells, out Vector3 fleeStep))
+		{
+			agent.SetDestination(fleeStep);
 		}
 		else
 		{

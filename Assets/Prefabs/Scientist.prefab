@@ -64,6 +64,8 @@ MeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -85,9 +87,11 @@ MeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!65 &467006627618878021
 BoxCollider:
@@ -144,9 +148,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fdfd666664aff3146a5b33a945f16b43, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  walkSpeed: 0.5
-  runSpeed: 1.2
-  panicRadius: 3
-  chaosSettings: {fileID: 11400000, guid: f5c10597ed9fc044aa87725e3945c485, type: 2}
+  crowdTuning: {fileID: 11400000, guid: 968056c545e3ef04fa97f069f424c1e1, type: 2}
+  carStoppingDistance: 1.4
+  heliStoppingDistance: 2
+  infectedMarkerPrefab: {fileID: 0}
+  infectedTintColor: {r: 0.65, g: 0.95, b: 0.25, a: 1}
   isRescuing: 0
   rescueTarget: {fileID: 0}

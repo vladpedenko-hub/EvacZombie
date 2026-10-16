@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09daf9f008b0f8546b49fce386097850, type: 3}
+  m_Name: CrowdTuning
+  m_EditorClassIdentifier: Assembly-CSharp::CrowdTuning
+  zombieSpeed: 1
+  attackDistance: 1
+  barricadeCheckRadius: 3.5
+  barricadeDamage: 25
+  attackCooldown: 1
+  crowdRadius: 0.8
+  hunterShare: 0.7
+  nightHunterShare: 1
+  aggroRadiusCells: 5
+  lateWaveHunterThreshold: 0.2
+  retargetCooldown: 1.5
+  hunterCandidateCount: 4
+  maxZombiesPerTarget: 2
+  speedVariance: 0.15
+  zombieAvoidanceLow: 0
+  civCalmSpeed: 0.45
+  civPanicSpeed: 1.4
+  fearRadiusCells: 4
+  panicLookaheadCells: 6
+  panicDuration: 2.5
+  panicContagionCells: 2
+  calmSafeDistanceCells: 6
+  evacRadiusCells: 8
+  lookaheadCells: 6
+  maxDetourRatio: 1.5
+  siegeQueueRadiusCells: 3
+  stallTime: 1
+  infectDelay: 0.15
+  turnDelay: 0.7
+  fieldRefresh: 0.3
+  roadGridMinCellSize: 2
+  roadGridTargetCellsPerAxis: 48
+  roadGridSnapTolerance: 0.35
+  barricadePathCost: 15
+  drawGridGizmos: 0
+  gizmoWalkableColor: {r: 0, g: 1, b: 0, a: 0.15}
+  gizmoDescentArrowColor: {r: 1, g: 0.5, b: 0, a: 0.85}
+  showZombieSiegeOverlay: 0
+  legacyChaosEnabled: 0
+  zombieLoseTargetChance: 0.03
+  zombieLoseTargetCheckInterval: 0.75
+  zombieLoseTargetDuration: 0.6
+  humanPanicChance: 0.05
+  humanPanicCheckInterval: 1
+  humanPanicDuration: 0.4
+  humanPanicMoveDistance: 3
+  humanPanicTriggerRadius: 4.5

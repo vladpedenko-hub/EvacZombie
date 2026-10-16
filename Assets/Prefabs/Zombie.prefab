@@ -151,18 +151,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 60
   detectRadius: 10
-  attackDistance: 1
-  attackCooldown: 1
-  moveSpeed: 1
-  infectDelay: 0.15
   zombiePrefab: {fileID: 5563988904170882665}
-  chaosSettings: {fileID: 11400000, guid: f5c10597ed9fc044aa87725e3945c485, type: 2}
+  crowdTuning: {fileID: 11400000, guid: 968056c545e3ef04fa97f069f424c1e1, type: 2}
   lineOfSightObstacles:
     serializedVersion: 2
     m_Bits: 0
-  barricadeCheckRadius: 3.5
-  barricadeDamage: 25
-  crowdRadius: 0.8
   hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
   hitFlashDuration: 0.08
   deathShrinkDuration: 0.12

@@ -93,15 +93,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 200
   detectRadius: 10
-  attackDistance: 1.4
-  attackCooldown: 1
-  moveSpeed: 1
-  infectDelay: 0.15
   zombiePrefab: {fileID: 5563988904170882665, guid: 35f1b3dcc90a70748b76c896e76d296e, type: 3}
-  chaosSettings: {fileID: 11400000, guid: f5c10597ed9fc044aa87725e3945c485, type: 2}
-  crowdRadius: 0.8
-  crowdShakeStrength: 0.12
-  crowdShakeDuration: 0.35
+  crowdTuning: {fileID: 11400000, guid: 968056c545e3ef04fa97f069f424c1e1, type: 2}
+  lineOfSightObstacles:
+    serializedVersion: 2
+    m_Bits: 0
+  hitFlashColor: {r: 1, g: 1, b: 1, a: 1}
+  hitFlashDuration: 0.08
+  deathShrinkDuration: 0.12
   rageInterval: 8
   rageDuration: 2.5
   rageBreakRadius: 4
@@ -173,6 +172,8 @@ MeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -194,9 +195,11 @@ MeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &9028930594325800811
 GameObject:

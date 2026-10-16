@@ -12,33 +12,25 @@ public class Zombie : MonoBehaviour
 	// humans/scientists turned into zombies. Not read by any gameplay/flow code.
 	public static int InfectedThisLevel = 0;
 
+	// feature/crowd-tuning-pass: moveSpeed/attackDistance/barricadeCheckRadius/barricadeDamage/
+	// attackCooldown/infectDelay/crowdRadius used to be duplicated per-prefab fields here — they
+	// now live on the single shared CrowdTuning asset (zombieSpeed, attackDistance,
+	// barricadeCheckRadius, barricadeDamage, attackCooldown, infectDelay, crowdRadius). maxHealth
+	// and detectRadius are intentionally NOT migrated: maxHealth already differs between this
+	// prefab and ZombieBoss (60 vs 200) and centralizing it would erase that; detectRadius is
+	// dead code (never read anywhere), not a live tunable.
 	[Header("Settings")]
 	public int maxHealth = 100;
 	public float detectRadius = 10f;
-	public float attackDistance = 1.4f;
-	public float attackCooldown = 1.0f;
-	public float moveSpeed = 2.8f;
 
-	[Header("Infection")]
-	public float infectDelay = 0.15f;
 	public GameObject zombiePrefab;
 
-	[Header("Chaos")]
-	public ChaosSettings chaosSettings;
+	[Header("Tuning")]
+	public CrowdTuning crowdTuning;
 
 	[Header("Line of Sight")]
 	[Tooltip("Layers treated as vision-blocking obstacles (e.g. buildings). Leave as Nothing to skip the raycast check and rely on NavMesh path distance alone.")]
 	public LayerMask lineOfSightObstacles = 0;
-
-	[Header("Barricades")]
-	[Tooltip("Radius within which the zombie switches to attacking the barricade instead of walking around it")]
-	public float barricadeCheckRadius = 3.5f;
-	[Tooltip("Damage dealt per hit to a barricade")]
-	public int barricadeDamage = 25;
-
-	[Header("Bait Behavior")]
-	[Tooltip("Radius within which zombies spread out slightly around the bait point")]
-	public float crowdRadius = 0.8f;
 
 	[Header("Hit Feedback")]
 	public Color hitFlashColor = Color.white;
@@ -61,7 +53,7 @@ public class Zombie : MonoBehaviour
 	// Street AI: Wanderer patrols random road-grid intersections until it spots a civilian down
 	// the same straight street within aggroRadius, at which point it becomes a Hunter (one-way —
 	// it never reverts). Rolled per spawn/pool reuse in StartBrainIfNeeded(), from
-	// chaosSettings.hunterShare (or nightHunterShare during GameManager.GameState.SuddenDeath).
+	// crowdTuning.hunterShare (or nightHunterShare during GameManager.GameState.SuddenDeath).
 	//
 	// feature/azs-crowd-feel (1): Hunter no longer descends the shared F_civ field — each Hunter
 	// directly chases one specific civilian (huntTarget), picked at random among the
@@ -87,6 +79,13 @@ public class Zombie : MonoBehaviour
 
 	private EvacueeBase huntTarget;
 	private float nextHuntRepickTime = 0f;
+
+	// feature/crowd-tuning-pass (Part C.3): once SiegeStep identifies a barricade, stay committed
+	// to IT specifically (skip hunt re-evaluation entirely) until it's destroyed or no longer the
+	// nearest barricade on our route — re-checked only every RetargetCooldown, not every tick, so
+	// normal queueing at the chokepoint can't flip Hunt/Siege back and forth.
+	private Barricade siegeBarricade;
+	private float nextSiegeRouteCheckTime = 0f;
 
 	// fix/zombie-siege-mode (4): continuous "has this agent been ~stationary for StallTime"
 	// tracking, updated once per Brain tick (see BrainTickInterval). IsStalled is a live read for
@@ -120,9 +119,9 @@ public class Zombie : MonoBehaviour
 	private NavMeshPath cachedPath;
 
 	// Cached so AttackRoutine/HitFlashRoutine/LoseTargetRoutine's repeated yields don't allocate a
-	// new WaitForSeconds every attack/hit/distraction — these durations are fixed per-prefab values
-	// (infectDelay/attackCooldown/hitFlashDuration are Inspector fields, chaosSettings isn't
-	// reassigned at runtime), so one instance per zombie, created once, covers every pool reuse too.
+	// new WaitForSeconds every attack/hit/distraction — hitFlashDuration is a fixed per-prefab
+	// value, and crowdTuning isn't reassigned at runtime, so one instance per zombie, created
+	// once, covers every pool reuse too (re-rolled on each spawn/pool reuse in Awake()).
 	private WaitForSeconds infectDelayWait;
 	private WaitForSeconds attackCooldownWait;
 	private WaitForSeconds hitFlashWait;
@@ -142,23 +141,42 @@ public class Zombie : MonoBehaviour
 		LevelManager.Instance != null && LevelManager.Instance.currentData != null
 			? LevelManager.Instance.currentData.zombieHealthMultiplier : 1f;
 
-	private float RetargetCooldown => chaosSettings != null ? Mathf.Max(0.1f, chaosSettings.retargetCooldown) : 1.5f;
+	// feature/crowd-tuning-pass: every tunable below reads crowdTuning directly (a property, not
+	// a cached field) so Inspector edits apply immediately in Play Mode.
+	private float ZombieSpeed => crowdTuning != null ? crowdTuning.zombieSpeed : 1.0f;
+	private float AttackDistance => crowdTuning != null ? crowdTuning.attackDistance : 1.4f;
+	private float BarricadeCheckRadius => crowdTuning != null ? crowdTuning.barricadeCheckRadius : 3.5f;
+	private int BarricadeDamage => crowdTuning != null ? crowdTuning.barricadeDamage : 25;
+	private float AttackCooldownSeconds => crowdTuning != null ? crowdTuning.attackCooldown : 1.0f;
+	private float CrowdRadius => crowdTuning != null ? crowdTuning.crowdRadius : 0.8f;
+	private float InfectDelaySeconds => crowdTuning != null ? crowdTuning.infectDelay : 0.15f;
+	private float TurnDelay => crowdTuning != null ? crowdTuning.turnDelay : 0.7f;
+
+	private float RetargetCooldown => crowdTuning != null ? Mathf.Max(0.1f, crowdTuning.retargetCooldown) : 1.5f;
 	private float CellSizeOrDefault =>
 		CrowdFieldManager.Instance != null && CrowdFieldManager.Instance.GridReady ? CrowdFieldManager.Instance.CellSize : 2f;
-	private float AggroRadiusWorld => (chaosSettings != null ? chaosSettings.aggroRadiusTiles : 5f) * CellSizeOrDefault;
-	private int HunterCandidateCount => chaosSettings != null ? Mathf.Max(1, chaosSettings.hunterCandidateCount) : 4;
-	private int MaxZombiesPerTarget => chaosSettings != null ? Mathf.Max(1, chaosSettings.maxZombiesPerTarget) : 2;
-	private float SpeedVariance => chaosSettings != null ? Mathf.Max(0f, chaosSettings.speedVariance) : 0.15f;
-	private int LookaheadCells => chaosSettings != null ? Mathf.Max(1, chaosSettings.lookaheadCells) : 6;
-	private float StallTime => chaosSettings != null ? Mathf.Max(0.1f, chaosSettings.stallTime) : 1f;
+	private float AggroRadiusWorld => (crowdTuning != null ? crowdTuning.aggroRadiusCells : 5f) * CellSizeOrDefault;
+	private int HunterCandidateCount => crowdTuning != null ? Mathf.Max(1, crowdTuning.hunterCandidateCount) : 4;
+	private int MaxZombiesPerTarget => crowdTuning != null ? Mathf.Max(1, crowdTuning.maxZombiesPerTarget) : 2;
+	private float SpeedVariance => crowdTuning != null ? Mathf.Max(0f, crowdTuning.speedVariance) : 0.15f;
+	private int LookaheadCells => crowdTuning != null ? Mathf.Max(1, crowdTuning.lookaheadCells) : 6;
+	private float StallTime => crowdTuning != null ? Mathf.Max(0.1f, crowdTuning.stallTime) : 1f;
+
+	// feature/crowd-tuning-pass (Part C.1): a Hunt target is only accepted if the real NavMesh
+	// path to it isn't a wild detour compared to the zombie's own F_civ field reading.
+	private float MaxDetourRatio => crowdTuning != null ? Mathf.Max(1f, crowdTuning.maxDetourRatio) : 1.5f;
+
+	// feature/crowd-tuning-pass (Part C.2): standing still within this radius of a barricade
+	// while sieging is normal queueing, not a stall.
+	private float SiegeQueueRadiusWorld => (crowdTuning != null ? crowdTuning.siegeQueueRadiusCells : 3f) * CellSizeOrDefault;
 
 	private float HunterShareForSpawn
 	{
 		get
 		{
-			if (chaosSettings == null) return 0.7f;
+			if (crowdTuning == null) return 0.7f;
 			bool night = GameManager.Instance != null && GameManager.Instance.State == GameManager.GameState.SuddenDeath;
-			return night ? chaosSettings.nightHunterShare : chaosSettings.hunterShare;
+			return night ? crowdTuning.nightHunterShare : crowdTuning.hunterShare;
 		}
 	}
 
@@ -178,10 +196,14 @@ public class Zombie : MonoBehaviour
 		allRenderers = GetComponentsInChildren<Renderer>();
 		propertyBlock = new MaterialPropertyBlock();
 
-		infectDelayWait = new WaitForSeconds(infectDelay);
-		attackCooldownWait = new WaitForSeconds(attackCooldown);
+		// These few durations are still cached into WaitForSeconds objects once (an existing,
+		// unrelated GC-avoidance decision — Docs/REFACTOR_AUDIT.md Phase B), so an Inspector edit
+		// to infectDelay/attackCooldown/zombieLoseTargetDuration on crowdTuning only takes effect
+		// on this zombie's next spawn/pool-reuse, not mid-attack.
+		infectDelayWait = new WaitForSeconds(InfectDelaySeconds);
+		attackCooldownWait = new WaitForSeconds(AttackCooldownSeconds);
 		hitFlashWait = new WaitForSeconds(hitFlashDuration);
-		loseTargetWait = new WaitForSeconds(chaosSettings != null ? chaosSettings.zombieLoseTargetDuration : 0.6f);
+		loseTargetWait = new WaitForSeconds(crowdTuning != null ? crowdTuning.zombieLoseTargetDuration : 0.6f);
 
 		for (int i = 0; i < allRenderers.Length; i++)
 		{
@@ -218,7 +240,7 @@ public class Zombie : MonoBehaviour
 	{
 		ApplySpawnVariance();
 
-		CrowdFieldManager.Instance?.EnsureConfigured(chaosSettings);
+		CrowdFieldManager.Instance?.EnsureConfigured(crowdTuning);
 		StartBrainIfNeeded();
 	}
 
@@ -232,9 +254,9 @@ public class Zombie : MonoBehaviour
 
 		if (agent != null)
 		{
-			agent.speed = moveSpeed * SpeedMultiplier * perZombieSpeedMult;
+			agent.speed = ZombieSpeed * SpeedMultiplier * perZombieSpeedMult;
 			agent.avoidancePriority = perZombieAvoidancePriority;
-			agent.obstacleAvoidanceType = (chaosSettings != null && chaosSettings.zombieAvoidanceLow)
+			agent.obstacleAvoidanceType = (crowdTuning != null && crowdTuning.zombieAvoidanceLow)
 				? ObstacleAvoidanceType.LowQualityObstacleAvoidance
 				: originalAvoidanceType;
 		}
@@ -246,6 +268,8 @@ public class Zombie : MonoBehaviour
 		hasWanderDestination = false;
 		huntTarget = null;
 		nextHuntRepickTime = 0f;
+		siegeBarricade = null;
+		nextSiegeRouteCheckTime = 0f;
 
 		if (brainRoutine != null)
 		{
@@ -415,7 +439,7 @@ public class Zombie : MonoBehaviour
 				bool targetIsBarricade = currentBait == null && target.GetComponent<Barricade>() != null;
 				bool blockedByWall = currentBait == null && !targetIsBarricade && !pathReachable;
 
-				if (dist > attackDistance || !hasLOS || blockedByWall)
+				if (dist > AttackDistance || !hasLOS || blockedByWall)
 				{
 					if (blockedByWall && currentBait == null && !targetIsBarricade)
 					{
@@ -479,12 +503,12 @@ public class Zombie : MonoBehaviour
 
 	private bool ShouldLoseTarget()
 	{
-		if (chaosSettings == null) return false;
-		if (!chaosSettings.chaosEnabled) return false;
+		if (crowdTuning == null) return false;
+		if (!crowdTuning.legacyChaosEnabled) return false;
 		if (Time.time < nextChaosCheckTime) return false;
 
-		nextChaosCheckTime = Time.time + chaosSettings.zombieLoseTargetCheckInterval;
-		return Random.value < chaosSettings.zombieLoseTargetChance;
+		nextChaosCheckTime = Time.time + crowdTuning.zombieLoseTargetCheckInterval;
+		return Random.value < crowdTuning.zombieLoseTargetChance;
 	}
 
 	private IEnumerator LoseTargetRoutine()
@@ -507,6 +531,11 @@ public class Zombie : MonoBehaviour
 	private void UpdateStallTracking()
 	{
 		bool canStall = agent != null && agent.enabled && agent.isOnNavMesh && !isAttacking;
+
+		// feature/crowd-tuning-pass (Part C.2): queueing at a barricade chokepoint is expected
+		// standing-still, not a stuck agent — don't even accumulate stall time there.
+		if (canStall && IsNearBarricade(SiegeQueueRadiusWorld)) canStall = false;
+
 		bool movingEnough = canStall && agent.velocity.magnitude >= 0.2f;
 
 		if (!canStall || movingEnough)
@@ -533,7 +562,7 @@ public class Zombie : MonoBehaviour
 		{
 			Vector3 baitTargetPoint = currentBait.hasValidAttractPoint ? currentBait.attractPoint : currentBait.transform.position;
 
-			Vector2 offset2D = Random.insideUnitCircle * crowdRadius;
+			Vector2 offset2D = Random.insideUnitCircle * CrowdRadius;
 			Vector3 offset = new Vector3(offset2D.x, 0f, offset2D.y);
 			currentBaitDestination = baitTargetPoint + offset;
 
@@ -564,6 +593,25 @@ public class Zombie : MonoBehaviour
 		if (isHunterNow)
 		{
 			isCruising = true;
+
+			// feature/crowd-tuning-pass (Part C.3): once committed to besieging a specific
+			// barricade, stay there — skip hunt re-evaluation entirely — until it's destroyed or
+			// no longer the nearest barricade on our route. Re-checked only every
+			// RetargetCooldown, not every tick, so normal queueing jitter can't flip this.
+			if (siegeBarricade != null)
+			{
+				bool recheck = Time.time >= nextSiegeRouteCheckTime;
+				bool stillValid = !recheck || IsBarricadeStillOnRoute(siegeBarricade);
+
+				if (stillValid)
+				{
+					if (recheck) nextSiegeRouteCheckTime = Time.time + RetargetCooldown;
+					currentMode = ZombieMode.Siege;
+					return SiegeStep(cfm, fieldReady);
+				}
+
+				siegeBarricade = null;
+			}
 
 			// fix/zombie-siege-mode (4): a Hunter barely moving for StallTime while still
 			// "chasing" something (not an attack windup) is almost certainly wedged against
@@ -620,7 +668,14 @@ public class Zombie : MonoBehaviour
 			if (agent != null && agent.enabled && agent.isOnNavMesh) agent.SetDestination(step);
 		}
 
-		if (TryFindNearestBarricade(out Barricade blocker)) return blocker.transform;
+		if (TryFindNearestBarricade(out Barricade blocker))
+		{
+			// feature/crowd-tuning-pass (Part C.3): commit to this specific barricade so the
+			// Hunter branch above stops re-evaluating hunt candidates every tick while sieging.
+			siegeBarricade = blocker;
+			nextSiegeRouteCheckTime = Time.time + RetargetCooldown;
+			return blocker.transform;
+		}
 
 		return null;
 	}
@@ -675,13 +730,26 @@ public class Zombie : MonoBehaviour
 
 		ShuffleInPlace(huntCandidates);
 
+		// feature/crowd-tuning-pass (Part C.1): a complete path alone isn't enough — it must also
+		// not be a wild detour compared to how far F_civ itself says civilians are from here.
+		// Grid-not-ready/no-field-reading falls back to "any complete path", same as before.
+		CrowdFieldManager cfm = CrowdFieldManager.Instance;
+		float maxPath = float.PositiveInfinity;
+		if (cfm != null && cfm.GridReady)
+		{
+			float civSteps = cfm.SampleField(transform.position, CrowdFieldType.Civilian);
+			if (!float.IsPositiveInfinity(civSteps))
+				maxPath = civSteps * cfm.CellSize * MaxDetourRatio;
+		}
+
 		foreach (EvacueeBase candidate in huntCandidates)
 		{
 			if (CountZombiesTargeting(candidate) >= MaxZombiesPerTarget) continue;
 
 			if (agent != null && agent.enabled && agent.isOnNavMesh &&
 				agent.CalculatePath(candidate.transform.position, cachedPath) &&
-				cachedPath.status == NavMeshPathStatus.PathComplete)
+				cachedPath.status == NavMeshPathStatus.PathComplete &&
+				PathCornersLength(cachedPath) <= maxPath)
 			{
 				return candidate;
 			}
@@ -819,10 +887,27 @@ public class Zombie : MonoBehaviour
 
 	private bool TryFindNearestBarricade(out Barricade result)
 	{
-		result = TargetScanUtil.FindNearest(Barricade.AllBarricades, transform.position, barricadeCheckRadius,
+		result = TargetScanUtil.FindNearest(Barricade.AllBarricades, transform.position, BarricadeCheckRadius,
 			b => b.transform.position, out _);
 
 		return result != null;
+	}
+
+	// feature/crowd-tuning-pass (Part C.2): a wider, separate radius from BarricadeCheckRadius —
+	// used only to decide whether "standing still" counts as a stall, not whether to attack.
+	private bool IsNearBarricade(float radius)
+	{
+		return TargetScanUtil.FindNearest(Barricade.AllBarricades, transform.position, radius,
+			b => b.transform.position, out _) != null;
+	}
+
+	// feature/crowd-tuning-pass (Part C.3): still "on route" if it's still the nearest barricade
+	// within the normal attack-check radius — if a different one (or none) is closer now, the
+	// field has routed us elsewhere and the siege commitment should release.
+	private bool IsBarricadeStillOnRoute(Barricade b)
+	{
+		if (b == null) return false;
+		return TryFindNearestBarricade(out Barricade current) && current == b;
 	}
 
 	protected virtual IEnumerator AttackRoutine(Transform target)
@@ -844,8 +929,8 @@ public class Zombie : MonoBehaviour
 			// give extra distance allowance
 			bool targetIsBarricade = target.GetComponent<Barricade>() != null;
 			float effectiveRange = targetIsBarricade
-				? attackDistance + 1.5f
-				: attackDistance + 0.25f;
+				? AttackDistance + 1.5f
+				: AttackDistance + 0.25f;
 
 			if (dist <= effectiveRange && HasLineOfSight(target.position))
 			{
@@ -865,7 +950,7 @@ public class Zombie : MonoBehaviour
 		Barricade barricade = targetObj.GetComponent<Barricade>();
 		if (barricade != null)
 		{
-			barricade.TakeDamage(barricadeDamage);
+			barricade.TakeDamage(BarricadeDamage);
 			float stunDur = RunSessionData.Instance?.GetModifier("barricade_stun_dur") ?? 0f;
 			if (stunDur > 0f) Stun(stunDur);
 			return;
@@ -892,7 +977,7 @@ public class Zombie : MonoBehaviour
 
 		Feedback.Play(FeedbackEvent.ZombieInfect, human.transform.position + Vector3.up * 0.5f);
 
-		float delay = chaosSettings != null ? chaosSettings.turnDelay : 1.5f;
+		float delay = TurnDelay;
 		human.BeginInfection(delay, evacuee => TurnIntoZombie((Human)evacuee));
 	}
 
@@ -921,7 +1006,7 @@ public class Zombie : MonoBehaviour
 
 		Feedback.Play(FeedbackEvent.ZombieInfect, scientist.transform.position + Vector3.up * 0.5f);
 
-		float delay = chaosSettings != null ? chaosSettings.turnDelay : 1.5f;
+		float delay = TurnDelay;
 		scientist.BeginInfection(delay, evacuee => TurnIntoZombie((Scientist)evacuee));
 	}
 
@@ -952,7 +1037,7 @@ public class Zombie : MonoBehaviour
 
 		Vector3 baitTargetPoint = bait.hasValidAttractPoint ? bait.attractPoint : bait.transform.position;
 
-		Vector2 offset2D = Random.insideUnitCircle * crowdRadius;
+		Vector2 offset2D = Random.insideUnitCircle * CrowdRadius;
 		Vector3 offset = new Vector3(offset2D.x, 0f, offset2D.y);
 		currentBaitDestination = baitTargetPoint + offset;
 

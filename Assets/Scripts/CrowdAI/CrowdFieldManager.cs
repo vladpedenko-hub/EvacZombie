@@ -31,7 +31,7 @@ public class CrowdFieldManager : MonoBehaviour
 	// (aliveCivilians dropped below chaosSettings.lateWaveHunterThreshold of the level's peak).
 	public bool ForceAllHunters { get; private set; }
 
-	private ChaosSettings cachedSettings;
+	private CrowdTuning cachedSettings;
 
 	private float cellSize;
 	private int gridW;
@@ -105,10 +105,10 @@ public class CrowdFieldManager : MonoBehaviour
 	// Called from LevelManager right after navSurface.BuildNavMesh(). The actual grid build is
 	// deferred to this object's own next Update() rather than done synchronously here: at this
 	// exact point in LoadLevel() no civilian/zombie has spawned yet, so EnsureConfigured() hasn't
-	// cached a ChaosSettings reference for grid-resolution tuning. Humans/Scientists spawn later in
+	// cached a CrowdTuning reference for grid-resolution tuning. Humans/Scientists spawn later in
 	// the same LoadLevel() call and their Start() runs before this object's next Update(), so by
 	// rebuild time a settings reference is already cached in the common case (deliberately NOT
-	// reset here — the same ChaosSettings asset is shared project-wide, so keeping the last-known
+	// reset here — the same CrowdTuning asset is shared project-wide, so keeping the last-known
 	// reference across level loads means even a level with zero initial civilians gets correctly
 	// tuned grid resolution instead of falling back to field defaults).
 	public void OnLevelLoaded()
@@ -119,7 +119,7 @@ public class CrowdFieldManager : MonoBehaviour
 		ForceAllHunters = false;
 	}
 
-	public void EnsureConfigured(ChaosSettings settings)
+	public void EnsureConfigured(CrowdTuning settings)
 	{
 		if (cachedSettings == null && settings != null) cachedSettings = settings;
 	}
@@ -429,6 +429,34 @@ public class CrowdFieldManager : MonoBehaviour
 		return true;
 	}
 
+	// feature/crowd-tuning-pass (Part B.5): same as TryGetRandomIntersection, but only considers
+	// intersections whose dangerField reading is at least minFieldValue (field STEPS, e.g. F_zed
+	// for "far enough from zombies") — uniform random pick via reservoir sampling, so this stays
+	// allocation-free regardless of how many intersections qualify.
+	public bool TryGetRandomSafeIntersection(CrowdFieldType dangerField, float minFieldValue, out Vector3 worldPos)
+	{
+		worldPos = Vector3.zero;
+		if (!GridReady) return false;
+
+		float[] field = SelectField(dangerField);
+		int chosen = -1;
+		int seen = 0;
+
+		for (int i = 0; i < intersectionCells.Count; i++)
+		{
+			int cell = intersectionCells[i];
+			float v = field[cell];
+			if (float.IsPositiveInfinity(v) || v < minFieldValue) continue;
+
+			seen++;
+			if (Random.Range(0, seen) == 0) chosen = cell;
+		}
+
+		if (chosen < 0) return false;
+		worldPos = cellWorldPos[chosen];
+		return true;
+	}
+
 	// True if a and b sit on the same grid row/column with every intervening cell walkable — the
 	// "same straight street" check a Wanderer uses to notice a civilian and become a Hunter.
 	public bool IsSameStreetVisible(Vector3 a, Vector3 b)
@@ -631,20 +659,19 @@ public class CrowdFieldManager : MonoBehaviour
 	// fix/zombie-corner-stuck (5): visual sanity check for the grid/field bugs above — walkable
 	// cells and each cell's F_civ descent direction, so a bad corner (non-walkable gap, wrong
 	// arrow) is visible in the Scene view instead of only inferred from zombie behavior.
-	[Header("Debug Gizmos (Editor only)")]
-	public bool drawGizmos = false;
-	public Color gizmoWalkableColor = new Color(0f, 1f, 0f, 0.15f);
-	public Color gizmoDescentArrowColor = new Color(1f, 0.5f, 0f, 0.85f);
-
+	// feature/crowd-tuning-pass: the toggle/colors moved to CrowdTuning (Debug section) — read
+	// from cachedSettings like every other tunable, null-guarded since no zombie/civilian may
+	// have spawned yet to populate it.
 	private void OnDrawGizmos()
 	{
-		if (!drawGizmos || !GridReady || walkable == null || fieldCiv == null) return;
+		if (cachedSettings == null || !cachedSettings.drawGridGizmos) return;
+		if (!GridReady || walkable == null || fieldCiv == null) return;
 
 		for (int i = 0; i < walkable.Length; i++)
 		{
 			if (!walkable[i]) continue;
 
-			Gizmos.color = gizmoWalkableColor;
+			Gizmos.color = cachedSettings.gizmoWalkableColor;
 			Gizmos.DrawCube(cellWorldPos[i] + Vector3.up * 0.02f, new Vector3(cellSize * 0.85f, 0.02f, cellSize * 0.85f));
 
 			float val = fieldCiv[i];
@@ -659,14 +686,14 @@ public class CrowdFieldManager : MonoBehaviour
 			CheckNeighbor(x, y - 1, fieldCiv, true, ref best, ref bestVal);
 			if (best == i) continue;
 
-			Gizmos.color = gizmoDescentArrowColor;
+			Gizmos.color = cachedSettings.gizmoDescentArrowColor;
 			Vector3 from = cellWorldPos[i] + Vector3.up * 0.05f;
 			Vector3 to = Vector3.Lerp(cellWorldPos[i], cellWorldPos[best], 0.6f) + Vector3.up * 0.05f;
 			Gizmos.DrawLine(from, to);
 			Gizmos.DrawSphere(to, cellSize * 0.08f);
 		}
 
-		if (showZombieSiegeOverlay) DrawZombieSiegeGizmos();
+		if (cachedSettings.showZombieSiegeOverlay) DrawZombieSiegeGizmos();
 	}
 
 	// fix/zombie-siege-mode (5): per-zombie line to its current NavMeshAgent destination
@@ -708,13 +735,11 @@ public class CrowdFieldManager : MonoBehaviour
 	// DEVELOPMENT_BUILD is a deprecated preprocessor directive in this Unity version (UAC0009) —
 	// Debug.isDebugBuild is the supported runtime equivalent (true in the Editor and in
 	// development player builds, false in release builds), so the gating happens inside OnGUI
-	// instead of via #if. Shares the showZombieSiegeOverlay toggle with the Editor-only gizmos.
-	[Header("Debug Overlay (Editor + development builds)")]
-	public bool showZombieSiegeOverlay = false;
-
+	// instead of via #if. Shares the showZombieSiegeOverlay toggle (CrowdTuning, Debug section)
+	// with the Editor-only gizmos above.
 	private void OnGUI()
 	{
-		if (!showZombieSiegeOverlay || !Debug.isDebugBuild) return;
+		if (cachedSettings == null || !cachedSettings.showZombieSiegeOverlay || !Debug.isDebugBuild) return;
 
 		int stalled = 0;
 		foreach (Zombie z in Zombie.AllZombies)
