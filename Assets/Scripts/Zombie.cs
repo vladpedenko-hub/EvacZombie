@@ -72,11 +72,30 @@ public class Zombie : MonoBehaviour
 	private enum ZombieRole { Hunter, Wanderer }
 	private ZombieRole role = ZombieRole.Hunter;
 
+	// fix/zombie-siege-mode: display/debug-only sub-state, set alongside each decision branch
+	// below. Hunt = chasing a civilian with a verified complete path. Siege = no candidate has a
+	// complete path right now (e.g. a barricade blocks every route) — follows the F_civ lookahead
+	// gradient instead, which is finite-cost through barricades, until close enough to attack one.
+	// Wander = the existing intersection patrol. Read by CrowdFieldManager's debug overlay.
+	public enum ZombieMode { Hunt, Wander, Siege }
+	private ZombieMode currentMode = ZombieMode.Wander;
+	public ZombieMode CurrentMode => currentMode;
+	public NavMeshAgent Agent => agent;
+
 	private Vector3 wanderDestination;
 	private bool hasWanderDestination = false;
 
 	private EvacueeBase huntTarget;
 	private float nextHuntRepickTime = 0f;
+
+	// fix/zombie-siege-mode (4): continuous "has this agent been ~stationary for StallTime"
+	// tracking, updated once per Brain tick (see BrainTickInterval). IsStalled is a live read for
+	// the debug overlay's counter; stallHandledThisEpisode makes the actual "drop target, enter
+	// siege" reaction one-shot per stall episode instead of re-firing every tick while stalled.
+	private const float BrainTickInterval = 0.15f;
+	private float zeroVelocityDuration = 0f;
+	private bool stallHandledThisEpisode = false;
+	public bool IsStalled => zeroVelocityDuration >= StallTime;
 
 	// feature/azs-crowd-feel (5): per-instance variance so a wave of zombies doesn't move as one
 	// uniform blob. Rolled once per spawn/pool-reuse in ApplySpawnVariance().
@@ -130,6 +149,8 @@ public class Zombie : MonoBehaviour
 	private int HunterCandidateCount => chaosSettings != null ? Mathf.Max(1, chaosSettings.hunterCandidateCount) : 4;
 	private int MaxZombiesPerTarget => chaosSettings != null ? Mathf.Max(1, chaosSettings.maxZombiesPerTarget) : 2;
 	private float SpeedVariance => chaosSettings != null ? Mathf.Max(0f, chaosSettings.speedVariance) : 0.15f;
+	private int LookaheadCells => chaosSettings != null ? Mathf.Max(1, chaosSettings.lookaheadCells) : 6;
+	private float StallTime => chaosSettings != null ? Mathf.Max(0.1f, chaosSettings.stallTime) : 1f;
 
 	private float HunterShareForSpawn
 	{
@@ -330,7 +351,7 @@ public class Zombie : MonoBehaviour
 
 	protected virtual IEnumerator Brain()
 	{
-		WaitForSeconds wait = new WaitForSeconds(0.15f);
+		WaitForSeconds wait = new WaitForSeconds(BrainTickInterval);
 
 		while (!isDead)
 		{
@@ -365,6 +386,8 @@ public class Zombie : MonoBehaviour
 				continue;
 			}
 
+			UpdateStallTracking();
+
 			Transform target;
 			Vector3? overrideDestination;
 			bool isCruising;
@@ -394,7 +417,16 @@ public class Zombie : MonoBehaviour
 
 				if (dist > attackDistance || !hasLOS || blockedByWall)
 				{
-					if (agent != null && agent.enabled && agent.isOnNavMesh)
+					if (blockedByWall && currentBait == null && !targetIsBarricade)
+					{
+						// fix/zombie-siege-mode (3): the path to this civilian just went Partial
+						// (e.g. a barricade placed mid-chase) -- Unity would otherwise send the
+						// agent to the nearest reachable point, usually a sidewalk nowhere near
+						// the actual obstruction. Drop the target now instead; the next Brain
+						// tick re-evaluates (DecideStreetTarget) and falls into siege mode.
+						huntTarget = null;
+					}
+					else if (agent != null && agent.enabled && agent.isOnNavMesh)
 					{
 						agent.SetDestination(targetPos);
 					}
@@ -468,6 +500,25 @@ public class Zombie : MonoBehaviour
 		isDistracted = false;
 	}
 
+	// fix/zombie-siege-mode (4): accumulates how long this zombie has been under ~0.2 speed while
+	// not mid-attack (a barricade windup or a civilian bite doesn't count as stalled). Runs once
+	// per Brain tick, so the accumulation step is a fixed BrainTickInterval rather than
+	// Time.deltaTime (coroutine-paced, not frame-paced).
+	private void UpdateStallTracking()
+	{
+		bool canStall = agent != null && agent.enabled && agent.isOnNavMesh && !isAttacking;
+		bool movingEnough = canStall && agent.velocity.magnitude >= 0.2f;
+
+		if (!canStall || movingEnough)
+		{
+			zeroVelocityDuration = 0f;
+			stallHandledThisEpisode = false;
+			return;
+		}
+
+		zeroVelocityDuration += BrainTickInterval;
+	}
+
 	protected virtual void FindTargetWithBaitPriority(out Transform target, out Vector3? overrideDestination, out bool isCruising)
 	{
 		target = null;
@@ -512,6 +563,19 @@ public class Zombie : MonoBehaviour
 
 		if (isHunterNow)
 		{
+			isCruising = true;
+
+			// fix/zombie-siege-mode (4): a Hunter barely moving for StallTime while still
+			// "chasing" something (not an attack windup) is almost certainly wedged against
+			// geometry it can't actually reach — drop it and go straight to siege mode instead of
+			// re-picking (which could just select the same unreachable/jammed situation again).
+			if (huntTarget != null && IsStalled && !stallHandledThisEpisode)
+			{
+				stallHandledThisEpisode = true;
+				huntTarget = null;
+				nextHuntRepickTime = Time.time + RetargetCooldown + Random.Range(0f, 0.5f);
+			}
+
 			bool needsRepick = huntTarget == null || !IsValidHuntTarget(huntTarget) || Time.time >= nextHuntRepickTime;
 
 			if (needsRepick)
@@ -526,18 +590,39 @@ public class Zombie : MonoBehaviour
 
 			if (huntTarget != null)
 			{
+				currentMode = ZombieMode.Hunt;
+
 				// Barricade handling stays as-is: a barricade right next to the zombie takes
 				// priority over the chase (NavMesh naturally stalls the agent at its carved hole).
 				if (TryFindNearestBarricade(out Barricade blocker)) return blocker.transform;
 				return huntTarget.transform;
 			}
 
-			return WanderStep(cfm, fieldReady, allowPromote: false, out isCruising);
+			// fix/zombie-siege-mode (2): no under-cap candidate has a complete path right now —
+			// follow F_civ's lookahead gradient (barricades are finite cost there, so it still
+			// leads toward whatever's blocking) instead of patrolling like a Wanderer.
+			// TryFindNearestBarricade (inside SiegeStep, same radius as above) takes over the
+			// moment that gets the zombie close enough to actually attack.
+			currentMode = ZombieMode.Siege;
+			return SiegeStep(cfm, fieldReady);
 		}
 
 		// Wanderer: patrol a random intersection; promote to Hunter if a civilian is visible down
 		// the same straight street within aggroRadius (one-way — never reverts to Wanderer).
+		currentMode = ZombieMode.Wander;
 		return WanderStep(cfm, fieldReady, allowPromote: true, out isCruising);
+	}
+
+	private Transform SiegeStep(CrowdFieldManager cfm, bool fieldReady)
+	{
+		if (fieldReady && cfm.TryGetLookaheadDescent(transform.position, CrowdFieldType.Civilian, LookaheadCells, out Vector3 step))
+		{
+			if (agent != null && agent.enabled && agent.isOnNavMesh) agent.SetDestination(step);
+		}
+
+		if (TryFindNearestBarricade(out Barricade blocker)) return blocker.transform;
+
+		return null;
 	}
 
 	private Transform WanderStep(CrowdFieldManager cfm, bool fieldReady, bool allowPromote, out bool isCruising)
@@ -576,10 +661,13 @@ public class Zombie : MonoBehaviour
 		return null;
 	}
 
-	// feature/azs-crowd-feel (1, 2): a random civilian among the hunterCandidateCount nearest
-	// (straight-line, cheap approximation) reachable ones, respecting the maxZombiesPerTarget cap.
-	// Prefers a candidate with a verified complete NavMesh path, but falls back to any under-cap
-	// candidate otherwise — the barricade-stall fallback in DecideStreetTarget covers the rest.
+	// feature/azs-crowd-feel (1, 2), patched by fix/zombie-siege-mode (1): a random civilian
+	// among the hunterCandidateCount nearest (straight-line, cheap approximation) ones, respecting
+	// the maxZombiesPerTarget cap. A candidate is only ever adopted with a VERIFIED complete
+	// NavMesh path — there is deliberately no under-cap fallback to an unreachable candidate
+	// anymore: that was exactly what sent Hunters to stand at the nearest sidewalk point to a
+	// barricaded civilian instead of approaching the barricade. Returning null here (no complete
+	// path found among any under-cap candidate) is the caller's cue to enter siege mode.
 	private EvacueeBase PickNewHuntTarget()
 	{
 		GatherNearestCivilians(HunterCandidateCount);
@@ -587,11 +675,9 @@ public class Zombie : MonoBehaviour
 
 		ShuffleInPlace(huntCandidates);
 
-		EvacueeBase underCapFallback = null;
 		foreach (EvacueeBase candidate in huntCandidates)
 		{
 			if (CountZombiesTargeting(candidate) >= MaxZombiesPerTarget) continue;
-			if (underCapFallback == null) underCapFallback = candidate;
 
 			if (agent != null && agent.enabled && agent.isOnNavMesh &&
 				agent.CalculatePath(candidate.transform.position, cachedPath) &&
@@ -601,7 +687,7 @@ public class Zombie : MonoBehaviour
 			}
 		}
 
-		return underCapFallback; // may be null if every nearby candidate is already at the cap
+		return null;
 	}
 
 	// feature/azs-crowd-feel (2): same-class private access lets this read every other Zombie's

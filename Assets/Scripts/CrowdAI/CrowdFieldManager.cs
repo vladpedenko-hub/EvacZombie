@@ -665,6 +665,61 @@ public class CrowdFieldManager : MonoBehaviour
 			Gizmos.DrawLine(from, to);
 			Gizmos.DrawSphere(to, cellSize * 0.08f);
 		}
+
+		if (showZombieSiegeOverlay) DrawZombieSiegeGizmos();
+	}
+
+	// fix/zombie-siege-mode (5): per-zombie line to its current NavMeshAgent destination
+	// (green = PathComplete, red = anything else -- most commonly Partial, which is exactly the
+	// "walked to a sidewalk instead of the barricade" bug this branch fixes) plus a Hunt/Wander/
+	// Siege label, so the fix (and any regression of it) is visible directly in the Scene view.
+	private void DrawZombieSiegeGizmos()
+	{
+		foreach (Zombie z in Zombie.AllZombies)
+		{
+			if (z == null) continue;
+
+			NavMeshAgent a = z.Agent;
+			if (a == null || !a.enabled || !a.isOnNavMesh) continue;
+
+			if (a.hasPath)
+			{
+				Gizmos.color = a.pathStatus == NavMeshPathStatus.PathComplete ? Color.green : Color.red;
+				Gizmos.DrawLine(z.transform.position + Vector3.up * 0.3f, a.destination + Vector3.up * 0.3f);
+			}
+
+			UnityEditor.Handles.color = ZombieModeColor(z.CurrentMode);
+			UnityEditor.Handles.Label(z.transform.position + Vector3.up * 1.4f, z.CurrentMode.ToString());
+		}
+	}
+
+	private static Color ZombieModeColor(Zombie.ZombieMode mode)
+	{
+		switch (mode)
+		{
+			case Zombie.ZombieMode.Hunt: return Color.yellow;
+			case Zombie.ZombieMode.Siege: return new Color(1f, 0.4f, 0f);
+			default: return Color.cyan;
+		}
 	}
 #endif
+
+	// fix/zombie-siege-mode (5): on-screen counter, works in the Editor AND development builds.
+	// DEVELOPMENT_BUILD is a deprecated preprocessor directive in this Unity version (UAC0009) —
+	// Debug.isDebugBuild is the supported runtime equivalent (true in the Editor and in
+	// development player builds, false in release builds), so the gating happens inside OnGUI
+	// instead of via #if. Shares the showZombieSiegeOverlay toggle with the Editor-only gizmos.
+	[Header("Debug Overlay (Editor + development builds)")]
+	public bool showZombieSiegeOverlay = false;
+
+	private void OnGUI()
+	{
+		if (!showZombieSiegeOverlay || !Debug.isDebugBuild) return;
+
+		int stalled = 0;
+		foreach (Zombie z in Zombie.AllZombies)
+			if (z != null && z.IsStalled) stalled++;
+
+		GUI.Label(new Rect(10, 10, 300, 24), $"stalled zombies: {stalled}");
+	}
 }

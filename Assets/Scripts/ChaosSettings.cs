@@ -112,4 +112,8 @@ public class ChaosSettings : ScriptableObject
 
 	[Tooltip("A/B toggle: sets every zombie's NavMeshAgent.obstacleAvoidanceType to LowQuality instead of the prefab's authored value.")]
 	public bool zombieAvoidanceLow = false;
+
+	// ── fix/zombie-siege-mode ──────────────────────────────────────────────────────────────────
+	[Tooltip("Seconds a Hunter's NavMeshAgent can sit under ~0.2 speed (not mid-attack) before it drops its current hunt target and switches to siege mode.")]
+	public float stallTime = 1f;
 }
