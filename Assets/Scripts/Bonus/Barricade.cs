@@ -12,6 +12,12 @@ public class Barricade : MonoBehaviour, IDamageable
 {
     public static List<Barricade> AllBarricades = new List<Barricade>();
 
+    // fix/barricade-jerk-wave1 (Bug 1): fired with the barricade's world position whenever one
+    // is placed OR destroyed — carving/un-carving instantly changes which NavMesh paths are
+    // valid, so CrowdFieldManager needs to react immediately (fresh field recompute + nearby
+    // zombies re-deciding the same frame) instead of waiting for the next fieldRefresh/Brain tick.
+    public static event System.Action<Vector3> OnBarricadeChanged;
+
     [Header("Card Data")]
     public CardData myCardData;
 
@@ -114,7 +120,12 @@ public class Barricade : MonoBehaviour, IDamageable
         currentHealth = maxHealth;
     }
 
-    private void OnEnable()  => AllBarricades.Add(this);
+    private void OnEnable()
+    {
+        AllBarricades.Add(this);
+        OnBarricadeChanged?.Invoke(transform.position);
+    }
+
     private void OnDisable() => AllBarricades.Remove(this);
 
     // ── IDamageable + public method for Zombie ─────────────────────────
@@ -185,6 +196,7 @@ public class Barricade : MonoBehaviour, IDamageable
 
         // Remove obstacle — NavMesh restores, zombies can pass through
         obstacle.enabled = false;
+        OnBarricadeChanged?.Invoke(transform.position);
 
         // Disable collider so zombies don't attack the corpse
         if (cachedCollider != null) cachedCollider.enabled = false;

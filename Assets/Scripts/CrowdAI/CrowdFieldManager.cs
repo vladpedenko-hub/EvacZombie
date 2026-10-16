@@ -83,6 +83,12 @@ public class CrowdFieldManager : MonoBehaviour
 	{
 		if (Instance != null && Instance != this) { Destroy(gameObject); return; }
 		Instance = this;
+
+		// fix/barricade-jerk-wave1 (Bug 1): react to a barricade placement/destruction the same
+		// frame it happens, instead of waiting for the next fieldRefresh (up to 0.3s) during
+		// which NavMeshAgent's own auto-repath (triggered instantly by the carving) was visibly
+		// jerking chasing zombies backward with nothing correcting it.
+		Barricade.OnBarricadeChanged += HandleBarricadeChanged;
 	}
 
 	private void Update()
@@ -100,6 +106,30 @@ public class CrowdFieldManager : MonoBehaviour
 
 		nextRefreshTime = Time.time + refresh;
 		RecomputeFields();
+	}
+
+	// fix/barricade-jerk-wave1 (Bug 1): recomputes the fields right now (not on the usual
+	// fieldRefresh cadence), then has every zombie within barricadeReactRadiusCells of the
+	// change immediately re-run its own decision logic this same frame.
+	private void HandleBarricadeChanged(Vector3 position)
+	{
+		if (!GridReady) return;
+
+		RecomputeFields();
+		nextRefreshTime = Time.time + (cachedSettings != null ? Mathf.Max(0.05f, cachedSettings.fieldRefresh) : 0.3f);
+
+		float radiusCells = cachedSettings != null ? cachedSettings.barricadeReactRadiusCells : 12f;
+		float radiusWorld = radiusCells * cellSize;
+		float radiusSqr = radiusWorld * radiusWorld;
+
+		foreach (Zombie z in Zombie.AllZombies)
+		{
+			if (z == null) continue;
+			if ((z.transform.position - position).sqrMagnitude <= radiusSqr)
+			{
+				z.ForceImmediateRedecision();
+			}
+		}
 	}
 
 	// Called from LevelManager right after navSurface.BuildNavMesh(). The actual grid build is
@@ -356,9 +386,26 @@ public class CrowdFieldManager : MonoBehaviour
 	public float SampleField(Vector3 worldPos, CrowdFieldType type)
 	{
 		if (!GridReady) return float.PositiveInfinity;
-		int idx = WorldToCellIndex(worldPos);
+
+		// fix/barricade-jerk-wave1 (Bug 2b): a straight round-to-nearest-cell lookup reads
+		// Infinity for a perfectly valid position whose nearest cell happens to be non-walkable
+		// (common at edges/corners) -- every "is anyone reachable from here" check funnels
+		// through this method, so resolving to the nearest ACTUALLY walkable cell here fixes it
+		// everywhere at once instead of needing each call site to remember to do it.
+		int idx = ResolveWalkableCell(worldPos);
 		if (idx < 0) return float.PositiveInfinity;
 		return SelectField(type)[idx];
+	}
+
+	// fix/barricade-jerk-wave1 (diagnostic): whether worldPos's own nearest grid cell (no
+	// ResolveWalkableCell fallback) is walkable -- deliberately the raw/unresolved reading, so
+	// the stall diagnostic log can tell "own cell is the problem" apart from "own cell is fine,
+	// something else produced no destination".
+	public bool IsOwnCellWalkable(Vector3 worldPos)
+	{
+		if (!GridReady) return false;
+		int idx = WorldToCellIndex(worldPos);
+		return idx >= 0 && walkable[idx];
 	}
 
 	public bool TryGetDescentDirection(Vector3 fromWorld, CrowdFieldType type, out Vector3 targetWorldPos)

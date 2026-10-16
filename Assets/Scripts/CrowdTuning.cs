@@ -130,6 +130,14 @@ public class CrowdTuning : ScriptableObject
 	[Tooltip("Секунды, которые Hunter может стоять почти без движения (не атакуя), прежде чем бросить цель и перейти в Siege.")]
 	public float stallTime = 1f;
 
+	[Range(1f, 30f)]
+	[Tooltip("fix/barricade-jerk-wave1 (Bug 1). Клетки сетки. Когда барикада ставится или разрушается, все зомби в этом радиусе от неё немедленно пересчитывают решение в тот же кадр (не ждут обычный тик/кулдаун) — иначе был рывок назад на ~0.3с, пока NavMesh/поле не успевали отреагировать.")]
+	public float barricadeReactRadiusCells = 12f;
+
+	[Range(3f, 20f)]
+	[Tooltip("fix/barricade-jerk-wave1 (Bug 2). Радиус (метры) для NavMesh.SamplePosition при постановке зомби на NavMesh после спавна. Точка спавна дальше 3м от NavMesh (старый радиус) оставляла агента вне меша — зомби вообще не двигался.")]
+	public float spawnSnapRadius = 10f;
+
 	// ───────────────────────────── Infection ─────────────────────────────
 	[Header("Infection")]
 	[Range(0f, 2f)]

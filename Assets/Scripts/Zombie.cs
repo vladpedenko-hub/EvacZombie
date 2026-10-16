@@ -25,6 +25,10 @@ public class Zombie : MonoBehaviour
 
 	public GameObject zombiePrefab;
 
+	// fix/barricade-jerk-wave1 (Bug 2a, diagnostic): set by the spawner (LevelManager) right
+	// after Get()/Instantiate so a stuck zombie's warning/diagnostic log can name its origin.
+	[HideInInspector] public string spawnPointName = "(unknown)";
+
 	[Header("Tuning")]
 	public CrowdTuning crowdTuning;
 
@@ -95,6 +99,13 @@ public class Zombie : MonoBehaviour
 	private float zeroVelocityDuration = 0f;
 	private bool stallHandledThisEpisode = false;
 	public bool IsStalled => zeroVelocityDuration >= StallTime;
+
+	// fix/barricade-jerk-wave1 (diagnostic): a longer, independent threshold purely for logging
+	// -- fires once per stall episode, separate from stallHandledThisEpisode's 1s behavioral
+	// reaction, which may already have fired (and the zombie still be stuck) well before this.
+	private const float DiagnosticStallTime = 2f;
+	private float diagnosticStallDuration = 0f;
+	private bool diagnosticLoggedThisEpisode = false;
 
 	// feature/azs-crowd-feel (5): per-instance variance so a wave of zombies doesn't move as one
 	// uniform blob. Rolled once per spawn/pool-reuse in ApplySpawnVariance().
@@ -169,6 +180,9 @@ public class Zombie : MonoBehaviour
 	// feature/crowd-tuning-pass (Part C.2): standing still within this radius of a barricade
 	// while sieging is normal queueing, not a stall.
 	private float SiegeQueueRadiusWorld => (crowdTuning != null ? crowdTuning.siegeQueueRadiusCells : 3f) * CellSizeOrDefault;
+
+	// fix/barricade-jerk-wave1 (Bug 2a): spawn-snap radius for OnTakenFromPool's NavMesh.SamplePosition.
+	private float SpawnSnapRadius => crowdTuning != null ? Mathf.Max(3f, crowdTuning.spawnSnapRadius) : 10f;
 
 	private float HunterShareForSpawn
 	{
@@ -321,9 +335,16 @@ public class Zombie : MonoBehaviour
 			agent.isStopped = false;
 			agent.ResetPath();
 
-			if (NavMesh.SamplePosition(position, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+			// fix/barricade-jerk-wave1 (Bug 2a): the old fixed 3f radius left the agent off-mesh
+			// (isOnNavMesh false, never warped, never moves again) for any spawn point farther
+			// than that from the baked NavMesh. SpawnSnapRadius defaults to 10 instead.
+			if (NavMesh.SamplePosition(position, out NavMeshHit hit, SpawnSnapRadius, NavMesh.AllAreas))
 			{
 				agent.Warp(hit.position);
+			}
+			else
+			{
+				Debug.LogWarning($"[Zombie] Spawn point '{spawnPointName}' at {position} is farther than {SpawnSnapRadius}m from the baked NavMesh -- agent could not be placed and will not move.", this);
 			}
 		}
 
@@ -379,126 +400,138 @@ public class Zombie : MonoBehaviour
 
 		while (!isDead)
 		{
-			if (GameManager.Instance != null &&
-				(GameManager.Instance.State == GameManager.GameState.Planning ||
-				 GameManager.Instance.State == GameManager.GameState.GameOver ||
-				 GameManager.Instance.State == GameManager.GameState.Lose))
-			{
-				if (agent != null && agent.enabled && agent.isOnNavMesh)
-				{
-					agent.isStopped = true;
-				}
+			BrainTick();
+			yield return wait;
+		}
+	}
 
-				yield return wait;
-				continue;
-			}
-
-			if (isStunned)
-			{
-				yield return wait;
-				continue;
-			}
-
+	// fix/barricade-jerk-wave1 (Bug 1): the coroutine's per-iteration body, extracted so
+	// ForceImmediateRedecision() (called from CrowdFieldManager the instant a barricade changes)
+	// can run exactly the same decision logic synchronously, same frame, instead of waiting for
+	// the next 0.15s WaitForSeconds to elapse. Timing is unaffected for the normal coroutine path
+	// — it still waits BrainTickInterval after every call regardless of which branch ran below,
+	// identical to the original while-loop's yield-after-every-continue behavior.
+	private void BrainTick()
+	{
+		if (GameManager.Instance != null &&
+			(GameManager.Instance.State == GameManager.GameState.Planning ||
+			 GameManager.Instance.State == GameManager.GameState.GameOver ||
+			 GameManager.Instance.State == GameManager.GameState.Lose))
+		{
 			if (agent != null && agent.enabled && agent.isOnNavMesh)
 			{
-				agent.isStopped = false;
+				agent.isStopped = true;
 			}
 
-			if (isDistracted)
+			return;
+		}
+
+		if (isStunned) return;
+
+		if (agent != null && agent.enabled && agent.isOnNavMesh)
+		{
+			agent.isStopped = false;
+		}
+
+		if (isDistracted) return;
+
+		UpdateStallTracking();
+
+		Transform target;
+		Vector3? overrideDestination;
+		bool isCruising;
+		FindTargetWithBaitPriority(out target, out overrideDestination, out isCruising);
+
+		if (target != null)
+		{
+			if (ShouldLoseTarget())
 			{
-				yield return wait;
-				continue;
+				StartCoroutine(LoseTargetRoutine());
+				return;
 			}
 
-			UpdateStallTracking();
+			Vector3 targetPos = overrideDestination ?? target.position;
+			float dist = GetPathDistance(targetPos, out bool pathReachable);
+			bool hasLOS = HasLineOfSight(targetPos);
 
-			Transform target;
-			Vector3? overrideDestination;
-			bool isCruising;
-			FindTargetWithBaitPriority(out target, out overrideDestination, out isCruising);
+			// A barricade's own carved hole in the NavMesh legitimately makes its exact center
+			// PathPartial even when it's the right, in-range target -- the straight-line
+			// fallback above and the barricade's wider effectiveRange (AttackRoutine) already
+			// account for that. Bait crowding targets the bait itself, not a civilian, so it's
+			// unaffected. A civilian target with no complete path means a wall in between, not
+			// open ground, so "close by straight line" must never count as in range to attack.
+			bool targetIsBarricade = currentBait == null && target.GetComponent<Barricade>() != null;
+			bool blockedByWall = currentBait == null && !targetIsBarricade && !pathReachable;
 
-			if (target != null)
+			if (dist > AttackDistance || !hasLOS || blockedByWall)
 			{
-				if (ShouldLoseTarget())
+				if (blockedByWall && currentBait == null && !targetIsBarricade)
 				{
-					StartCoroutine(LoseTargetRoutine());
-					yield return wait;
-					continue;
+					// fix/barricade-jerk-wave1 (Bug 1): don't just drop the target and leave the
+					// agent with no new destination until the next tick -- issue the siege step
+					// RIGHT NOW, same frame, so NavMeshAgent's own instant auto-repath (to the
+					// nearest reachable point the moment carving invalidates the path) gets
+					// overridden immediately instead of visibly holding for up to 0.15s.
+					huntTarget = null;
+					CrowdFieldManager cfmNow = CrowdFieldManager.Instance;
+					bool fieldReadyNow = cfmNow != null && cfmNow.GridReady;
+					currentMode = ZombieMode.Siege;
+					SiegeStep(cfmNow, fieldReadyNow, out _);
+				}
+				else if (agent != null && agent.enabled && agent.isOnNavMesh)
+				{
+					agent.SetDestination(targetPos);
 				}
 
-				Vector3 targetPos = overrideDestination ?? target.position;
-				float dist = GetPathDistance(targetPos, out bool pathReachable);
-				bool hasLOS = HasLineOfSight(targetPos);
-
-				// A barricade's own carved hole in the NavMesh legitimately makes its exact center
-				// PathPartial even when it's the right, in-range target -- the straight-line
-				// fallback above and the barricade's wider effectiveRange (AttackRoutine) already
-				// account for that. Bait crowding targets the bait itself, not a civilian, so it's
-				// unaffected. A civilian target with no complete path means a wall in between, not
-				// open ground, so "close by straight line" must never count as in range to attack.
-				bool targetIsBarricade = currentBait == null && target.GetComponent<Barricade>() != null;
-				bool blockedByWall = currentBait == null && !targetIsBarricade && !pathReachable;
-
-				if (dist > AttackDistance || !hasLOS || blockedByWall)
+				StopCrowdBehaviorIfAny();
+			}
+			else
+			{
+				if (currentBait != null)
 				{
-					if (blockedByWall && currentBait == null && !targetIsBarricade)
+					StartCrowdBehaviorAroundBait();
+				}
+				else if (targetIsBarricade)
+				{
+					// Barricades keep the original windup + cooldown attack flow unchanged.
+					if (!isAttacking)
 					{
-						// fix/zombie-siege-mode (3): the path to this civilian just went Partial
-						// (e.g. a barricade placed mid-chase) -- Unity would otherwise send the
-						// agent to the nearest reachable point, usually a sidewalk nowhere near
-						// the actual obstruction. Drop the target now instead; the next Brain
-						// tick re-evaluates (DecideStreetTarget) and falls into siege mode.
-						huntTarget = null;
+						StartCoroutine(AttackRoutine(target));
 					}
-					else if (agent != null && agent.enabled && agent.isOnNavMesh)
-					{
-						agent.SetDestination(targetPos);
-					}
-
-					StopCrowdBehaviorIfAny();
 				}
 				else
 				{
-					if (currentBait != null)
-					{
-						StartCrowdBehaviorAroundBait();
-					}
-					else if (targetIsBarricade)
-					{
-						// Barricades keep the original windup + cooldown attack flow unchanged.
-						if (!isAttacking)
-						{
-							StartCoroutine(AttackRoutine(target));
-						}
-					}
-					else
-					{
-						// feature/azs-crowd-feel (4): bite on contact — immediate, no windup, no
-						// cooldown, and movement is never interrupted (no ResetPath here at all).
-						// Clearing huntTarget makes the very next Brain tick re-pick instead of
-						// waiting out the usual retargetCooldown+jitter.
-						InfectTarget(target.gameObject);
-						huntTarget = null;
-					}
+					// feature/azs-crowd-feel (4): bite on contact — immediate, no windup, no
+					// cooldown, and movement is never interrupted (no ResetPath here at all).
+					// Clearing huntTarget makes the very next Brain tick re-pick instead of
+					// waiting out the usual retargetCooldown+jitter.
+					InfectTarget(target.gameObject);
+					huntTarget = null;
 				}
 			}
-			else if (!isCruising)
-			{
-				// Only a genuine "nothing to do" (no bait, no close civilian/barricade, and the
-				// shared road grid isn't ready yet either) resets the path. When isCruising is true,
-				// FindTargetWithBaitPriority already issued its own (cooldown-gated) SetDestination
-				// toward the next field-descent step or wander intersection — resetting here would
-				// undo that every single tick and reintroduce the old jitter.
-				StopCrowdBehaviorIfAny();
-
-				if (agent != null && agent.enabled && agent.isOnNavMesh)
-				{
-					agent.ResetPath();
-				}
-			}
-
-			yield return wait;
 		}
+		else if (!isCruising)
+		{
+			// Only a genuine "nothing to do" (no bait, no close civilian/barricade, and the
+			// shared road grid isn't ready yet either) resets the path. When isCruising is true,
+			// FindTargetWithBaitPriority already issued its own (cooldown-gated) SetDestination
+			// toward the next field-descent step or wander intersection — resetting here would
+			// undo that every single tick and reintroduce the old jitter.
+			StopCrowdBehaviorIfAny();
+
+			if (agent != null && agent.enabled && agent.isOnNavMesh)
+			{
+				agent.ResetPath();
+			}
+		}
+	}
+
+	// fix/barricade-jerk-wave1 (Bug 1): called by CrowdFieldManager on every zombie within
+	// barricadeReactRadiusCells the instant a barricade is placed/destroyed.
+	public void ForceImmediateRedecision()
+	{
+		if (isDead) return;
+		BrainTick();
 	}
 
 	private bool ShouldLoseTarget()
@@ -534,7 +567,8 @@ public class Zombie : MonoBehaviour
 
 		// feature/crowd-tuning-pass (Part C.2): queueing at a barricade chokepoint is expected
 		// standing-still, not a stuck agent — don't even accumulate stall time there.
-		if (canStall && IsNearBarricade(SiegeQueueRadiusWorld)) canStall = false;
+		bool nearBarricadeQueue = canStall && IsNearBarricade(SiegeQueueRadiusWorld);
+		if (nearBarricadeQueue) canStall = false;
 
 		bool movingEnough = canStall && agent.velocity.magnitude >= 0.2f;
 
@@ -542,10 +576,53 @@ public class Zombie : MonoBehaviour
 		{
 			zeroVelocityDuration = 0f;
 			stallHandledThisEpisode = false;
+		}
+		else
+		{
+			zeroVelocityDuration += BrainTickInterval;
+		}
+
+		// fix/barricade-jerk-wave1 (diagnostic): deliberately broader/independent of the
+		// behavioral stall above -- doesn't require agent.isOnNavMesh, so an off-mesh zombie
+		// (Bug 2a: Warp failed, agent never attached) is caught too, not just an on-mesh one
+		// that's merely jammed. Still excludes normal barricade queueing.
+		bool diagnosticMoving = agent != null && agent.enabled && agent.velocity.magnitude >= 0.2f;
+		bool diagnosticQueueing = agent != null && agent.enabled && agent.isOnNavMesh && nearBarricadeQueue;
+
+		if (diagnosticMoving || diagnosticQueueing)
+		{
+			diagnosticStallDuration = 0f;
+			diagnosticLoggedThisEpisode = false;
 			return;
 		}
 
-		zeroVelocityDuration += BrainTickInterval;
+		diagnosticStallDuration += BrainTickInterval;
+
+		if (!diagnosticLoggedThisEpisode && diagnosticStallDuration >= DiagnosticStallTime)
+		{
+			diagnosticLoggedThisEpisode = true;
+			LogStallDiagnostic();
+		}
+	}
+
+	// fix/barricade-jerk-wave1 (diagnostic): logs the exact state needed to tell Bug 2a
+	// (off-mesh spawn) apart from Bug 2b (own-cell field read) apart from anything else.
+	private void LogStallDiagnostic()
+	{
+		CrowdFieldManager cfm = CrowdFieldManager.Instance;
+		bool fieldReady = cfm != null && cfm.GridReady;
+
+		string gameState = GameManager.Instance != null ? GameManager.Instance.State.ToString() : "null";
+		bool isOnNavMesh = agent != null && agent.isOnNavMesh;
+		bool hasPath = agent != null && agent.hasPath;
+		string pathStatus = agent != null ? agent.pathStatus.ToString() : "n/a";
+		bool ownCellWalkable = fieldReady && cfm.IsOwnCellWalkable(transform.position);
+		float civField = fieldReady ? cfm.SampleField(transform.position, CrowdFieldType.Civilian) : float.PositiveInfinity;
+
+		Debug.LogWarning($"[Zombie] Stalled >{DiagnosticStallTime}s outside barricade queueing: " +
+			$"mode={currentMode}, gameState={gameState}, isOnNavMesh={isOnNavMesh}, hasPath={hasPath}, " +
+			$"pathStatus={pathStatus}, ownCellWalkable={ownCellWalkable}, civField={civField}, " +
+			$"spawnPoint='{spawnPointName}'", this);
 	}
 
 	protected virtual void FindTargetWithBaitPriority(out Transform target, out Vector3? overrideDestination, out bool isCruising)
@@ -607,10 +684,18 @@ public class Zombie : MonoBehaviour
 				{
 					if (recheck) nextSiegeRouteCheckTime = Time.time + RetargetCooldown;
 					currentMode = ZombieMode.Siege;
-					return SiegeStep(cfm, fieldReady);
-				}
+					Transform lockedSiegeTarget = SiegeStep(cfm, fieldReady, out bool lockedDidSet);
+					if (lockedSiegeTarget != null || lockedDidSet) return lockedSiegeTarget;
 
-				siegeBarricade = null;
+					// fix/barricade-jerk-wave1 (Bug 2b): even the locked barricade's own lookahead
+					// produced nothing (e.g. this cell is unresolvable) -- release the lock and
+					// fall through to a full re-evaluation below instead of standing idle.
+					siegeBarricade = null;
+				}
+				else
+				{
+					siegeBarricade = null;
+				}
 			}
 
 			// fix/zombie-siege-mode (4): a Hunter barely moving for StallTime while still
@@ -652,7 +737,14 @@ public class Zombie : MonoBehaviour
 			// TryFindNearestBarricade (inside SiegeStep, same radius as above) takes over the
 			// moment that gets the zombie close enough to actually attack.
 			currentMode = ZombieMode.Siege;
-			return SiegeStep(cfm, fieldReady);
+			Transform siegeTarget = SiegeStep(cfm, fieldReady, out bool didSetDestination);
+			if (siegeTarget != null || didSetDestination) return siegeTarget;
+
+			// fix/barricade-jerk-wave1 (Bug 2b): siege produced NO destination at all (own cell
+			// unresolvable even via ResolveWalkableCell, field unreachable, whatever) -- never
+			// leave the zombie standing idle. Fall back to the same patrol logic a Wanderer uses.
+			currentMode = ZombieMode.Wander;
+			return WanderStep(cfm, fieldReady, allowPromote: false, out isCruising);
 		}
 
 		// Wanderer: patrol a random intersection; promote to Hunter if a civilian is visible down
@@ -661,11 +753,20 @@ public class Zombie : MonoBehaviour
 		return WanderStep(cfm, fieldReady, allowPromote: true, out isCruising);
 	}
 
-	private Transform SiegeStep(CrowdFieldManager cfm, bool fieldReady)
+	// fix/barricade-jerk-wave1 (Bug 2b): didSetDestination lets the caller tell "sieging, moving
+	// toward a barricade/gradient step" apart from "produced nothing at all" so it can fall back
+	// to WanderStep rather than leaving the zombie standing idle forever.
+	private Transform SiegeStep(CrowdFieldManager cfm, bool fieldReady, out bool didSetDestination)
 	{
+		didSetDestination = false;
+
 		if (fieldReady && cfm.TryGetLookaheadDescent(transform.position, CrowdFieldType.Civilian, LookaheadCells, out Vector3 step))
 		{
-			if (agent != null && agent.enabled && agent.isOnNavMesh) agent.SetDestination(step);
+			if (agent != null && agent.enabled && agent.isOnNavMesh)
+			{
+				agent.SetDestination(step);
+				didSetDestination = true;
+			}
 		}
 
 		if (TryFindNearestBarricade(out Barricade blocker))

@@ -496,11 +496,14 @@ public class LevelManager : MonoBehaviour
 
 			if (ZombiePool.Instance != null && prefabToUse == zombiePrefab)
 			{
-				ZombiePool.Instance.Get(spawnPoint.position, Quaternion.identity);
+				Zombie pooled = ZombiePool.Instance.Get(spawnPoint.position, Quaternion.identity);
+				if (pooled != null) pooled.spawnPointName = spawnPoint.name;
 			}
 			else
 			{
-				Instantiate(prefabToUse, spawnPoint.position, Quaternion.identity);
+				GameObject spawned = Instantiate(prefabToUse, spawnPoint.position, Quaternion.identity);
+				Zombie spawnedZombie = spawned.GetComponent<Zombie>();
+				if (spawnedZombie != null) spawnedZombie.spawnPointName = spawnPoint.name;
 			}
 			DaySpawnCount++;
 			v2SpawnedThisWave++;
@@ -724,11 +727,14 @@ public class LevelManager : MonoBehaviour
 
 			if (ZombiePool.Instance != null)
 			{
-				ZombiePool.Instance.Get(spawnPoint.position, Quaternion.identity);
+				Zombie pooled = ZombiePool.Instance.Get(spawnPoint.position, Quaternion.identity);
+				if (pooled != null) pooled.spawnPointName = spawnPoint.name;
 			}
 			else
 			{
-				Instantiate(zombiePrefab, spawnPoint.position, Quaternion.identity);
+				GameObject spawned = Instantiate(zombiePrefab, spawnPoint.position, Quaternion.identity);
+				Zombie spawnedZombie = spawned.GetComponent<Zombie>();
+				if (spawnedZombie != null) spawnedZombie.spawnPointName = spawnPoint.name;
 			}
 		}
 	}
