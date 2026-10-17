@@ -50,6 +50,11 @@ public class CrowdFieldManager : MonoBehaviour
 	private bool pendingRebuild;
 	private float nextRefreshTime;
 
+	// feature/sandbox-big-city: logs grid size once per level load, and the first field-recompute's
+	// wall-clock cost once per level load -- a quick sanity read on how the much bigger procedural
+	// sandbox city scales, without spamming every fieldRefresh tick.
+	private bool loggedFirstRecompute;
+
 	private int initialCivilianCountSeen;
 
 	private readonly List<IEvacPoint> evacPoints = new List<IEvacPoint>();
@@ -147,6 +152,7 @@ public class CrowdFieldManager : MonoBehaviour
 		pendingRebuild = true;
 		initialCivilianCountSeen = 0;
 		ForceAllHunters = false;
+		loggedFirstRecompute = false;
 	}
 
 	public void EnsureConfigured(CrowdTuning settings)
@@ -203,8 +209,20 @@ public class CrowdFieldManager : MonoBehaviour
 		float spanZ = Mathf.Max(1f, maxZ - minZ);
 
 		float minCell = cachedSettings != null ? Mathf.Max(0.25f, cachedSettings.roadGridMinCellSize) : 2f;
-		int targetPerAxis = cachedSettings != null ? Mathf.Max(4, cachedSettings.roadGridTargetCellsPerAxis) : 48;
-		float neededCell = Mathf.Max(spanX, spanZ) / targetPerAxis;
+		float neededCell;
+		// feature/sandbox-big-city: the procedural sandbox city's streets/alleys have a known
+		// physical width -- basing the cell size on that directly (instead of span/targetPerAxis)
+		// guarantees a cell never ends up wider than the narrowest alley, which would otherwise
+		// collapse a walkable lane into zero passable cells regardless of how high targetPerAxis is set.
+		if (cachedSettings != null && cachedSettings.cellSizeFromRoadWidth && cachedSettings.roadWidth > 0f)
+		{
+			neededCell = cachedSettings.roadWidth * 0.5f;
+		}
+		else
+		{
+			int targetPerAxis = cachedSettings != null ? Mathf.Max(4, cachedSettings.roadGridTargetCellsPerAxis) : 48;
+			neededCell = Mathf.Max(spanX, spanZ) / targetPerAxis;
+		}
 		cellSize = Mathf.Max(minCell, neededCell);
 
 		originWorld = new Vector3(minX, avgY, minZ);
@@ -250,6 +268,8 @@ public class CrowdFieldManager : MonoBehaviour
 
 		GridReady = true;
 		nextRefreshTime = 0f; // recompute immediately on the next Update
+
+		Debug.Log($"[CrowdFieldManager] Grid built: {gridW}x{gridH} cells ({count} total), cellSize={cellSize:F2}m, span={spanX:F1}x{spanZ:F1}m");
 	}
 
 	private void BuildIntersections()
@@ -299,6 +319,8 @@ public class CrowdFieldManager : MonoBehaviour
 
 	private void RecomputeFields()
 	{
+		System.Diagnostics.Stopwatch sw = !loggedFirstRecompute ? System.Diagnostics.Stopwatch.StartNew() : null;
+
 		// feature/azs-crowd-feel (3): infected civilians stop seeding F_civ the instant
 		// BeginInfection runs, even though they stay in AllHumans/AllScientists until they
 		// actually turn (other systems, e.g. the car/heli siren loops, still iterate that list).
@@ -336,6 +358,13 @@ public class CrowdFieldManager : MonoBehaviour
 
 		float threshold = cachedSettings != null ? cachedSettings.lateWaveHunterThreshold : 0.2f;
 		ForceAllHunters = initialCivilianCountSeen > 0 && aliveCivilians < initialCivilianCountSeen * threshold;
+
+		if (sw != null)
+		{
+			sw.Stop();
+			loggedFirstRecompute = true;
+			Debug.Log($"[CrowdFieldManager] First field recompute after load: {sw.Elapsed.TotalMilliseconds:F2}ms ({gridW}x{gridH} cells)");
+		}
 	}
 
 	private void AddSource(List<int> list, Vector3 worldPos)

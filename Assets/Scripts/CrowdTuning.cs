@@ -158,9 +158,16 @@ public class CrowdTuning : ScriptableObject
 	[Tooltip("Минимальный размер клетки сетки дорог, метры.")]
 	public float roadGridMinCellSize = 2f;
 
-	[Range(8, 128)]
-	[Tooltip("Целевое число клеток сетки на ось — на больших уровнях клетка увеличивается, чтобы держаться около этого числа.")]
+	[Range(8, 256)]
+	[Tooltip("Целевое число клеток сетки на ось — на больших уровнях клетка увеличивается, чтобы держаться около этого числа. Игнорируется, если включён cellSizeFromRoadWidth.")]
 	public int roadGridTargetCellsPerAxis = 48;
+
+	[Tooltip("feature/sandbox-big-city: вместо деления span'а уровня на roadGridTargetCellsPerAxis, размер клетки = roadWidth * 0.5 — гарантирует, что клетка не шире самой узкой улицы/переулка в процедурном городе (иначе проходимая полоса дороги схлопывается в сетке).")]
+	public bool cellSizeFromRoadWidth = false;
+
+	[Range(0.5f, 20f)]
+	[Tooltip("feature/sandbox-big-city: ширина улицы процедурного города, метры — используется для расчёта размера клетки, только когда cellSizeFromRoadWidth включён. Должна совпадать с CityGenConfig.roadWidth, которым был сгенерирован текущий уровень.")]
+	public float roadWidth = 6f;
 
 	[Range(0.05f, 1f)]
 	[Tooltip("Клетка проходима, только если NavMesh найден в пределах этой доли от размера клетки вокруг её центра.")]

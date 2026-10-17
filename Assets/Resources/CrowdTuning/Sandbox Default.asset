@@ -44,6 +44,8 @@ MonoBehaviour:
   fieldRefresh: 0.3
   roadGridMinCellSize: 2
   roadGridTargetCellsPerAxis: 48
+  cellSizeFromRoadWidth: 1
+  roadWidth: 6
   roadGridSnapTolerance: 0.35
   barricadePathCost: 15
   drawGridGizmos: 0

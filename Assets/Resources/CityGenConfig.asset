@@ -1,0 +1,88 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 08f5145df5813cb409039395ed4e4d3a, type: 3}
+  m_Name: CityGenConfig
+  m_EditorClassIdentifier: Assembly-CSharp::CityGenConfig
+  seed: 12345
+  blocksX: 10
+  blocksY: 14
+  roadWidth: 6
+  alleyWidthFactor: 0.5
+  buildingCellSize: 4
+  blockSizeMin: 2
+  blockSizeMax: 4
+  mergeBlockChance: 0.2
+  alleyChance: 0.25
+  parkCount: 2
+  buildingPrefabs:
+  - {fileID: 100000, guid: 74978b6b36516b04b92f6ec6b3b0898d, type: 3}
+  - {fileID: 100000, guid: 2d94dc6eeb30a8b4da06c6ac961039d0, type: 3}
+  - {fileID: 100000, guid: 7170f1a798cad8241b24ac62c357fb16, type: 3}
+  - {fileID: 100000, guid: 52af65d65c7b1fe46bdee95d780157ac, type: 3}
+  - {fileID: 100000, guid: 4da0d0ffaf9076f40a1d00fc7552f70c, type: 3}
+  - {fileID: 100000, guid: 17aee72cfed4c9f4f9ef75fc4cb7d155, type: 3}
+  - {fileID: 100000, guid: 04339706bd57d0e4ca629c1c3ef52dfb, type: 3}
+  - {fileID: 100000, guid: da3aa27e16a60194ea66f90d187a3660, type: 3}
+  - {fileID: 100000, guid: 6fb06ce08ad6f9b42ae1f5117d1f7944, type: 3}
+  - {fileID: 100000, guid: 4637067e053c0ea4ba6097aea2e08e43, type: 3}
+  - {fileID: 100000, guid: dce40da241e705b4c88a201ac6f01535, type: 3}
+  - {fileID: 100000, guid: 8e1758f591c5b284fac75b39f8d04a50, type: 3}
+  - {fileID: 100000, guid: 30fba1c3c845fdf47b5228bcbf5a62ca, type: 3}
+  - {fileID: 100000, guid: 87fa912de9bd9a143a8a26511cd93987, type: 3}
+  - {fileID: 100000, guid: 5370f88a07aca8a4da7f42470d54c2c7, type: 3}
+  - {fileID: 100000, guid: c2bc3c07e48b6234b8f21751ead01420, type: 3}
+  - {fileID: 100000, guid: 2ef0797da60407348b9b34c8739ce696, type: 3}
+  - {fileID: 100000, guid: 9c7ae3da5a21607439c5b7b1b677f734, type: 3}
+  - {fileID: 100000, guid: 8ccd238123648c94f98a6b61b908ac34, type: 3}
+  - {fileID: 100000, guid: 3e562f66870da7849a59d194175db8e7, type: 3}
+  - {fileID: 100000, guid: f3dfcd08b2af5f94da73865a2d68e630, type: 3}
+  - {fileID: 100000, guid: bb67634706e19034db5b3a269c6155e7, type: 3}
+  - {fileID: 100000, guid: 5f57f6bcab2ef2443bc08cac1a950f33, type: 3}
+  - {fileID: 100000, guid: 3a43af96389e30748923ae52a81e005c, type: 3}
+  - {fileID: 100000, guid: 1459de0546e39384094cf9920af4f4b1, type: 3}
+  - {fileID: 100000, guid: 71cdc73ebf46f6347a5db5f55af2273c, type: 3}
+  - {fileID: 100000, guid: 47f2a8c4066d55e469290eded6598a39, type: 3}
+  - {fileID: 100000, guid: afb1a50d61315a441b22a007d1c0d5a2, type: 3}
+  - {fileID: 100000, guid: 305e1eb2d9581674f9f4bf509f939360, type: 3}
+  - {fileID: 100000, guid: 34dea18c1f78fe14e90765bd1a4d911f, type: 3}
+  - {fileID: 100000, guid: f83bacb1bf0cccb4ba70fde5cdda69a1, type: 3}
+  - {fileID: 100000, guid: 19da28f31e452744c9297f3b66231f26, type: 3}
+  - {fileID: 100004, guid: 93d5d405499fa854d95ac3de4ddff58c, type: 3}
+  - {fileID: 100000, guid: a4c5669ce7e9fed44bcf7e1ba43e98da, type: 3}
+  - {fileID: 100000, guid: c0afbc328a3df694da18927a90d8f021, type: 3}
+  - {fileID: 100000, guid: ad3e97d6ac163ba469c986d2a73341fd, type: 3}
+  - {fileID: 100000, guid: 0a9aa5b2741d2d44b86fdad12b65b9f0, type: 3}
+  - {fileID: 100000, guid: b180380f61111a446b81013ecb8fd0e2, type: 3}
+  - {fileID: 100000, guid: ea26e6b8ec086c24685bb20de981068f, type: 3}
+  - {fileID: 100000, guid: 0c86e3b71038ebc4db3ad0766b7fac03, type: 3}
+  - {fileID: 100000, guid: a34f6a526d05ad04990e600f38b3cd62, type: 3}
+  - {fileID: 100000, guid: dcbfe6575c5ca1341b8bedbf9f71b2d9, type: 3}
+  - {fileID: 100000, guid: 29789fbe7685f4c4992b2a378483d4e0, type: 3}
+  - {fileID: 100000, guid: 15d1997dbe6ea8b498a94c418f219816, type: 3}
+  - {fileID: 100000, guid: 1a61897f2f3c71f4090224a3a6b152e6, type: 3}
+  - {fileID: 6468570803127396770, guid: 6df3bfb398e0b5c4892e3c87fd35da03, type: 3}
+  - {fileID: 5092412110084109941, guid: 162b00581c2e70e4ab6f7b79838cb936, type: 3}
+  - {fileID: 100000, guid: 303d9b02a3b7b874eb028800a52153a8, type: 3}
+  - {fileID: 100000, guid: fc152a1d9fdf7c149ad52afea80feabe, type: 3}
+  - {fileID: 100000, guid: 2d411e3705baf384f95cd9fdb8f7c680, type: 3}
+  - {fileID: 100000, guid: d9052d0a1977d744fb0bd304bded4446, type: 3}
+  - {fileID: 100000, guid: a57f2a3f27562464e869aefe6954871b, type: 3}
+  - {fileID: 100000, guid: 4dc3e9b9e2c2a7b46a986f5e5c6a88fe, type: 3}
+  - {fileID: 100000, guid: 63a76814abd51c84d9b5bdda95b1dcfb, type: 3}
+  - {fileID: 100000, guid: b5a69d4e00207dd4e8f4a3fda7e777e3, type: 3}
+  - {fileID: 100000, guid: 6c0090ac963b4da4281d5504336c63da, type: 3}
+  - {fileID: 100000, guid: 5a21fcb351fbcfc42b8bd782228bf6bd, type: 3}
+  - {fileID: 100000, guid: d38740e8c663c3d4a816bda0dc5ea549, type: 3}
+  - {fileID: 100000, guid: 5539162e689ec92449d1ea2b286dfd45, type: 3}
+  parkPropPrefab: {fileID: 100000, guid: ea729863e0ab2b942844148c09cd395a, type: 3}
+  roadMaterial: {fileID: 2100000, guid: 2191478c1f641c245b4fe9449817a0b7, type: 2}
+  outputPrefabPath: Assets/Prefabs/Levels/Level_Sandbox_Environment.prefab

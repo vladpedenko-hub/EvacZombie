@@ -1,0 +1,59 @@
+using UnityEngine;
+using System.Collections.Generic;
+
+// feature/sandbox-big-city: tunables for CityGenerator (Tools/EvacZombie/Generate Sandbox City).
+// Lives under Resources/ so the Editor tool can find a default instance without requiring the
+// user to assign one by hand. Entirely a dev/Editor-time concern -- nothing here is read at
+// runtime (unlike SandboxConfig, which the dev panel reads in a build).
+[CreateAssetMenu(fileName = "CityGenConfig", menuName = "Game/City Gen Config")]
+public class CityGenConfig : ScriptableObject
+{
+	[Header("Grid")]
+	[Tooltip("Seed for the procedural layout -- same seed + same config always produces the same city.")]
+	public int seed = 12345;
+
+	[Tooltip("Number of block columns (X axis).")]
+	public int blocksX = 10;
+
+	[Tooltip("Number of block rows (Z axis). 14 vs 10 columns keeps the city portrait-shaped, matching the game's portrait-only orientation.")]
+	public int blocksY = 14;
+
+	[Tooltip("Street width, meters. Also the width every alley's 'through'/'dead-end' variant is a fraction of (see alleyWidthFactor). CrowdTuning (Sandbox Default.asset) derives its road-grid cell size from this value when cellSizeFromRoadWidth is on -- keep the two in sync if you change this.")]
+	public float roadWidth = 6f;
+
+	[Tooltip("Alley width as a fraction of roadWidth.")]
+	[Range(0.1f, 1f)]
+	public float alleyWidthFactor = 0.5f;
+
+	[Tooltip("World-space footprint reserved per building slot inside a block, meters. Each building prefab is uniformly scaled to fit inside this.")]
+	public float buildingCellSize = 4f;
+
+	[Tooltip("Buildings per side of a block (min/max, inclusive). Rolled once per column (width) and once per row (height), so streets stay straight through the whole grid -- only merge/alley gaps interrupt them.")]
+	public int blockSizeMin = 2;
+	public int blockSizeMax = 4;
+
+	[Range(0f, 1f)]
+	[Tooltip("Per internal street segment, chance that segment is skipped (no road strip drawn there), fusing its two neighboring blocks into one bigger un-streeted area.")]
+	public float mergeBlockChance = 0.2f;
+
+	[Range(0f, 1f)]
+	[Tooltip("Per internal street segment (that wasn't merged away), chance it's narrowed into a 1-lane alley instead of a full street. Half of alleys are 'through' (full length, same as a normal street); half are 'dead-end' (half length, stub from one side, doesn't reach the far block).")]
+	public float alleyChance = 0.25f;
+
+	[Tooltip("Number of blocks converted into open, walkable plazas (no buildings, decorated with park props) instead of a building grid.")]
+	public int parkCount = 2;
+
+	[Header("Prefabs")]
+	[Tooltip("Building prefab pool -- reused as-is from existing levels (SimpleTown pack). Each placement picks one at random, scales it to buildingCellSize, and adds the same MeshCollider + NavMeshObstacle + 'Building' tag convention used by hand-built levels (see Level_01's building instances).")]
+	public List<GameObject> buildingPrefabs = new List<GameObject>();
+
+	[Tooltip("Decorative prop scattered over park blocks. Purely visual -- no collider, no NavMeshObstacle, doesn't affect the road grid.")]
+	public GameObject parkPropPrefab;
+
+	[Tooltip("Material applied to every generated road/street/alley/park-ground piece. Pick a dark asphalt-like material so building roofs read lighter by contrast.")]
+	public Material roadMaterial;
+
+	[Header("Output")]
+	[Tooltip("Prefab asset path CityGenerator overwrites.")]
+	public string outputPrefabPath = "Assets/Prefabs/Levels/Level_Sandbox_Environment.prefab";
+}

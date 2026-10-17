@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_Sandbox
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   levelPrefab: {fileID: 4058927015439930953, guid: d3b33cbf6ce2c0b4c83e4033ada3ced4, type: 3}
-  humanCount: 150
+  humanCount: 300
   levelTimer: 600
   suddenDeathSpawnRate: 0.2
   zombieSpeedMultiplier: 1
@@ -35,14 +35,14 @@ MonoBehaviour:
   missionIcon: {fileID: 0}
   missionDescription: 
   cameraType: 0
-  cameraPosition: {x: 0, y: 20, z: -15}
+  cameraPosition: {x: 0, y: 297.60004, z: -171.81946}
   cameraRotation: {x: 60, y: 0, z: 0}
   cameraFieldOfView: 60
   orthographicSize: 10
   currencyReward: 0
   levelRewardLootbox: {fileID: 0}
   clearGrants: []
-  scientistCount: 20
+  scientistCount: 40
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
   abilityEnabled: 1
   onStartTutorial: {fileID: 0}
