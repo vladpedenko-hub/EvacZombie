@@ -166,10 +166,22 @@ public static class CityGenerator
 
 		// ── Single base plane for the whole city (sidewalks/block ground), y=0. Extended by the
 		// frame thickness on every side so there's no gap visible under the frame walls.
+		//
+		// bug/sandbox-walkability: BaseGround is deliberately NOT on the Ground layer. The real
+		// NavMeshManager's NavMeshSurface bakes with layerMask = Ground only (confirmed via
+		// LevelManager.Instance's navSurface) -- a single continuous BaseGround plane on that layer
+		// made the ENTIRE city (block interiors, the margin strip between the outermost street and
+		// the frame) walkable, since nothing else on the Ground layer ever covered those areas to
+		// override it (buildings/frame are not on the Ground layer either, and a
+		// NavMeshModifierVolume per block was tried as the fix but did not reliably override the
+		// baked area in testing -- see CreateBlockNotWalkableVolume). Streets/intersections/parks
+		// stay on the Ground layer below and are the ONLY walkable source; BaseGround keeps its
+		// visual role (continuous sidewalk/floor under everything) without contributing to the bake.
+		int defaultLayer = 0;
 		float totalWidth = cityWidth + FrameThickness * 2f;
 		float totalDepth = cityDepth + FrameThickness * 2f;
 		CreateGroundCube(groundParent, "BaseGround", new Vector3(cityWidth * 0.5f + offsetX, 0f, cityDepth * 0.5f + offsetZ),
-			new Vector3(totalWidth, GroundThickness, totalDepth), groundLayer, blockBaseMat);
+			new Vector3(totalWidth, GroundThickness, totalDepth), defaultLayer, blockBaseMat);
 
 		// ── Intersections: always present, keeps the network connected regardless of merges ──
 		for (int bx = 0; bx <= blocksX; bx++)
@@ -541,9 +553,18 @@ public static class CityGenerator
 		if (r != null && material != null) r.sharedMaterial = material;
 	}
 
-	// feature/city-gen-v2: replaces per-building NavMeshObstacle carving. One Not-Walkable volume
-	// per block rectangle, tall enough to cover both the ground-level footprint and any building
-	// rooftop the NavMesh bake might otherwise treat as a (harmless but unnecessary) walkable island.
+	// bug/sandbox-walkability: originally meant to replace per-building NavMeshObstacle carving by
+	// overriding each block's baked area to Not Walkable. Verified (via unity command eval against
+	// NavMeshSurface.BuildNavMesh's own AppendModifierVolumes source, which confirmed the volume IS
+	// registered, passes the layer/agent-type/stage filters, and gets added as a ModifierBox
+	// NavMeshBuildSource) that this project's bake does NOT end up honoring the override -- every
+	// triangle under the volume still comes back area 0 ("Walkable") in NavMesh.CalculateTriangulation(),
+	// for reasons not fully pinned down. The actual fix is that BaseGround is no longer on the Ground
+	// layer at all (see its creation above), which makes every block/building footprint correctly
+	// walkable-free by ABSENCE of Ground-layer geometry, independent of this volume's area override.
+	// Kept anyway, for two reasons: it's harmless, and CrowdFieldManager's sandbox-only diagnostic
+	// (WarnIfWalkableCellsInsideBlocks) reuses these volumes purely as block-rectangle DATA (their
+	// position/size are accurate even though their area-override effect on the bake is not).
 	private static void CreateBlockNotWalkableVolume(Transform parent, string name, float left, float bottom, float right, float top)
 	{
 		GameObject go = new GameObject(name);

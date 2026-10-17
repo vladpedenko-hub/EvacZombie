@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using Unity.AI.Navigation;
 
 // Shared road-grid + distance-field crowd system (feature/zombie-street-ai). Builds one walkable
 // grid from the baked NavMesh per level, then every chaosSettings.fieldRefresh seconds recomputes
@@ -242,19 +243,34 @@ public class CrowdFieldManager : MonoBehaviour
 		// close to ITS OWN center.
 		float snapTolerance = cachedSettings != null ? Mathf.Clamp(cachedSettings.roadGridSnapTolerance, 0.05f, 1f) : 0.35f;
 		float sampleRadius = cellSize * snapTolerance;
+
+		// bug/sandbox-walkability: NavMesh.AllAreas matches EVERY area type, including "Not
+		// Walkable" -- a NavMeshModifierVolume only changes a surface's area tag, it doesn't
+		// remove the surface from the triangulation, so sampling with AllAreas happily snaps onto
+		// ground tagged Not Walkable (procedural sandbox blocks/buildings) as if it were open. Only
+		// the "Walkable" area should ever make a grid cell passable.
+		int walkableAreaMask = 1 << NavMesh.GetAreaFromName("Walkable");
+
 		for (int y = 0; y < gridH; y++)
 		{
 			for (int x = 0; x < gridW; x++)
 			{
 				int idx = y * gridW + x;
 				Vector3 center = new Vector3(originWorld.x + x * cellSize, avgY, originWorld.z + y * cellSize);
-				if (NavMesh.SamplePosition(center, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
+				if (NavMesh.SamplePosition(center, out NavMeshHit hit, sampleRadius, walkableAreaMask))
 				{
 					walkable[idx] = true;
 					cellWorldPos[idx] = hit.position;
 				}
 			}
 		}
+
+		// bug/sandbox-walkability (cheap safety net, generated cities only): cross-check every
+		// walkable cell against the generator's own Not-Walkable block volumes. With the area-mask
+		// fix above this should always be 0; a non-zero count means some other walkable surface
+		// (not a NavMeshModifierVolume region) is wrongly open inside a block footprint.
+		if (LevelManager.Instance != null && LevelManager.Instance.currentData != null && LevelManager.Instance.currentData.isSandboxLevel)
+			WarnIfWalkableCellsInsideBlocks(count);
 
 		BuildIntersections();
 
@@ -270,6 +286,48 @@ public class CrowdFieldManager : MonoBehaviour
 		nextRefreshTime = 0f; // recompute immediately on the next Update
 
 		Debug.Log($"[CrowdFieldManager] Grid built: {gridW}x{gridH} cells ({count} total), cellSize={cellSize:F2}m, span={spanX:F1}x{spanZ:F1}m");
+	}
+
+	// bug/sandbox-walkability: cheap, one-time-per-rebuild diagnostic for the procedural sandbox
+	// city only. Reuses the generator's own block-rectangle data (its Not-Walkable
+	// NavMeshModifierVolumes) instead of any separate street/park bookkeeping -- a walkable cell
+	// whose center falls inside one of these volumes' XZ footprint is, by construction, inside a
+	// block (buildings touch each other with no walkable gap per the AZS block model), never a
+	// street/park/intersection. Expected 0.
+	private void WarnIfWalkableCellsInsideBlocks(int count)
+	{
+		NavMeshModifierVolume[] volumes = Object.FindObjectsByType<NavMeshModifierVolume>(FindObjectsInactive.Exclude);
+		int notWalkableArea = NavMesh.GetAreaFromName("Not Walkable");
+
+		var blockBounds = new List<(float minX, float maxX, float minZ, float maxZ)>();
+		foreach (NavMeshModifierVolume vol in volumes)
+		{
+			if (vol.area != notWalkableArea) continue;
+			Vector3 c = vol.transform.position + vol.center;
+			Vector3 half = vol.size * 0.5f;
+			blockBounds.Add((c.x - half.x, c.x + half.x, c.z - half.z, c.z + half.z));
+		}
+		if (blockBounds.Count == 0) return;
+
+		int leakCount = 0;
+		for (int idx = 0; idx < count; idx++)
+		{
+			if (!walkable[idx]) continue;
+			Vector3 p = cellWorldPos[idx];
+			foreach (var b in blockBounds)
+			{
+				if (p.x >= b.minX && p.x <= b.maxX && p.z >= b.minZ && p.z <= b.maxZ)
+				{
+					leakCount++;
+					break;
+				}
+			}
+		}
+
+		if (leakCount > 0)
+			Debug.LogWarning($"[CrowdFieldManager] {leakCount} walkable grid cell(s) have a center inside a Not-Walkable block rectangle (expected 0) -- civilians/zombies can path through buildings.");
+		else
+			Debug.Log($"[CrowdFieldManager] Sandbox block-walkability check: 0 walkable cells inside a block rectangle (of {blockBounds.Count} blocks).");
 	}
 
 	private void BuildIntersections()

@@ -292,8 +292,18 @@ public class LevelManager : MonoBehaviour
 		return false;
 	}
 
+	// bug/sandbox-walkability: NavMesh.AllAreas matches Not-Walkable-tagged surfaces too (a
+	// NavMeshModifierVolume only changes a surface's area, it doesn't remove it from the
+	// triangulation) -- sampling with AllAreas and a generous 20m maxDistance let a random point
+	// deep inside a procedural sandbox block/building snap all the way to the nearest actual
+	// street instead of being rejected, spawning humans/scientists inside buildings. Only the
+	// "Walkable" area, with a small maxDistance (reject outright instead of teleporting far from
+	// the random candidate), gives "sampled onto streets/parks only, rejected otherwise".
+	private const float SpawnPositionWalkableSnapRadius = 1.5f;
+
 	private void SpawnHumans(int count)
 	{
+		int walkableAreaMask = 1 << NavMesh.GetAreaFromName("Walkable");
 		for (int i = 0; i < count; i++)
 		{
 			for (int attempt = 0; attempt < maxSpawnAttempts; attempt++)
@@ -301,7 +311,7 @@ public class LevelManager : MonoBehaviour
 				Vector3 randomPos = Random.insideUnitSphere * 20f;
 				randomPos.y = 0;
 
-				if (NavMesh.SamplePosition(randomPos, out NavMeshHit hit, 20f, NavMesh.AllAreas) && !IsTooCloseToSpawnPoints(hit.position))
+				if (NavMesh.SamplePosition(randomPos, out NavMeshHit hit, SpawnPositionWalkableSnapRadius, walkableAreaMask) && !IsTooCloseToSpawnPoints(hit.position))
 				{
 					Instantiate(humanPrefab, hit.position, Quaternion.identity);
 					break;
@@ -321,6 +331,7 @@ public class LevelManager : MonoBehaviour
 			return;
 		}
 
+		int walkableAreaMask = 1 << NavMesh.GetAreaFromName("Walkable");
 		for (int i = 0; i < count; i++)
 		{
 			for (int attempt = 0; attempt < maxSpawnAttempts; attempt++)
@@ -328,7 +339,7 @@ public class LevelManager : MonoBehaviour
 				Vector3 randomPos = Random.insideUnitSphere * 20f;
 				randomPos.y = 0;
 
-				if (NavMesh.SamplePosition(randomPos, out NavMeshHit hit, 20f, NavMesh.AllAreas) && !IsTooCloseToSpawnPoints(hit.position))
+				if (NavMesh.SamplePosition(randomPos, out NavMeshHit hit, SpawnPositionWalkableSnapRadius, walkableAreaMask) && !IsTooCloseToSpawnPoints(hit.position))
 				{
 					Instantiate(prefabToUse, hit.position, Quaternion.identity);
 					break;
