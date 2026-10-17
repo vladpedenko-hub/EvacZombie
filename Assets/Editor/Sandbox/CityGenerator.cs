@@ -143,7 +143,8 @@ public static class CityGenerator
 			for (int by = 0; by <= blocksY; by++)
 			{
 				Vector3 center = new Vector3(offsetX + streetCenterX[bx], RoadTopY, offsetZ + streetCenterZ[by]);
-				CreateGroundCube(groundParent, $"Intersection_{bx}_{by}", center, new Vector3(roadWidth, RoadThickness, roadWidth), groundLayer, asphaltMat);
+				GameObject intersectionGo = CreateGroundCube(groundParent, $"Intersection_{bx}_{by}", center, new Vector3(roadWidth, RoadThickness, roadWidth), groundLayer, asphaltMat);
+				AddStreetSegment(intersectionGo, Vector3.forward, roadWidth, true);
 			}
 		}
 
@@ -152,15 +153,19 @@ public static class CityGenerator
 		{
 			float z = offsetZ + (blockBottom[by] + blockTop[by]) * 0.5f;
 			float len = blockTop[by] - blockBottom[by];
-			CreateGroundCube(groundParent, $"Ring_W_{by}", new Vector3(offsetX + streetCenterX[0], RoadTopY, z), new Vector3(roadWidth, RoadThickness, len), groundLayer, asphaltMat);
-			CreateGroundCube(groundParent, $"Ring_E_{by}", new Vector3(offsetX + streetCenterX[blocksX], RoadTopY, z), new Vector3(roadWidth, RoadThickness, len), groundLayer, asphaltMat);
+			GameObject ringWGo = CreateGroundCube(groundParent, $"Ring_W_{by}", new Vector3(offsetX + streetCenterX[0], RoadTopY, z), new Vector3(roadWidth, RoadThickness, len), groundLayer, asphaltMat);
+			AddStreetSegment(ringWGo, Vector3.forward, roadWidth, false);
+			GameObject ringEGo = CreateGroundCube(groundParent, $"Ring_E_{by}", new Vector3(offsetX + streetCenterX[blocksX], RoadTopY, z), new Vector3(roadWidth, RoadThickness, len), groundLayer, asphaltMat);
+			AddStreetSegment(ringEGo, Vector3.forward, roadWidth, false);
 		}
 		for (int bx = 0; bx < blocksX; bx++)
 		{
 			float x = offsetX + (blockLeft[bx] + blockRight[bx]) * 0.5f;
 			float len = blockRight[bx] - blockLeft[bx];
-			CreateGroundCube(groundParent, $"Ring_S_{bx}", new Vector3(x, RoadTopY, offsetZ + streetCenterZ[0]), new Vector3(len, RoadThickness, roadWidth), groundLayer, asphaltMat);
-			CreateGroundCube(groundParent, $"Ring_N_{bx}", new Vector3(x, RoadTopY, offsetZ + streetCenterZ[blocksY]), new Vector3(len, RoadThickness, roadWidth), groundLayer, asphaltMat);
+			GameObject ringSGo = CreateGroundCube(groundParent, $"Ring_S_{bx}", new Vector3(x, RoadTopY, offsetZ + streetCenterZ[0]), new Vector3(len, RoadThickness, roadWidth), groundLayer, asphaltMat);
+			AddStreetSegment(ringSGo, Vector3.right, roadWidth, false);
+			GameObject ringNGo = CreateGroundCube(groundParent, $"Ring_N_{bx}", new Vector3(x, RoadTopY, offsetZ + streetCenterZ[blocksY]), new Vector3(len, RoadThickness, roadWidth), groundLayer, asphaltMat);
+			AddStreetSegment(ringNGo, Vector3.right, roadWidth, false);
 		}
 
 		// ── Internal vertical street segments (between column bx-1 and bx, at row by) ──
@@ -180,7 +185,8 @@ public static class CityGenerator
 
 				float zCenter = offsetZ + (zBottom + zTop) * 0.5f;
 				float len = zTop - zBottom;
-				CreateGroundCube(groundParent, $"Street_V_{bx}_{by}", new Vector3(offsetX + streetCenterX[bx], RoadTopY, zCenter), new Vector3(width, RoadThickness, len), groundLayer, asphaltMat);
+				GameObject streetVGo = CreateGroundCube(groundParent, $"Street_V_{bx}_{by}", new Vector3(offsetX + streetCenterX[bx], RoadTopY, zCenter), new Vector3(width, RoadThickness, len), groundLayer, asphaltMat);
+				AddStreetSegment(streetVGo, Vector3.forward, width, false);
 			}
 		}
 
@@ -201,7 +207,8 @@ public static class CityGenerator
 
 				float xCenter = offsetX + (xLeft + xRight) * 0.5f;
 				float len = xRight - xLeft;
-				CreateGroundCube(groundParent, $"Street_H_{bx}_{by}", new Vector3(xCenter, RoadTopY, offsetZ + streetCenterZ[by]), new Vector3(len, RoadThickness, width), groundLayer, asphaltMat);
+				GameObject streetHGo = CreateGroundCube(groundParent, $"Street_H_{bx}_{by}", new Vector3(xCenter, RoadTopY, offsetZ + streetCenterZ[by]), new Vector3(len, RoadThickness, width), groundLayer, asphaltMat);
+				AddStreetSegment(streetHGo, Vector3.right, width, false);
 			}
 		}
 
@@ -321,7 +328,7 @@ public static class CityGenerator
 		return go;
 	}
 
-	private static void CreateGroundCube(Transform parent, string name, Vector3 centerLocal, Vector3 size, int groundLayer, Material material)
+	private static GameObject CreateGroundCube(Transform parent, string name, Vector3 centerLocal, Vector3 size, int groundLayer, Material material)
 	{
 		GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
 		go.name = name;
@@ -334,6 +341,19 @@ public static class CityGenerator
 			Renderer r = go.GetComponent<Renderer>();
 			if (r != null) r.sharedMaterial = material;
 		}
+		return go;
+	}
+
+	// feature/street-segments: tags a road piece with its travel direction/width so barricade
+	// placement (InputManager.cs) can snap to the centerline instead of guessing from the hit
+	// collider's (always-identity) transform. Only road pieces get one -- BaseGround/Park_* are
+	// not streets.
+	private static void AddStreetSegment(GameObject go, Vector3 direction, float width, bool isIntersection)
+	{
+		StreetSegment segment = go.AddComponent<StreetSegment>();
+		segment.Direction = direction;
+		segment.Width = width;
+		segment.IsIntersection = isIntersection;
 	}
 
 	// fix/sandbox-city-visuals: SimpleTown's Road.mat is an atlas texture authored for its own

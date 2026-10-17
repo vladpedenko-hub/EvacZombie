@@ -45,7 +45,7 @@ MonoBehaviour:
   roadGridMinCellSize: 2
   roadGridTargetCellsPerAxis: 48
   cellSizeFromRoadWidth: 1
-  roadWidth: 6
+  roadWidth: 3
   roadGridSnapTolerance: 0.35
   barricadePathCost: 15
   drawGridGizmos: 0

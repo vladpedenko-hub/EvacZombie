@@ -273,7 +273,11 @@ public class InputManager : MonoBehaviour
 				return true;
 
 			case CardManager.CardType.Barricade:
+			{
+				StreetSegment segment = hit.collider != null ? hit.collider.GetComponentInParent<StreetSegment>() : null;
+				if (segment != null && segment.IsIntersection) return false; // no single travel direction to block
 				return !isBuilding;
+			}
 
 			default:
 				return !isBuilding;
@@ -404,16 +408,62 @@ public class InputManager : MonoBehaviour
 
 			case CardManager.CardType.Barricade:
 			{
-				// Orient the barricade across the road based on the road mesh direction
 				Quaternion barricadeRotation = Quaternion.identity;
-				if (hit.collider != null)
+				StreetSegment segment = hit.collider != null ? hit.collider.GetComponentInParent<StreetSegment>() : null;
+				bool snapped = false;
+
+				if (segment != null && !segment.IsIntersection)
 				{
+					Vector3 dir = segment.Direction;
+					dir.y = 0f;
+					if (dir.sqrMagnitude > 0.001f)
+					{
+						dir.Normalize();
+						// Perpendicular to the travel direction, in the XZ plane -- the axis the
+						// barricade's long side must span to actually block the street.
+						Vector3 perp = new Vector3(dir.z, 0f, -dir.x);
+
+						// Snap to the centerline: keep the tap's coordinate along the street, zero
+						// out the cross-street offset.
+						float tapHeight = spawnPos.y;
+						float alongTap = Vector3.Dot(spawnPos - segment.transform.position, dir);
+						spawnPos = segment.transform.position + dir * alongTap;
+						spawnPos.y = tapHeight;
+
+						// The barricade mesh's long side (the collider's size.x) is local X, not
+						// local Z/forward -- the extra 90-degree twist re-points local X at perp
+						// instead of leaving it on perp's "forward" companion axis.
+						barricadeRotation = Quaternion.LookRotation(perp) * Quaternion.Euler(0, 90, 0);
+						snapped = true;
+					}
+				}
+
+				if (!snapped && hit.collider != null)
+				{
+					// Old behavior, unchanged: no StreetSegment data (hand-built level without a
+					// synced RoadZone, or an unrecognized collider) -- orient from the road mesh's
+					// own transform like before.
 					Vector3 roadDir = hit.collider.transform.forward;
 					roadDir.y = 0f;
 					if (roadDir.sqrMagnitude > 0.001f)
 						barricadeRotation = Quaternion.LookRotation(roadDir.normalized) * Quaternion.Euler(0, 90, 0);
 				}
-				Instantiate(card.cardPrefab, spawnPos, barricadeRotation);
+
+				GameObject spawnedBarricade = Instantiate(card.cardPrefab, spawnPos, barricadeRotation);
+
+				if (snapped)
+				{
+					// Stretch the long (width-spanning) side to cover the street + ~5% overlap so
+					// zombies cannot walk around the ends. Barricade.Start() later stacks
+					// "barricade_width_mult" on top of this via transform.localScale *=, so the
+					// final footprint only ever grows further from here.
+					BoxCollider box = spawnedBarricade.GetComponent<BoxCollider>();
+					if (box != null && box.size.x > 0.001f)
+					{
+						float scaleX = (segment.Width * 1.05f) / box.size.x;
+						spawnedBarricade.transform.localScale = new Vector3(scaleX, 1f, 1f);
+					}
+				}
 				break;
 			}
 
