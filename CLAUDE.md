@@ -1,5 +1,9 @@
 # CLAUDE.md — инструкции для Claude Code в этом репозитории
 
+## Language rule (MANDATORY)
+
+Everything committed to this repo must be in English: code, identifiers, comments, [Tooltip]/[Header] texts, log messages, UI strings meant for development, asset and file names, docs (including this file), and commit messages. No Russian (or any other non-English language) anywhere in the project. When you touch a file that still contains Russian, translate it to English as part of the change. (Discussion with Vlad happens in Russian outside the repo; that does not change this rule.)
+
 > Читать в начале каждой сессии. Это единственный файл, который Claude Code подхватывает автоматически.
 > Факты ниже сверены с кодом репозитория 29.08.2026 (Cowork-сессия). Если что-то не совпадает с реальностью — код всегда прав, поправь этот файл заодно.
 
