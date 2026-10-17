@@ -15,8 +15,8 @@ MonoBehaviour:
   seed: 12345
   blocksX: 4
   blocksY: 5
-  roadWidth: 3
-  alleyWidthFactor: 0.5
+  roadWidth: 1
+  alleyWidthFactor: 0.8
   buildingCellSize: 4
   blockSizeMin: 2
   blockSizeMax: 4

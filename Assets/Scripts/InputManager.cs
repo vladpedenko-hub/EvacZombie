@@ -8,6 +8,12 @@ public class InputManager : MonoBehaviour
 	[Header("Icons")]
 	public GameObject invalidPlacementIcon;
 
+	// feature/city-gen-v2: streets are now ~1-1.6m wide -- a finger-sized tap routinely misses the
+	// exact street collider. Comfortably covers 3x the widest clamped street (CityGenConfig.roadWidth
+	// is clamped to [1.0, 1.6]), so the per-candidate snapRadius (segment.Width * 3) computed inside
+	// the OverlapSphere results is never larger than what this first broad-phase pass already covers.
+	private const float BarricadeSnapSearchRadius = 5f;
+
 	private Camera mainCam;
 	private CardData draggingCard = null;
 	private bool isDragging;
@@ -274,14 +280,62 @@ public class InputManager : MonoBehaviour
 
 			case CardManager.CardType.Barricade:
 			{
-				StreetSegment segment = hit.collider != null ? hit.collider.GetComponentInParent<StreetSegment>() : null;
-				if (segment != null && segment.IsIntersection) return false; // no single travel direction to block
-				return !isBuilding;
+				StreetSegment segment = ResolveBarricadeSegment(hit, out bool legacy);
+				if (legacy) return !isBuilding; // no StreetSegment data at all here -- old behavior, unchanged
+				return segment != null; // valid only if a usable (non-intersection) segment is within the snap radius
 			}
 
 			default:
 				return !isBuilding;
 		}
+	}
+
+	// feature/city-gen-v2: resolves which StreetSegment a barricade placement should snap to.
+	// Streets are narrow (~1-1.6m) -- a tap routinely lands on something other than the exact street
+	// strip (an intersection tile a hair off, or the BaseGround/Building collider right next to it),
+	// so this widens the search with an OverlapSphere around the tap instead of trusting only the
+	// exact hit collider.
+	//
+	// legacy=true means the directly-hit collider carries no StreetSegment anywhere in its parent
+	// chain at all -- i.e. this hit has nothing to do with the StreetSegment system (a hand-built
+	// level whose RoadZone hasn't been touched/synced yet, a Building wall, etc.) -- callers should
+	// fall back to the pre-existing behavior byte-for-byte rather than reject the placement.
+	//
+	// legacy=false with a null return means the opposite: the hit IS part of the system (confirmed
+	// by the direct hit), but no usable (non-intersection) segment was found within its own
+	// Width*3 snap radius -- callers must treat this as invalid placement.
+	private StreetSegment ResolveBarricadeSegment(RaycastHit hit, out bool legacy)
+	{
+		legacy = false;
+		if (hit.collider == null) { legacy = true; return null; }
+
+		StreetSegment directHit = hit.collider.GetComponentInParent<StreetSegment>();
+		if (directHit == null)
+		{
+			legacy = true;
+			return null;
+		}
+
+		Collider[] nearby = Physics.OverlapSphere(hit.point, BarricadeSnapSearchRadius);
+		StreetSegment best = null;
+		float bestDistSqr = float.MaxValue;
+
+		foreach (Collider col in nearby)
+		{
+			StreetSegment candidate = col.GetComponentInParent<StreetSegment>();
+			if (candidate == null || candidate.IsIntersection) continue;
+
+			float snapRadius = candidate.Width * 3f;
+			float distSqr = (candidate.transform.position - hit.point).sqrMagnitude;
+			if (distSqr > snapRadius * snapRadius) continue;
+			if (distSqr < bestDistSqr)
+			{
+				bestDistSqr = distSqr;
+				best = candidate;
+			}
+		}
+
+		return best;
 	}
 
 	private void DrawRadiusCircle(Vector3 center, float radius)
@@ -408,19 +462,20 @@ public class InputManager : MonoBehaviour
 
 			case CardManager.CardType.Barricade:
 			{
+				StreetSegment segment = ResolveBarricadeSegment(hit, out bool legacy);
 				Quaternion barricadeRotation = Quaternion.identity;
-				StreetSegment segment = hit.collider != null ? hit.collider.GetComponentInParent<StreetSegment>() : null;
 				bool snapped = false;
 
-				if (segment != null && !segment.IsIntersection)
+				if (!legacy && segment != null)
 				{
 					Vector3 dir = segment.Direction;
 					dir.y = 0f;
 					if (dir.sqrMagnitude > 0.001f)
 					{
 						dir.Normalize();
-						// Perpendicular to the travel direction, in the XZ plane -- the axis the
-						// barricade's long side must span to actually block the street.
+						// Perpendicular to the travel direction, in the XZ plane -- purely a visual
+						// facing now that the footprint is a square (see below), not something the
+						// blocking coverage depends on.
 						Vector3 perp = new Vector3(dir.z, 0f, -dir.x);
 
 						// Snap to the centerline: keep the tap's coordinate along the street, zero
@@ -438,11 +493,11 @@ public class InputManager : MonoBehaviour
 					}
 				}
 
-				if (!snapped && hit.collider != null)
+				if (legacy && hit.collider != null)
 				{
-					// Old behavior, unchanged: no StreetSegment data (hand-built level without a
-					// synced RoadZone, or an unrecognized collider) -- orient from the road mesh's
-					// own transform like before.
+					// Old behavior, unchanged: no StreetSegment data anywhere near this hit (hand-built
+					// level whose RoadZone hasn't been touched/synced, or a Building/other collider) --
+					// orient from the road mesh's own transform like before.
 					Vector3 roadDir = hit.collider.transform.forward;
 					roadDir.y = 0f;
 					if (roadDir.sqrMagnitude > 0.001f)
@@ -453,15 +508,21 @@ public class InputManager : MonoBehaviour
 
 				if (snapped)
 				{
-					// Stretch the long (width-spanning) side to cover the street + ~5% overlap so
-					// zombies cannot walk around the ends. Barricade.Start() later stacks
-					// "barricade_width_mult" on top of this via transform.localScale *=, so the
-					// final footprint only ever grows further from here.
+					// AZS-style: a small square as wide as the street (+~5% overlap) so zombies
+					// cannot walk around either end. Both the long (collider size.x) and the
+					// originally-thin (size.z) authored sides scale independently to the same target
+					// span. Barricade.Start() later stacks "barricade_width_mult" on top of this via
+					// transform.localScale *= (uniform on X/Y/Z), which keeps X and Z equal to each
+					// other (still square) and only ever grows the footprint further -- and since the
+					// NavMeshObstacle's extents are authored proportionally to the same collider size,
+					// scaling the transform this way keeps its carve matching the final square exactly.
 					BoxCollider box = spawnedBarricade.GetComponent<BoxCollider>();
-					if (box != null && box.size.x > 0.001f)
+					if (box != null && box.size.x > 0.001f && box.size.z > 0.001f)
 					{
-						float scaleX = (segment.Width * 1.05f) / box.size.x;
-						spawnedBarricade.transform.localScale = new Vector3(scaleX, 1f, 1f);
+						float targetSpan = segment.Width * 1.05f;
+						float scaleX = targetSpan / box.size.x;
+						float scaleZ = targetSpan / box.size.z;
+						spawnedBarricade.transform.localScale = new Vector3(scaleX, 1f, scaleZ);
 					}
 				}
 				break;

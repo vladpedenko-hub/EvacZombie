@@ -36,7 +36,7 @@ MonoBehaviour:
   missionIcon: {fileID: 0}
   missionDescription: 
   cameraType: 0
-  cameraPosition: {x: 0, y: 118.626236, z: 0}
+  cameraPosition: {x: 0, y: 104.46191, z: 0}
   cameraRotation: {x: 90, y: 0, z: 0}
   cameraFieldOfView: 60
   orthographicSize: 10
