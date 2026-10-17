@@ -51,10 +51,6 @@ public class CrowdTuning : ScriptableObject
 	[Tooltip("hunterShare ночью (во время SuddenDeath) — обычно все зомби становятся Hunter.")]
 	public float nightHunterShare = 1.0f;
 
-	[Range(1f, 15f)]
-	[Tooltip("Клетки сетки. Wanderer замечает гражданского на той же прямой улице в этом радиусе и становится Hunter.")]
-	public float aggroRadiusCells = 5f;
-
 	[Range(0f, 1f)]
 	[Tooltip("Если доля живых гражданских падает ниже этого значения — все зомби становятся Hunter.")]
 	public float lateWaveHunterThreshold = 0.2f;
@@ -77,6 +73,26 @@ public class CrowdTuning : ScriptableObject
 
 	[Tooltip("A/B переключатель: ставит всем зомби ObstacleAvoidanceType.LowQuality вместо значения из префаба.")]
 	public bool zombieAvoidanceLow = false;
+
+	// ───────────────────────────── Opportunity & Bait (fix/bite-and-bait) ─────────────────────────────
+	[Header("Opportunity & Bait")]
+	[Range(0, 10)]
+	[Tooltip("fix/bite-and-bait: сколько шагов поля F_civ на своей клетке допускается, прежде чем зомби тратится на дорогую проверку \"укусить любого гражданского в упор\" (дёшево отбрасывает тики, когда рядом точно никого нет).")]
+	public int biteFieldGateSteps = 2;
+
+	[Range(1, 15)]
+	[Tooltip("fix/bite-and-bait: клетки сетки. Гражданский, досягаемый по дорогам (NavMesh-путь, не по прямой) в этом радиусе, становится \"целью по случаю\" — приоритет выше дальней охоты (Hunt), без ограничения maxZombiesPerTarget.")]
+	public int opportunityRadiusCells = 4;
+
+	[Range(1f, 5f)]
+	[Tooltip("fix/bite-and-bait: сменить текущую \"цель по случаю\" на новую можно только если новая ближе по пути хотя бы в это число раз — иначе зомби держится прежней цели (без этого два близких гражданских заставляли бы зомби дёргаться между ними каждый тик).")]
+	public float opportunitySwitchRatio = 1.5f;
+
+	[Tooltip("fix/bite-and-bait: если включено, приманка (Bait) перетягивает приоритет даже при наличии доступной \"цели по случаю\" (обычно наоборот — приманка ждёт, пока рядом не останется гражданских).")]
+	public bool baitOverridesOpportunity = false;
+
+	[Tooltip("fix/bite-and-bait: показывать маленький значок над зомби, который сейчас прицеплен (latched) к приманке — не только когда приманка реально выбрана целью в этот тик, а всё время, пока привязка жива.")]
+	public bool showBaitedMarker = true;
 
 	// ───────────────────────────── Civilian ─────────────────────────────
 	[Header("Civilian")]

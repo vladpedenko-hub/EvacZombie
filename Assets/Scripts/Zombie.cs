@@ -54,6 +54,22 @@ public class Zombie : MonoBehaviour
 	private Bait currentBait = null;
 	private Vector3 currentBaitDestination;
 
+	// fix/bite-and-bait (1): rolled once in LatchOntoBait(), kept until currentBait itself goes away
+	// (Unity's fake-null on Destroy) -- previously FindTargetWithBaitPriority re-rolled this every
+	// single Brain tick (0.15s), which is what made zombies jitter around a bait instead of settling
+	// into a stable crowd point.
+	private Vector3 currentBaitOffset;
+
+	// fix/bite-and-bait (2): "a reachable civilian within opportunityRadiusCells by road" -- a
+	// separate, higher-priority target than huntTarget (far hunt), re-resolved every tick in
+	// ResolveOpportunityTarget() with its own switch hysteresis (opportunitySwitchRatio).
+	private EvacueeBase opportunityTarget;
+
+	// fix/bite-and-bait (3): small world-space marker shown above a zombie while LATCHED to a bait
+	// (currentBait != null), independent of whether bait is this tick's ACTIVE target (Opportunity
+	// can temporarily outrank it per baitOverridesOpportunity). Lazily created on first use.
+	private Transform baitedMarker;
+
 	// Street AI: Wanderer patrols random road-grid intersections until it spots a civilian down
 	// the same straight street within aggroRadius, at which point it becomes a Hunter (one-way —
 	// it never reverts). Rolled per spawn/pool reuse in StartBrainIfNeeded(), from
@@ -73,7 +89,7 @@ public class Zombie : MonoBehaviour
 	// complete path right now (e.g. a barricade blocks every route) — follows the F_civ lookahead
 	// gradient instead, which is finite-cost through barricades, until close enough to attack one.
 	// Wander = the existing intersection patrol. Read by CrowdFieldManager's debug overlay.
-	public enum ZombieMode { Hunt, Wander, Siege }
+	public enum ZombieMode { Hunt, Wander, Siege, Opportunity, Bait }
 	private ZombieMode currentMode = ZombieMode.Wander;
 	public ZombieMode CurrentMode => currentMode;
 	public NavMeshAgent Agent => agent;
@@ -166,7 +182,6 @@ public class Zombie : MonoBehaviour
 	private float RetargetCooldown => crowdTuning != null ? Mathf.Max(0.1f, crowdTuning.retargetCooldown) : 1.5f;
 	private float CellSizeOrDefault =>
 		CrowdFieldManager.Instance != null && CrowdFieldManager.Instance.GridReady ? CrowdFieldManager.Instance.CellSize : 2f;
-	private float AggroRadiusWorld => (crowdTuning != null ? crowdTuning.aggroRadiusCells : 5f) * CellSizeOrDefault;
 	private int HunterCandidateCount => crowdTuning != null ? Mathf.Max(1, crowdTuning.hunterCandidateCount) : 4;
 	private int MaxZombiesPerTarget => crowdTuning != null ? Mathf.Max(1, crowdTuning.maxZombiesPerTarget) : 2;
 	private float SpeedVariance => crowdTuning != null ? Mathf.Max(0f, crowdTuning.speedVariance) : 0.15f;
@@ -183,6 +198,13 @@ public class Zombie : MonoBehaviour
 
 	// fix/barricade-jerk-wave1 (Bug 2a): spawn-snap radius for OnTakenFromPool's NavMesh.SamplePosition.
 	private float SpawnSnapRadius => crowdTuning != null ? Mathf.Max(3f, crowdTuning.spawnSnapRadius) : 10f;
+
+	// fix/bite-and-bait: Opportunity/contact-bite tunables.
+	private int BiteFieldGateSteps => crowdTuning != null ? Mathf.Max(0, crowdTuning.biteFieldGateSteps) : 2;
+	private float OpportunityRadiusWorld => (crowdTuning != null ? Mathf.Max(1, crowdTuning.opportunityRadiusCells) : 4) * CellSizeOrDefault;
+	private float OpportunitySwitchRatio => crowdTuning != null ? Mathf.Max(1f, crowdTuning.opportunitySwitchRatio) : 1.5f;
+	private bool BaitOverridesOpportunity => crowdTuning != null && crowdTuning.baitOverridesOpportunity;
+	private bool ShowBaitedMarker => crowdTuning == null || crowdTuning.showBaitedMarker;
 
 	private float HunterShareForSpawn
 	{
@@ -281,6 +303,7 @@ public class Zombie : MonoBehaviour
 		role = Random.value < HunterShareForSpawn ? ZombieRole.Hunter : ZombieRole.Wanderer;
 		hasWanderDestination = false;
 		huntTarget = null;
+		opportunityTarget = null;
 		nextHuntRepickTime = 0f;
 		siegeBarricade = null;
 		nextSiegeRouteCheckTime = 0f;
@@ -309,6 +332,9 @@ public class Zombie : MonoBehaviour
 
 		currentBait = null;
 		currentBaitDestination = Vector3.zero;
+		currentBaitOffset = Vector3.zero;
+		opportunityTarget = null;
+		UpdateBaitedMarker(false);
 
 		if (hitFlashRoutine != null)
 		{
@@ -376,6 +402,9 @@ public class Zombie : MonoBehaviour
 
 		currentBait = null;
 		currentBaitDestination = Vector3.zero;
+		currentBaitOffset = Vector3.zero;
+		opportunityTarget = null;
+		UpdateBaitedMarker(false);
 		isAttacking = false;
 		isDistracted = false;
 
@@ -437,10 +466,20 @@ public class Zombie : MonoBehaviour
 
 		UpdateStallTracking();
 
+		// fix/bite-and-bait (priority 1): contact bite -- ANY non-infected civilian within
+		// attackDistance gets bitten immediately, in every mode (hunt/wander/siege/bait), on top
+		// of whatever the zombie is otherwise doing this tick. Never interrupts movement (no
+		// ResetPath/SetDestination here) -- same "bite on contact" philosophy as the old
+		// current-target-only version (feature/azs-crowd-feel 4), just no longer limited to
+		// whichever civilian happened to already be the chosen target.
+		TryContactBite();
+
 		Transform target;
 		Vector3? overrideDestination;
 		bool isCruising;
 		FindTargetWithBaitPriority(out target, out overrideDestination, out isCruising);
+
+		UpdateBaitedMarker(currentBait != null);
 
 		if (target != null)
 		{
@@ -460,12 +499,13 @@ public class Zombie : MonoBehaviour
 			// account for that. Bait crowding targets the bait itself, not a civilian, so it's
 			// unaffected. A civilian target with no complete path means a wall in between, not
 			// open ground, so "close by straight line" must never count as in range to attack.
-			bool targetIsBarricade = currentBait == null && target.GetComponent<Barricade>() != null;
-			bool blockedByWall = currentBait == null && !targetIsBarricade && !pathReachable;
+			bool isBaitTarget = currentMode == ZombieMode.Bait;
+			bool targetIsBarricade = !isBaitTarget && target.GetComponent<Barricade>() != null;
+			bool blockedByWall = !isBaitTarget && !targetIsBarricade && !pathReachable;
 
 			if (dist > AttackDistance || !hasLOS || blockedByWall)
 			{
-				if (blockedByWall && currentBait == null && !targetIsBarricade)
+				if (blockedByWall && !isBaitTarget && !targetIsBarricade)
 				{
 					// fix/barricade-jerk-wave1 (Bug 1): don't just drop the target and leave the
 					// agent with no new destination until the next tick -- issue the siege step
@@ -473,6 +513,7 @@ public class Zombie : MonoBehaviour
 					// nearest reachable point the moment carving invalidates the path) gets
 					// overridden immediately instead of visibly holding for up to 0.15s.
 					huntTarget = null;
+					opportunityTarget = null;
 					CrowdFieldManager cfmNow = CrowdFieldManager.Instance;
 					bool fieldReadyNow = cfmNow != null && cfmNow.GridReady;
 					currentMode = ZombieMode.Siege;
@@ -482,12 +523,10 @@ public class Zombie : MonoBehaviour
 				{
 					agent.SetDestination(targetPos);
 				}
-
-				StopCrowdBehaviorIfAny();
 			}
 			else
 			{
-				if (currentBait != null)
+				if (isBaitTarget)
 				{
 					StartCrowdBehaviorAroundBait();
 				}
@@ -503,10 +542,11 @@ public class Zombie : MonoBehaviour
 				{
 					// feature/azs-crowd-feel (4): bite on contact — immediate, no windup, no
 					// cooldown, and movement is never interrupted (no ResetPath here at all).
-					// Clearing huntTarget makes the very next Brain tick re-pick instead of
-					// waiting out the usual retargetCooldown+jitter.
+					// Clearing huntTarget/opportunityTarget makes the very next Brain tick
+					// re-pick instead of waiting out the usual retargetCooldown+jitter.
 					InfectTarget(target.gameObject);
 					huntTarget = null;
+					opportunityTarget = null;
 				}
 			}
 		}
@@ -517,8 +557,6 @@ public class Zombie : MonoBehaviour
 			// FindTargetWithBaitPriority already issued its own (cooldown-gated) SetDestination
 			// toward the next field-descent step or wander intersection — resetting here would
 			// undo that every single tick and reintroduce the old jitter.
-			StopCrowdBehaviorIfAny();
-
 			if (agent != null && agent.enabled && agent.isOnNavMesh)
 			{
 				agent.ResetPath();
@@ -625,32 +663,218 @@ public class Zombie : MonoBehaviour
 			$"spawnPoint='{spawnPointName}'", this);
 	}
 
+	// fix/bite-and-bait: top-to-bottom priority, re-evaluated every Brain tick (contact bite itself
+	// lives in BrainTick(), run unconditionally before this is even called):
+	//   2. Opportunity -- a reachable-by-road civilian within opportunityRadiusCells, for Hunter
+	//      AND Wanderer alike (ResolveOpportunityTarget, replacing the old same-straight-street
+	//      Wanderer-promotion check entirely).
+	//   3. Bait -- only if latched AND (baitOverridesOpportunity OR no Opportunity target this tick).
+	//   4-6. Siege / far Hunt / Wander, unchanged internally (DecideStreetTarget).
+	// TryUpdateBaitLatch() runs regardless of which branch wins, so the SAME bait + crowd offset is
+	// remembered (bug 1 fix) even on a tick where Opportunity outranks it.
 	protected virtual void FindTargetWithBaitPriority(out Transform target, out Vector3? overrideDestination, out bool isCruising)
 	{
 		target = null;
 		overrideDestination = null;
 		isCruising = false;
 
-		currentBait = TargetScanUtil.FindNearest(Bait.AllBaits, transform.position, float.MaxValue,
-			bait => bait.hasValidAttractPoint ? bait.attractPoint : bait.transform.position, out _,
-			accept: (bait, dist) => dist <= bait.attractRadius);
+		EvacueeBase opportunity = ResolveOpportunityTarget();
+		bool hasBait = TryUpdateBaitLatch(out Vector3 baitDestination);
 
-		if (currentBait != null)
+		if (hasBait && (BaitOverridesOpportunity || opportunity == null))
 		{
-			Vector3 baitTargetPoint = currentBait.hasValidAttractPoint ? currentBait.attractPoint : currentBait.transform.position;
-
-			Vector2 offset2D = Random.insideUnitCircle * CrowdRadius;
-			Vector3 offset = new Vector3(offset2D.x, 0f, offset2D.y);
-			currentBaitDestination = baitTargetPoint + offset;
-
+			currentMode = ZombieMode.Bait;
 			target = currentBait.transform;
-			overrideDestination = currentBaitDestination;
+			overrideDestination = baitDestination;
 			return;
 		}
 
-		currentBaitDestination = Vector3.zero;
+		if (opportunity != null)
+		{
+			currentMode = ZombieMode.Opportunity;
+
+			// Consistent with Hunt/Siege/Wander below: a barricade right next to the zombie takes
+			// priority over the civilian chase.
+			if (TryFindNearestBarricade(out Barricade blocker))
+			{
+				target = blocker.transform;
+				return;
+			}
+
+			target = opportunity.transform;
+			return;
+		}
+
 		target = DecideStreetTarget(out isCruising);
 		overrideDestination = null;
+	}
+
+	// fix/bite-and-bait (2): attraction is by walking distance (NavMesh path length), not a
+	// straight line -- a straight-line-only check could attract a zombie across a wall/river it
+	// can't actually cross. Checked once right here (only while NOT already latched); once
+	// currentBait != null, the SAME bait + offset is reused every tick until the bait itself goes
+	// away (Unity fake-null on Destroy) -- fixes bug 1 (offset re-rolled every tick).
+	private bool TryUpdateBaitLatch(out Vector3 destination)
+	{
+		destination = Vector3.zero;
+
+		if (currentBait != null)
+		{
+			destination = GetBaitDestination();
+			return true;
+		}
+
+		Bait candidate = TargetScanUtil.FindNearest(Bait.AllBaits, transform.position, float.MaxValue,
+			bait => bait.hasValidAttractPoint ? bait.attractPoint : bait.transform.position, out _,
+			accept: (bait, straightDist) =>
+			{
+				if (straightDist > bait.attractRadius) return false; // cheap straight-line reject first
+				Vector3 point = bait.hasValidAttractPoint ? bait.attractPoint : bait.transform.position;
+				float pathDist = GetPathDistance(point, out bool reachable);
+				return reachable && pathDist <= bait.attractRadius;
+			});
+
+		if (candidate == null)
+		{
+			currentBaitDestination = Vector3.zero;
+			return false;
+		}
+
+		LatchOntoBait(candidate);
+		destination = GetBaitDestination();
+		return true;
+	}
+
+	private void LatchOntoBait(Bait bait)
+	{
+		currentBait = bait;
+		Vector2 offset2D = Random.insideUnitCircle * CrowdRadius;
+		currentBaitOffset = new Vector3(offset2D.x, 0f, offset2D.y);
+	}
+
+	private Vector3 GetBaitDestination()
+	{
+		Vector3 baitTargetPoint = currentBait.hasValidAttractPoint ? currentBait.attractPoint : currentBait.transform.position;
+		currentBaitDestination = baitTargetPoint + currentBaitOffset;
+		return currentBaitDestination;
+	}
+
+	// fix/bite-and-bait (1, priority bullet): a reachable-by-road civilian within
+	// opportunityRadiusCells, regardless of Hunter/Wanderer role, ignoring maxZombiesPerTarget.
+	// Switching away from an already-chosen opportunity target requires the new candidate to be
+	// opportunitySwitchRatio times closer (by path), so two near-equal candidates don't flicker.
+	private EvacueeBase ResolveOpportunityTarget()
+	{
+		float radiusWorld = OpportunityRadiusWorld;
+		EvacueeBase found = FindOpportunityTarget(radiusWorld, out float foundDist);
+
+		if (opportunityTarget != null && IsValidHuntTarget(opportunityTarget))
+		{
+			float currentDist = GetPathDistance(opportunityTarget.transform.position, out bool reachable);
+			if (reachable && currentDist <= radiusWorld)
+			{
+				if (found != null && found != opportunityTarget && foundDist * OpportunitySwitchRatio < currentDist)
+				{
+					opportunityTarget = found;
+				}
+				return opportunityTarget;
+			}
+		}
+
+		opportunityTarget = found;
+		return opportunityTarget;
+	}
+
+	// Nearest-by-path candidate (not nearest-by-straight-line) among the straight-line nearest-N,
+	// within radiusWorld. The straight-line pre-filter is a safe early-break: a walking path is
+	// never shorter than the straight line, so once a sorted-ascending candidate's straight-line
+	// distance exceeds radiusWorld, every candidate after it is excluded too.
+	private EvacueeBase FindOpportunityTarget(float radiusWorld, out float bestPathDist)
+	{
+		bestPathDist = float.PositiveInfinity;
+		GatherNearestCivilians(HunterCandidateCount);
+
+		EvacueeBase best = null;
+		float radiusSqr = radiusWorld * radiusWorld;
+
+		for (int i = 0; i < huntCandidates.Count; i++)
+		{
+			if (huntCandidateSqrDist[i] > radiusSqr) break;
+
+			float d = GetPathDistance(huntCandidates[i].transform.position, out bool reachable);
+			if (!reachable || d > radiusWorld) continue;
+
+			if (d < bestPathDist)
+			{
+				bestPathDist = d;
+				best = huntCandidates[i];
+			}
+		}
+
+		return best;
+	}
+
+	// fix/bite-and-bait (priority 1): any non-infected civilian within attackDistance, regardless
+	// of current mode/target -- gated by a cheap F_civ-at-own-cell check so most zombies most ticks
+	// skip the nearest-civilian scan entirely (nobody's even close enough for it to matter).
+	private bool TryContactBite()
+	{
+		CrowdFieldManager cfm = CrowdFieldManager.Instance;
+		if (cfm != null && cfm.GridReady)
+		{
+			float civSteps = cfm.SampleField(transform.position, CrowdFieldType.Civilian);
+			if (civSteps > BiteFieldGateSteps) return false;
+		}
+
+		EvacueeBase nearest = FindNearestCivilianDirectBase(AttackDistance);
+		if (nearest == null || !HasLineOfSight(nearest.transform.position)) return false;
+
+		InfectTarget(nearest.gameObject);
+
+		if (huntTarget == nearest) huntTarget = null;
+		if (opportunityTarget == nearest) opportunityTarget = null;
+
+		return true;
+	}
+
+	// fix/bite-and-bait (3): lazily-created small world-space marker, shown above a zombie while
+	// LATCHED to a bait (currentBait != null) -- independent of whether bait is the ACTIVE target
+	// this tick (Opportunity can outrank it). "sandbox debug overlay or always" from the brief is
+	// the showBaitedMarker toggle: on by default (a real gameplay read on crowding), off hides it.
+	private void UpdateBaitedMarker(bool latched)
+	{
+		bool show = latched && ShowBaitedMarker;
+
+		if (!show)
+		{
+			if (baitedMarker != null) baitedMarker.gameObject.SetActive(false);
+			return;
+		}
+
+		if (baitedMarker == null) baitedMarker = CreateBaitedMarker();
+		baitedMarker.gameObject.SetActive(true);
+	}
+
+	private const float BaitedMarkerHeight = 2.1f;
+	private const float BaitedMarkerScale = 0.35f;
+
+	private Transform CreateBaitedMarker()
+	{
+		GameObject go = new GameObject("BaitedMarker");
+		go.transform.SetParent(transform, false);
+		go.transform.localPosition = new Vector3(0f, BaitedMarkerHeight, 0f);
+		// Faces up (+Y), matching Bait's own top-down-visible visuals (ResolveAttractPoint's
+		// attractPointVisual rotation) -- a sprite's default forward (+Z) would be seen edge-on
+		// from this project's steep downward camera angles.
+		go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+		go.transform.localScale = Vector3.one * BaitedMarkerScale;
+
+		SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+		sr.sprite = RuntimeUiKit.Diamond();
+		sr.color = new Color(1f, 0.45f, 0.1f, 0.95f); // matches Bait.ringColor
+		sr.sortingOrder = 50;
+
+		return go.transform;
 	}
 
 	// feature/azs-crowd-feel (1): Hunter no longer descends F_civ — it directly chases a specific
@@ -744,13 +968,14 @@ public class Zombie : MonoBehaviour
 			// unresolvable even via ResolveWalkableCell, field unreachable, whatever) -- never
 			// leave the zombie standing idle. Fall back to the same patrol logic a Wanderer uses.
 			currentMode = ZombieMode.Wander;
-			return WanderStep(cfm, fieldReady, allowPromote: false, out isCruising);
+			return WanderStep(cfm, fieldReady, out isCruising);
 		}
 
-		// Wanderer: patrol a random intersection; promote to Hunter if a civilian is visible down
-		// the same straight street within aggroRadius (one-way — never reverts to Wanderer).
+		// Wanderer: patrol a random intersection. No longer promotes itself to Hunter on sighting a
+		// civilian (fix/bite-and-bait: ResolveOpportunityTarget, checked before DecideStreetTarget
+		// is ever reached, covers that for Wanderers too).
 		currentMode = ZombieMode.Wander;
-		return WanderStep(cfm, fieldReady, allowPromote: true, out isCruising);
+		return WanderStep(cfm, fieldReady, out isCruising);
 	}
 
 	// fix/barricade-jerk-wave1 (Bug 2b): didSetDestination lets the caller tell "sieging, moving
@@ -781,19 +1006,13 @@ public class Zombie : MonoBehaviour
 		return null;
 	}
 
-	private Transform WanderStep(CrowdFieldManager cfm, bool fieldReady, bool allowPromote, out bool isCruising)
+	// fix/bite-and-bait: used to also promote a Wanderer to Hunter on spotting a civilian down the
+	// same straight street (fieldReady + allowPromote) -- removed, replaced entirely by
+	// ResolveOpportunityTarget() in FindTargetWithBaitPriority(), which runs for Wanderers too and
+	// is checked by road distance rather than same-row/column-only visibility.
+	private Transform WanderStep(CrowdFieldManager cfm, bool fieldReady, out bool isCruising)
 	{
 		isCruising = true;
-
-		if (allowPromote && fieldReady)
-		{
-			EvacueeBase sighted = FindNearestCivilianDirectBase(AggroRadiusWorld);
-			if (sighted != null && cfm.IsSameStreetVisible(transform.position, sighted.transform.position))
-			{
-				role = ZombieRole.Hunter;
-				return null;
-			}
-		}
 
 		bool arrived = agent != null && agent.enabled && agent.isOnNavMesh &&
 			!agent.pathPending && (!agent.hasPath || agent.remainingDistance < CellSizeOrDefault);
@@ -1134,17 +1353,15 @@ public class Zombie : MonoBehaviour
 	{
 		if (bait == null) return;
 
-		currentBait = bait;
-
-		Vector3 baitTargetPoint = bait.hasValidAttractPoint ? bait.attractPoint : bait.transform.position;
-
-		Vector2 offset2D = Random.insideUnitCircle * CrowdRadius;
-		Vector3 offset = new Vector3(offset2D.x, 0f, offset2D.y);
-		currentBaitDestination = baitTargetPoint + offset;
+		// fix/bite-and-bait (1): routed through the same latch helper FindTargetWithBaitPriority
+		// uses, instead of rolling its own separate offset -- keeps this (currently unused by any
+		// caller, but public API) consistent with the roll-once-per-latch fix.
+		LatchOntoBait(bait);
+		Vector3 destination = GetBaitDestination();
 
 		if (agent != null && agent.enabled && agent.isOnNavMesh)
 		{
-			agent.SetDestination(currentBaitDestination);
+			agent.SetDestination(destination);
 		}
 	}
 
@@ -1160,11 +1377,6 @@ public class Zombie : MonoBehaviour
 	{
 		if (currentBait == null || agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 		agent.SetDestination(currentBaitDestination);
-	}
-
-	private void StopCrowdBehaviorIfAny()
-	{
-		currentBait = null;
 	}
 
 	public virtual void TakeDamage(int damageTaken)

@@ -542,34 +542,6 @@ public class CrowdFieldManager : MonoBehaviour
 		return true;
 	}
 
-	// True if a and b sit on the same grid row/column with every intervening cell walkable — the
-	// "same straight street" check a Wanderer uses to notice a civilian and become a Hunter.
-	public bool IsSameStreetVisible(Vector3 a, Vector3 b)
-	{
-		if (!GridReady) return false;
-		int ia = WorldToCellIndex(a);
-		int ib = WorldToCellIndex(b);
-		if (ia < 0 || ib < 0) return false;
-
-		int ax = ia % gridW, ay = ia / gridW;
-		int bx = ib % gridW, by = ib / gridW;
-
-		if (ax == bx)
-		{
-			int lo = Mathf.Min(ay, by), hi = Mathf.Max(ay, by);
-			for (int y = lo; y <= hi; y++) if (!walkable[y * gridW + ax]) return false;
-			return true;
-		}
-
-		if (ay == by)
-		{
-			int lo = Mathf.Min(ax, bx), hi = Mathf.Max(ax, bx);
-			for (int x = lo; x <= hi; x++) if (!walkable[ay * gridW + x]) return false;
-			return true;
-		}
-
-		return false;
-	}
 
 	private bool TryGetDirectionalStep(Vector3 fromWorld, CrowdFieldType type, bool steepestDescent, out Vector3 targetWorldPos)
 	{
@@ -811,6 +783,8 @@ public class CrowdFieldManager : MonoBehaviour
 		{
 			case Zombie.ZombieMode.Hunt: return Color.yellow;
 			case Zombie.ZombieMode.Siege: return new Color(1f, 0.4f, 0f);
+			case Zombie.ZombieMode.Opportunity: return new Color(1f, 0.85f, 0.2f); // fix/bite-and-bait
+			case Zombie.ZombieMode.Bait: return new Color(1f, 0.45f, 0.1f); // matches Bait.ringColor
 			default: return Color.cyan;
 		}
 	}
