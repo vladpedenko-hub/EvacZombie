@@ -1,18 +1,18 @@
 # Claude Code Task — Card UI Quick Wins
 
-Три независимых фикса, без зависимостей друг от друга. Можно делать по одному и тестировать между собой. Ничего не трогает данные карт (`CardData` ассеты) и не завязано на roguelite/PlayerProfile логику.
+Three independent fixes, with no dependencies on each other. Can be done one at a time and tested against each other. Touches no card data (`CardData` assets) and isn't tied to the roguelite/PlayerProfile logic.
 
 ---
 
 ## 1. Fix drag-reflow bug in `CardUI.cs`
 
-**Файл:** `Assets/Scripts/UI/CardUI.cs`
+**File:** `Assets/Scripts/UI/CardUI.cs`
 
-**Проблема:** `OnBeginDrag` делает `transform.SetParent(transform.root, false)` — вытаскивает карту из `cardsPanel`, у которого есть Layout Group. Это меняет количество детей в группе, и она пересчитывает позиции оставшихся карт → они "прыгают"/сдвигаются, пока идёт драг.
+**Problem:** `OnBeginDrag` does `transform.SetParent(transform.root, false)` — it pulls the card out of `cardsPanel`, which has a Layout Group. This changes the number of children in the group, and it recalculates the positions of the remaining cards → they "jump"/shift while the drag is in progress.
 
-**Фикс:** не убирать карту из панели вообще. Вместо реродителинга — исключить её из расчёта layout (`LayoutElement.ignoreLayout`) и поднять её визуально поверх остальных через собственный `Canvas` с override sorting (стандартный Unity-паттерн для "поднять один UI-элемент над остальными без смены родителя" — не зависит от того, есть ли на `cardsPanel` маска/clipping).
+**Fix:** don't remove the card from the panel at all. Instead of reparenting, exclude it from the layout calculation (`LayoutElement.ignoreLayout`) and raise it visually above the rest via its own `Canvas` with override sorting (the standard Unity pattern for "raise a single UI element above the rest without changing its parent" — works regardless of whether `cardsPanel` has a mask/clipping on it).
 
-Замени содержимое файла на:
+Replace the file's contents with:
 
 ```csharp
 using UnityEngine;
@@ -158,38 +158,38 @@ public class CardUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHa
 }
 ```
 
-**Важно — что изменилось в поведении:** после `OnEndDrag`, если `ignoreLayout` возвращается в `false`, Layout Group пересчитает позицию карты обратно на её нормальное место в ряду (карта никогда физически не покидала `cardsPanel`, только визуально игнорировалась при расчёте). `originalParent`/`originalSiblingIndex`/`originalAnchoredPos` больше не нужны — убраны.
+**Important — what changes in behavior:** after `OnEndDrag`, once `ignoreLayout` is set back to `false`, the Layout Group recalculates the card's position back to its normal spot in the row (the card never physically left `cardsPanel`, it was only visually ignored during layout calculation). `originalParent`/`originalSiblingIndex`/`originalAnchoredPos` are no longer needed — removed.
 
-**Проверить руками в Editor:** перетащить карту в игровую сцену. Убедиться, что: (а) соседние карты в панели больше НЕ сдвигаются во время драга, (б) перетаскиваемая карта визуально поверх остальной HUD-графики, (в) карта не обрезается/не пропадает, если панель карт имеет `Mask`/`RectMask2D` на себе или родителе (если пропадает — это отдельный кейс, сообщить, не чинить самостоятельно).
+**Verify by hand in the Editor:** drag a card in the gameplay scene. Confirm that: (a) the neighboring cards in the panel no longer shift during the drag, (b) the dragged card renders visually above the rest of the HUD graphics, (c) the card isn't clipped/doesn't disappear if the card panel has a `Mask`/`RectMask2D` on itself or a parent (if it does disappear — that's a separate case, report it, don't try to fix it on your own).
 
 ---
 
 ## 2. Wire `description` into `CardInfoPopup.cs`
 
-**Файл:** `Assets/Scripts/CardInfoPopup.cs`
+**File:** `Assets/Scripts/CardInfoPopup.cs`
 
-Поле `description` в `CardData` уже существует и заполнено (`[TextArea] public string description;`), просто не выводится в попапе.
+The `description` field on `CardData` already exists and is filled in (`[TextArea] public string description;`), it's just not displayed in the popup.
 
-1. Добавь новое serialized-поле рядом с `cardNameText`:
+1. Add a new serialized field next to `cardNameText`:
 ```csharp
 [SerializeField] private TextMeshProUGUI descriptionText;
 ```
-2. В методе `Show(CardData data, CardProgress progress)`, сразу после строки `cardNameText.text = data.cardName;`, добавь:
+2. In the `Show(CardData data, CardProgress progress)` method, right after the line `cardNameText.text = data.cardName;`, add:
 ```csharp
 if (descriptionText != null) descriptionText.text = data.description;
 ```
 
-**Ручной шаг в Editor (Vlad):** на префабе `CardInfoPopup` нужно добавить/назначить `TextMeshProUGUI` объект под `descriptionText` в инспекторе — это не в скоупе задачи для Claude Code, сделать самому после того, как код появится (либо сказать Клод Коду добавить новый TMP Text child в сам `.prefab`/`.unity` файл вручную через YAML, по аналогии с тем, как раньше редактировался `Gameplay.unity` — но безопаснее сделать этот шаг руками в Editor, чтобы не сломать вёрстку).
+**Manual step in the Editor (Vlad):** on the `CardInfoPopup` prefab, a `TextMeshProUGUI` object needs to be added/assigned to `descriptionText` in the inspector — this is not in scope for Claude Code's task, do it yourself after the code is in place (or tell Claude Code to add a new TMP Text child to the `.prefab`/`.unity` file itself by hand via YAML, the same way `Gameplay.unity` was edited before — but it's safer to do this step by hand in the Editor, so as not to break the layout).
 
 ---
 
 ## 3. Add rarity/category color border to `CardUI` (HUD) and `MetaCardUI` (tile)
 
-**Проблема:** цвет по редкости сейчас зашит только в `CardInfoPopup.cs` (см. switch на `Common/Rare/Epic/Legendary`). Хотим переиспользовать его на HUD-карте и на плитке в колоде, не дублируя один и тот же switch в 3 местах.
+**Problem:** the color-by-rarity logic is currently hardcoded only in `CardInfoPopup.cs` (see the switch on `Common/Rare/Epic/Legendary`). We want to reuse it on the HUD card and on the tile in the deck, without duplicating the same switch in 3 places.
 
-### Шаг 1 — общий helper (DRY)
+### Step 1 — shared helper (DRY)
 
-Создай новый файл `Assets/Scripts/Data/CardVisuals.cs`:
+Create a new file `Assets/Scripts/Data/CardVisuals.cs`:
 ```csharp
 using UnityEngine;
 
@@ -209,9 +209,9 @@ public static class CardVisuals
 }
 ```
 
-### Шаг 2 — переиспользовать в `CardInfoPopup.cs`
+### Step 2 — reuse it in `CardInfoPopup.cs`
 
-В методе `Show(...)`, замени существующий switch:
+In the `Show(...)` method, replace the existing switch:
 ```csharp
 if (rarityText != null)
 {
@@ -225,7 +225,7 @@ if (rarityText != null)
 	}
 }
 ```
-на:
+with:
 ```csharp
 if (rarityText != null)
 {
@@ -234,9 +234,9 @@ if (rarityText != null)
 }
 ```
 
-### Шаг 3 — `CardUI.cs` (HUD)
+### Step 3 — `CardUI.cs` (HUD)
 
-Добавь поле:
+Add a field:
 ```csharp
 [Header("Visuals")]
 public Image cardImage;
@@ -244,7 +244,7 @@ public Image cooldownFill;
 public TextMeshProUGUI timerText;
 public Image rarityBorder; // NEW — assign in prefab
 ```
-В `Start()`, после установки `cardImage.sprite`:
+In `Start()`, after setting `cardImage.sprite`:
 ```csharp
 if (myCardData != null && rarityBorder != null)
 {
@@ -252,9 +252,9 @@ if (myCardData != null && rarityBorder != null)
 }
 ```
 
-### Шаг 4 — `MetaCardUI.cs` (плитка в колоде)
+### Step 4 — `MetaCardUI.cs` (deck tile)
 
-Добавь поле:
+Add a field:
 ```csharp
 [Header("UI References")]
 [SerializeField] private Image cardIcon;
@@ -263,18 +263,18 @@ if (myCardData != null && rarityBorder != null)
 [SerializeField] private Image progressBarFill;
 [SerializeField] private Image rarityBorder; // NEW — assign in prefab
 ```
-В `Setup(...)`, после `cardIcon.sprite = data.icon;`:
+In `Setup(...)`, after `cardIcon.sprite = data.icon;`:
 ```csharp
 if (rarityBorder != null) rarityBorder.color = CardVisuals.GetRarityColor(data.rarity);
 ```
-В `SetupLocked(...)` рамку красить не нужно (карта скрыта/silhouette) — можно оставить серой или сделать `rarityBorder.color = Color.black` для консистентности с текущим silhouette-эффектом.
+In `SetupLocked(...)` there's no need to color the border (the card is hidden/a silhouette) — it can be left gray, or set to `rarityBorder.color = Color.black` for consistency with the current silhouette effect.
 
-**Ручной шаг в Editor (Vlad):** добавить дочерний `Image` (рамка/обводка) на префабы `CardUI` и `MetaCardUI` в Editor, назначить в поле `rarityBorder` в инспекторе. Без этого шага код скомпилируется, но рамка не будет видна (поле останется `null`, все обращения защищены `!= null`).
+**Manual step in the Editor (Vlad):** add a child `Image` (border/outline) to the `CardUI` and `MetaCardUI` prefabs in the Editor, and assign it to the `rarityBorder` field in the inspector. Without this step the code will compile, but the border won't be visible (the field stays `null`, every access is guarded with `!= null`).
 
 ---
 
 ## Acceptance checklist
-- [ ] Драг карты в геймплейной сцене больше не сдвигает соседние карты в панели
-- [ ] В попапе карты (тап в колоде) отображается текст `description`
-- [ ] Рамка на HUD-карте и на плитке в колоде окрашена по редкости (после того как Vlad назначит `Image` в инспекторе)
-- [ ] Ничего не сломалось в существующем flow открытия/апгрейда карты в Deck-сцене
+- [ ] Dragging a card in the gameplay scene no longer shifts the neighboring cards in the panel
+- [ ] The card popup (tap in the deck) shows the `description` text
+- [ ] The border on the HUD card and on the deck tile is colored by rarity (once Vlad assigns the `Image` in the inspector)
+- [ ] Nothing in the existing card-opening/upgrade flow in the Deck scene is broken

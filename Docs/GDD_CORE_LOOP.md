@@ -1,71 +1,71 @@
-# EvacZombie — Core Loop GDD (простое → сложное)
-*Обновлено 23.08.2026. Цель документа: минимальное описание того, что ДОЛЖНО работать в MVP v1 — без нарратива и без in-run roguelite. Полный бэклог с приоритетами и статусами → [Notion Dev Board](https://app.notion.com/p/a2dce6c7c84c41d794a674f42cc2fc2d).*
+# EvacZombie — Core Loop GDD (simple → complex)
+*Updated 23.08.2026. Goal of this document: a minimal description of what MUST work in MVP v1 — no narrative, no in-run roguelite. Full backlog with priorities and status → [Notion Dev Board](https://app.notion.com/p/a2dce6c7c84c41d794a674f42cc2fc2d).*
 
 ---
 
-## Layer 0 — Один уровень, примитивно
+## Layer 0 — One level, bare-bones
 
-- **Карта:** статичная сцена (дороги, здания, NavMesh)
-- **Точки спавна:** дневные (day spawn points) + ночные (night spawn points, для sudden death)
-- **Zombie:** спавнится волнами по таймлайну уровня → идёт к ближайшему Human/Scientist → атакует
-- **Human / Scientist:** заспавнены на старте, бродят, паникуют (ChaosSettings), бегут к эвакуационной точке когда попадают в радиус привлечения героя
-- **Игрок:** Planning (расставляет карты до начала волны) → Playing (волна идёт, эвакуирует) → таймер истекает → SuddenDeath (ночь, бесконечный спавн) → Win/Lose
+- **Map:** static scene (roads, buildings, NavMesh)
+- **Spawn points:** day spawn points + night spawn points (for sudden death)
+- **Zombie:** spawns in waves on the level timeline → heads to the nearest Human/Scientist → attacks
+- **Human / Scientist:** spawned at level start, wander, panic (ChaosSettings), run to the evac point once they enter the hero's attraction radius
+- **Player:** Planning (place cards before the wave starts) → Playing (wave runs, evacuate) → timer expires → SuddenDeath (night, endless spawn) → Win/Lose
 
-Это ядро уже реализовано и работает (`GameManager`, `LevelManager`).
+This core is already implemented and working (`GameManager`, `LevelManager`).
 
-## Layer 1 — Юниты (полный набор, ничего не добавлять)
+## Layer 1 — Units (full set, nothing more to add)
 
-| Карта | Роль |
+| Card | Role |
 |---|---|
-| Helicopter / Car | Эвакуация (герой) |
-| CombatHelicopter | Эвакуация + урон |
-| Sniper / Soldier | Точечный урон |
-| Bomb | AoE урон |
-| Barricade | Блокировка пути |
-| Bait | Приманка зомби |
+| Helicopter / Car | Evacuation (hero) |
+| CombatHelicopter | Evacuation + damage |
+| Sniper / Soldier | Precision damage |
+| Bomb | AoE damage |
+| Barricade | Path blocking |
+| Bait | Zombie lure |
 
-Каждая карта: `cardPrefab` (логика в `Assets/Scripts/Bonus/`) + `CardData` (статы, уровень) + `CardUI` (drag&drop, cooldown).
+Each card: `cardPrefab` (logic in `Assets/Scripts/Bonus/`) + `CardData` (stats, level) + `CardUI` (drag&drop, cooldown).
 
-**Ресурс на размещение — только cooldown карты.** Общий пул энергии (`EnergyManager`) убран из гейта размещения (см. Notion-карточку "УБРАТЬ EnergyManager mana-gate"). Причина: двойное гейтирование (cooldown + мана одновременно) — лишняя когнитивная нагрузка в реальном времени, жанровый оригинал (Atom Zombie Smasher, Rebel Inc.) использует только cooldown.
+**Resource for placement — card cooldown only.** The shared energy pool (`EnergyManager`) has been removed from the placement gate (see the Notion card "REMOVE EnergyManager mana-gate"). Reason: double-gating (cooldown + mana at the same time) is unnecessary real-time cognitive load; the genre originals (Atom Zombie Smasher, Rebel Inc.) use cooldown only.
 
-## Layer 2 — Победа / поражение
+## Layer 2 — Win / lose
 
-- `requiredHumans` — порог для победы
-- Звёзды 1–3: пороги по числу спасённых + perfect clear (все зомби мертвы, кто-то ещё жив на карте)
-- Таймер уровня → SuddenDeath (ночь) → эвакуация до последнего либо провал
+- `requiredHumans` — threshold to win
+- Stars 1–3: thresholds by number rescued + perfect clear (all zombies dead, someone still alive on the map)
+- Level timer → SuddenDeath (night) → evacuate to the last person or fail
 
-## Layer 3 — Прогрессия между уровнями (мета, часть уже есть)
+## Layer 3 — Between-level progression (meta, partly already in place)
 
-Уже реализовано:
-- `totalCurrency` за спасённых людей + бонус за первое прохождение уровня
-- `totalScientistsCurrency` за спасённых учёных (**сейчас никуда не тратится** — см. Layer 4)
-- Lootbox → новая карта в колоду (5 слотов)
-- Региональная saga-карта (4 региона, 10 уровней)
-- Energy (лайфы, 20 cap, реген 5 мин) — гейтит попытку сыграть уровень, НЕ гейтит размещение карт внутри уровня (не путать с EnergyManager из Layer 1)
+Already implemented:
+- `totalCurrency` for rescued people + a bonus for a level's first clear
+- `totalScientistsCurrency` for rescued scientists (**currently has nowhere to be spent** — see Layer 4)
+- Lootbox → new card for the deck (5 slots)
+- Regional saga map (4 regions, 10 levels)
+- Energy (lives, cap 20, 5-minute regen) — gates the attempt to play a level, does NOT gate card placement within a level (not to be confused with the Layer 1 EnergyManager)
 
-## Layer 4 — Чего не хватает для замыкания цикла (новое, приоритет)
+## Layer 4 — What's missing to close the loop (new, priority)
 
-Сейчас единственная прокачка — карты через lootbox. `totalScientistsCurrency` копится без применения. Нужна:
+Right now the only progression is cards via lootbox. `totalScientistsCurrency` accumulates with no use. We need:
 
-**Talent Tree — примитивная мета-сцена**
-- Отдельный таб в главном меню (рядом с картой регионов)
-- Узлы = флэт % модификаторы на существующие `StatType` (Damage, Health, FireRate, Speed, Radius), применяются глобально ко всем картам
-- Валюта: `totalCurrency` (мягкая) + `totalScientistsCurrency` (закрывает существующую дыру в экономике — валюта уже есть, тратить пока нечего)
-- Прогресс дерева: линейно-ветвящийся, узел открывает следующий (см. референс-скриншот от Влада — flat % stats, locked/unlocked узлы)
-- 8–12 узлов достаточно для MVP
-- Технически: 80% инфраструктуры уже оплачено roguelite-работой — контроллеры карт уже умеют читать модификаторы через паттерн `Instance.GetModifier(key)` (сделано для `RunSessionData`). Тот же паттерн подключается к **персистентному** источнику (`PlayerProfile`) вместо run-session.
+**Talent Tree — a minimal meta-scene**
+- A separate tab in the main menu (next to the region map)
+- Nodes = flat % modifiers on existing `StatType`s (Damage, Health, FireRate, Speed, Radius), applied globally to all cards
+- Currency: `totalCurrency` (soft) + `totalScientistsCurrency` (closes an existing hole in the economy — the currency already exists, there's just nothing to spend it on yet)
+- Tree progress: linear-branching, each node unlocks the next (see Vlad's reference screenshot — flat % stats, locked/unlocked nodes)
+- 8–12 nodes is enough for the MVP
+- Technically: 80% of the infrastructure is already paid for by the roguelite work — card controllers already know how to read modifiers via the `Instance.GetModifier(key)` pattern (built for `RunSessionData`). The same pattern gets wired to a **persistent** source (`PlayerProfile`) instead of the run session.
 
-Полная тех. заметка → Notion-карточка "Мета: дерево прокачки (Talent Tree, персистентная)".
+Full tech note → Notion card "Meta: Talent Tree (persistent)".
 
 ---
 
-## Что сознательно НЕ входит в MVP v1
+## What's deliberately NOT in MVP v1
 
-Всё это задокументировано в Notion, фаза **🚀 Post-Launch / v2**, не удалено — просто не в скоупе:
-- In-run roguelite progression (герои, XP, апгрейды по волне) — 14 ScriptableObject'ов готовы, ждут пост-релиза
-- Весь нарративный слой: интро/катсцена, 3-4 героя с биографиями, диалоги-брифинги перед уровнями, boss-регионы с сюжетом, дневник выживших, флейвор-тексты, нарративная интеграция туториала
-- Система репутации регионов
+All of this is documented in Notion, phase **🚀 Post-Launch / v2**, not deleted — just out of scope:
+- In-run roguelite progression (heroes, XP, per-wave upgrades) — 14 ScriptableObjects are ready, waiting for post-launch
+- The entire narrative layer: intro/cutscene, 3-4 heroes with bios, briefing dialogues before levels, story boss regions, survivor diary, flavor text, tutorial narrative integration
+- Region reputation system
 
-## MVP v1 — контентный объём
+## MVP v1 — content volume
 
-10 существующих уровней ≈ 20–30 минут геймплея (кривая: 1–3 обучение, 4–7 рост, 8–10 первый вызов) — это целевой объём, **новые уровни сейчас не нужны**. Приоритет — баланс существующих десяти, не расширение.
+10 existing levels ≈ 20-30 minutes of gameplay (curve: 1-3 tutorial, 4-7 ramp-up, 8-10 first real challenge) — this is the target volume, **new levels aren't needed right now**. Priority is balancing the existing ten, not expanding.

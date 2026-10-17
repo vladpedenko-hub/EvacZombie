@@ -1,26 +1,26 @@
 # Claude Code Task — Card Level-5 Bonuses, Batch A (cheap ones)
 
-4 карты: Barricade, Sniper, Bomb, Car. Все читают текущий уровень карты напрямую из `PlayerProfile.Instance.ownedCardsProgress` (уже существующий паттерн в каждом контроллере) — **никакого нового хранилища модификаторов строить не нужно**. Бонус — это просто `if (currentLevel >= 5) { ... }` рядом с уже существующим кодом.
+4 cards: Barricade, Sniper, Bomb, Car. All of them read the card's current level directly from `PlayerProfile.Instance.ownedCardsProgress` (an already-existing pattern in every controller) — **no new modifier store needs to be built**. The bonus is simply `if (currentLevel >= 5) { ... }` next to the already-existing code.
 
-Существующая roguelite-логика через `RunSessionData` в этих файлах **не трогать** — она заморожена для MVP и должна остаться как есть (используется позже, для Talent Tree). Новый код добавляется рядом, независимо.
+The existing roguelite logic via `RunSessionData` in these files is **not to be touched** — it's frozen for MVP and should stay as-is (used later, for the Talent Tree). New code is added alongside it, independently.
 
 ---
 
-## 1. Barricade — отражает 25% урона
+## 1. Barricade — reflects 25% of damage
 
-**Файл:** `Assets/Scripts/Bonus/Barricade.cs`
+**File:** `Assets/Scripts/Bonus/Barricade.cs`
 
-Добавь поле:
+Add a field:
 ```csharp
 private bool hasReflectBonus = false;
 ```
 
-В `Start()`, внутри блока `if (myCardData != null && PlayerProfile.Instance != null) { ... }`, после `if (progress != null) level = progress.currentLevel;`, добавь:
+In `Start()`, inside the `if (myCardData != null && PlayerProfile.Instance != null) { ... }` block, after `if (progress != null) level = progress.currentLevel;`, add:
 ```csharp
 hasReflectBonus = level >= 5;
 ```
 
-В `TakeDamage(int damage)`, добавь новый блок (можно сразу после существующего `var run = RunSessionData.Instance; if (run != null) { ... }` блока, до `currentHealth -= damage;`):
+In `TakeDamage(int damage)`, add a new block (can go right after the existing `var run = RunSessionData.Instance; if (run != null) { ... }` block, before `currentHealth -= damage;`):
 ```csharp
 if (hasReflectBonus)
 {
@@ -39,26 +39,26 @@ if (hasReflectBonus)
 
 ---
 
-## 2. Sniper — пробитие убивает все 3 цели без затухания урона
+## 2. Sniper — piercing kills all 3 targets with no damage falloff
 
-**Файл:** `Assets/Scripts/Bonus/Sniper.cs`
+**File:** `Assets/Scripts/Bonus/Sniper.cs`
 
-Добавь поле:
+Add a field:
 ```csharp
 private bool hasFullPierceBonus = false;
 ```
 
-В `Start()`, после блока где читается `currentLevel` (после строки `if (progress != null) currentLevel = progress.currentLevel;`), добавь:
+In `Start()`, after the block where `currentLevel` is read (after the line `if (progress != null) currentLevel = progress.currentLevel;`), add:
 ```csharp
 hasFullPierceBonus = currentLevel >= 5;
 ```
 
-В `ApplyPiercingDamage(Zombie primaryTarget)`, найди:
+In `ApplyPiercingDamage(Zombie primaryTarget)`, find:
 ```csharp
 currentDamage *= pierceDamageFalloff;
 if (currentDamage < 1f) break;
 ```
-замени на:
+and replace with:
 ```csharp
 if (!hasFullPierceBonus)
 {
@@ -67,17 +67,17 @@ if (!hasFullPierceBonus)
 }
 ```
 
-(Урон по каждой из до 3 целей остаётся полным, вместо 100%→50%→25%.)
+(Damage against each of up to 3 targets stays full, instead of 100%→50%→25%.)
 
 ---
 
-## 3. Bomb — не убивает своих (Human/Soldier/Sniper)
+## 3. Bomb — doesn't kill allies (Human/Soldier/Sniper)
 
-**Файл:** `Assets/Scripts/Bonus/Bomb.cs`
+**File:** `Assets/Scripts/Bonus/Bomb.cs`
 
-Сейчас `currentLevel` — локальная переменная в `Start()`, недоступная в `Explode()`. Нужно поднять её в поле класса.
+Right now `currentLevel` is a local variable in `Start()`, not accessible in `Explode()`. It needs to be promoted to a class field.
 
-Замени:
+Replace:
 ```csharp
 private void Start()
 {
@@ -86,7 +86,7 @@ private void Start()
 	if (PlayerProfile.Instance != null && myCardData != null)
 	{
 ```
-на:
+with:
 ```csharp
 private int currentLevel = 1;
 
@@ -96,7 +96,7 @@ private void Start()
 	{
 ```
 
-В `Explode()`, найди:
+In `Explode()`, find:
 ```csharp
 Human human = target.GetComponent<Human>();
 if (human != null)
@@ -105,7 +105,7 @@ if (human != null)
 	continue;
 }
 ```
-замени на:
+and replace with:
 ```csharp
 Human human = target.GetComponent<Human>();
 if (human != null)
@@ -115,7 +115,7 @@ if (human != null)
 }
 ```
 
-И следом:
+And right after that:
 ```csharp
 if (target.CompareTag("Soldier") || target.CompareTag("Sniper"))
 {
@@ -123,7 +123,7 @@ if (target.CompareTag("Soldier") || target.CompareTag("Sniper"))
 	continue;
 }
 ```
-замени на:
+replace with:
 ```csharp
 if (target.CompareTag("Soldier") || target.CompareTag("Sniper"))
 {
@@ -132,29 +132,29 @@ if (target.CompareTag("Soldier") || target.CompareTag("Sniper"))
 }
 ```
 
-(Здание (`Building`) и зомби продолжают получать урон/уничтожаться как раньше — бонус касается только дружественных юнитов.)
+(Buildings (`Building`) and zombies keep taking damage/getting destroyed as before — the bonus only concerns friendly units.)
 
 ---
 
-## 4. Car — увеличенная вместимость
+## 4. Car — increased capacity
 
-**Файл:** `Assets/Scripts/Bonus/CarController.cs`
+**File:** `Assets/Scripts/Bonus/CarController.cs`
 
-В `Start()`, после строки:
+In `Start()`, after the line:
 ```csharp
 maxCapacity = (int)myCardData.GetCalculatedStat(StatType.Capacity, currentLevel);
 ```
-добавь:
+add:
 ```csharp
-if (currentLevel >= 5) maxCapacity += 3; // level-5 milestone bonus, число временное — баланс на потом
+if (currentLevel >= 5) maxCapacity += 3; // level-5 milestone bonus, the number is provisional -- balance it later
 ```
 
 ---
 
 ## Acceptance checklist
-- [ ] Прокачать (через дебаг/читы, если есть) любую из 4 карт до уровня 5, убедиться что бонус активируется
-- [ ] На уровнях < 5 поведение всех 4 карт визуально не изменилось (regression check)
-- [ ] Barricade: при атаке зомби на баррикаду 5 уровня — ближайший зомби получает урон
-- [ ] Sniper: пробитие 3 целей на 5 уровне наносит одинаковый (полный) урон по всем, не убывающий
-- [ ] Bomb: взрыв 5-уровневой бомбы не убивает Human/Soldier/Sniper в радиусе, но убивает зомби и разрушает здания как раньше
-- [ ] Car: вместимость на 5 уровне визуально/по факту выше на 3 единицы
+- [ ] Level up (via debug/cheats, if available) any of the 4 cards to level 5, confirm the bonus activates
+- [ ] At levels < 5, all 4 cards' behavior is visually unchanged (regression check)
+- [ ] Barricade: when a zombie attacks a level-5 barricade, the nearest zombie takes damage
+- [ ] Sniper: piercing 3 targets at level 5 deals the same (full) damage to all of them, not decreasing
+- [ ] Bomb: a level-5 bomb's explosion doesn't kill Human/Soldier/Sniper in the radius, but still kills zombies and destroys buildings as before
+- [ ] Car: capacity at level 5 is visibly/actually 3 units higher

@@ -1,50 +1,50 @@
 # Feature Spec: Hero Ability — Civilian Speed Boost
 
-**Статус:** ✅ РЕАЛИЗОВАНО (обнаружено при аудите 29.08.2026 — фича собрана ещё в мае 2026, коммиты "Ultimate Ability"/"All in English"; эта спека написана позже и не знала о существующей реализации). `AbilityManager.cs` (151 строк) и `AbilityButtonUI.cs` (164 строк) существуют, подключены в `GameManager.cs`/`Human.cs`/`Scientist.cs`, GameObject живёт в `Assets/Scenes/Gameplay.unity`, `Assets/Data/Tutorial/Tutorial_AbilityReady.asset` существует. Документ ниже — историческая спека замысла, сверяй с фактическим кодом, не считай источником истины по актуальному состоянию.  
-**Приоритет:** N/A — уже сделано.  
-**Зависимости:** TutorialManager, GameManager, Human.cs, Scientist.cs
+**Status:** ✅ IMPLEMENTED (discovered during the 29.08.2026 audit — the feature was actually built back in May 2026, commits "Ultimate Ability"/"All in English"; this spec was written later and didn't know about the existing implementation). `AbilityManager.cs` (151 lines) and `AbilityButtonUI.cs` (164 lines) exist, are wired into `GameManager.cs`/`Human.cs`/`Scientist.cs`, the GameObject lives in `Assets/Scenes/Gameplay.unity`, and `Assets/Data/Tutorial/Tutorial_AbilityReady.asset` exists. The document below is the historical design spec — cross-check against the actual code, don't treat it as the source of truth for current state.  
+**Priority:** N/A — already done.  
+**Dependencies:** TutorialManager, GameManager, Human.cs, Scientist.cs
 
 ---
 
-## 1. Суть фичи
+## 1. Feature summary
 
-Игрок накапливает заряд, спасая мирных жителей. Когда заряд полон — на экране появляется активная кнопка. Нажав на неё, игрок временно ускоряет всех мирных на карте.
+The player builds up a charge by rescuing civilians. When the charge is full, an active button appears on screen. Pressing it temporarily speeds up every civilian on the map.
 
-**Core loop:** Спасаешь людей → копишь заряд → активируешь → спасаешь ещё больше.
+**Core loop:** Rescue people → build up charge → activate → rescue even more.
 
 ---
 
-## 2. Параметры (балансные, можно твикать)
+## 2. Parameters (balance, tweakable)
 
-| Параметр | Значение | Описание |
+| Parameter | Value | Description |
 |---|---|---|
-| `maxCharge` | 5 | Нужно спасти 5 мирных для полного заряда |
-| `chargePerCivilian` | 1 | Каждый спасённый даёт 1 заряд |
-| `abilityDuration` | 8f | Секунд действия ability |
-| `speedMultiplier` | 2.0f | Во сколько раз ускоряются мирные |
-| `tutorialId` | `"Tutorial_Ability"` | ID для PlayerPrefs (показывается 1 раз) |
+| `maxCharge` | 5 | Need to rescue 5 civilians for a full charge |
+| `chargePerCivilian` | 1 | Each rescued civilian grants 1 charge |
+| `abilityDuration` | 8f | Seconds the ability lasts |
+| `speedMultiplier` | 2.0f | How much civilians speed up by |
+| `tutorialId` | `"Tutorial_Ability"` | ID for PlayerPrefs (shown once) |
 
 ---
 
-## 3. Компоненты
+## 3. Components
 
-### 3.1 `AbilityManager.cs` — новый скрипт
+### 3.1 `AbilityManager.cs` — new script
 
-Синглтон. Управляет зарядом, состоянием, speed boost.
+Singleton. Manages charge, state, and the speed boost.
 
-**Состояния:**
-- `Idle` — идёт накопление
-- `Ready` — заряд полон, ожидает нажатия
-- `Active` — ability активна, идёт drain
+**States:**
+- `Idle` — charging up
+- `Ready` — charge full, waiting for the player to press the button
+- `Active` — ability active, draining
 
-**Публичные методы:**
+**Public methods:**
 ```
 void AddCharge(int civiliansCount)
 void ActivateAbility()
-float GetSpeedMultiplier()   // 1f в обычном состоянии, speedMultiplier когда Active
+float GetSpeedMultiplier()   // 1f in the normal state, speedMultiplier when Active
 ```
 
-**События (C# events):**
+**Events (C# events):**
 ```
 event Action<float, float> OnChargeChanged   // currentCharge, maxCharge
 event Action OnAbilityReady
@@ -53,17 +53,17 @@ event Action<float> OnAbilityTick            // remainingNormalized (1→0)
 event Action OnAbilityExpired
 ```
 
-**Логика заряда:**
-- `AddCharge()` вызывается из `GameManager.AddRescuedFromTransport()`
-- Заряд не накапливается пока ability `Active`
-- При переходе в `Ready` — поднимается `OnAbilityReady` + триггер туториала (один раз за сессию)
+**Charge logic:**
+- `AddCharge()` is called from `GameManager.AddRescuedFromTransport()`
+- Charge doesn't accumulate while the ability is `Active`
+- On transitioning to `Ready` — raises `OnAbilityReady` + triggers the tutorial (once per session)
 
-**Логика speed boost:**
-- Пока state == `Active`: возвращает `speedMultiplier`
-- Иначе: возвращает `1f`
-- Мирные сами читают это значение через `AbilityManager.Instance.GetSpeedMultiplier()`
+**Speed boost logic:**
+- While state == `Active`: returns `speedMultiplier`
+- Otherwise: returns `1f`
+- Civilians read this value themselves via `AbilityManager.Instance.GetSpeedMultiplier()`
 
-**Tutorial trigger (срабатывает один раз за всю игру):**
+**Tutorial trigger (fires once per entire game):**
 ```csharp
 if (!PlayerPrefs.HasKey("ABILITY_TUTORIAL_SHOWN"))
 {
@@ -71,109 +71,109 @@ if (!PlayerPrefs.HasKey("ABILITY_TUTORIAL_SHOWN"))
     TutorialManager.Instance.StartTutorial(abilityReadyTutorialSequence);
 }
 ```
-> Поле `abilityReadyTutorialSequence` — ссылка на TutorialSequence SO, назначается в инспекторе.
+> The `abilityReadyTutorialSequence` field — a reference to a TutorialSequence SO, assigned in the Inspector.
 
 ---
 
-### 3.2 `AbilityButtonUI.cs` — новый скрипт
+### 3.2 `AbilityButtonUI.cs` — new script
 
-Управляет визуальными состояниями кнопки. Регистрируется как TutorialTarget.
+Manages the button's visual states. Registers as a TutorialTarget.
 
-**Иерархия UI-объекта (в Canvas):**
+**UI object hierarchy (in Canvas):**
 ```
 AbilityButton (Button)
-  ├── BackgroundImage         ← статичная иконка/рамка
-  ├── FillImage (Image)       ← единственный Image с fillType Vertical
-  ├── PulseGlow (Image)       ← полупрозрачный glow, скрыт по умолчанию
+  ├── BackgroundImage         ← static icon/frame
+  ├── FillImage (Image)       ← single Image with fillType Vertical
+  ├── PulseGlow (Image)       ← semi-transparent glow, hidden by default
   └── AbilityButtonUI (.cs)
       └── TutorialTarget (.cs)  ← targetId = "ability_button"
 ```
 
-**FillImage — логика двух состояний одним компонентом:**
+**FillImage — two-state logic via one component:**
 
-| Состояние | `fillOrigin` | `fillAmount` | Направление |
+| State | `fillOrigin` | `fillAmount` | Direction |
 |---|---|---|---|
-| Charging | `0` (Bottom) | растёт `0 → 1` | снизу вверх |
-| Active/Draining | `1` (Top) | уменьшается `1 → 0` | сверху вниз |
+| Charging | `0` (Bottom) | grows `0 → 1` | bottom to top |
+| Active/Draining | `1` (Top) | shrinks `1 → 0` | top to bottom |
 
-Смена `fillOrigin` при активации даёт визуальный "переворот" без второго Image.
+Flipping `fillOrigin` on activation gives a visual "flip" without a second Image.
 
-**Состояния кнопки:**
+**Button states:**
 
-1. **Charging** (Idle/накопление):
+1. **Charging** (Idle/building up):
    - `Button.interactable = false`
    - `FillImage.fillOrigin = 0` (Bottom)
    - `FillImage.fillAmount` = `currentCharge / maxCharge`
-   - Цвет заливки: нейтральный (серо-белый)
+   - Fill color: neutral (gray-white)
    - PulseGlow: `SetActive(false)`
 
-2. **Ready** (заряд полон, ожидает нажатия):
+2. **Ready** (charge full, waiting for a press):
    - `Button.interactable = true`
    - `FillImage.fillAmount = 1f`
-   - Цвет заливки: акцентный (жёлтый / ярко-зелёный)
+   - Fill color: accent (yellow / bright green)
    - PulseGlow: `SetActive(true)` + DOTween pulse (alpha 0.3 → 0.8, loop Yoyo, 0.5s)
-   - Вибрация устройства: `Handheld.Vibrate()` один раз при переходе
+   - Device vibration: `Handheld.Vibrate()` once on the transition
 
-3. **Active** (ability работает, идёт drain):
+3. **Active** (ability running, draining):
    - `Button.interactable = false`
-   - `FillImage.fillOrigin = 1` (Top)  ← меняем при активации
+   - `FillImage.fillOrigin = 1` (Top)  ← flipped on activation
    - `FillImage.fillAmount` = `remainingNormalized` (1 → 0)
-   - Цвет заливки: активный (синий / голубой — отличается от ready)
+   - Fill color: active (blue / cyan — distinct from ready)
    - PulseGlow: `SetActive(false)`
 
-**Подписки на события:**
+**Event subscriptions:**
 ```
-AbilityManager.OnChargeChanged   → обновить fillAmount (Charging state)
-AbilityManager.OnAbilityReady    → перейти в Ready state
-AbilityManager.OnAbilityActivated → перейти в Active state, сменить fillOrigin
-AbilityManager.OnAbilityTick      → обновить fillAmount (drain)
-AbilityManager.OnAbilityExpired   → сбросить в Charging state, fillAmount = 0
+AbilityManager.OnChargeChanged   → update fillAmount (Charging state)
+AbilityManager.OnAbilityReady    → switch to Ready state
+AbilityManager.OnAbilityActivated → switch to Active state, flip fillOrigin
+AbilityManager.OnAbilityTick      → update fillAmount (drain)
+AbilityManager.OnAbilityExpired   → reset to Charging state, fillAmount = 0
 ```
 
-**Анимация цвета заливки (DOTween):**
+**Fill color animation (DOTween):**
 ```csharp
-FillImage.DOColor(readyColor, 0.3f);    // при переходе в Ready
-FillImage.DOColor(activeColor, 0.2f);   // при активации
-FillImage.DOColor(chargingColor, 0.4f); // при сбросе
+FillImage.DOColor(readyColor, 0.3f);    // on transitioning to Ready
+FillImage.DOColor(activeColor, 0.2f);   // on activation
+FillImage.DOColor(chargingColor, 0.4f); // on reset
 ```
 
 ---
 
-### 3.3 Изменения в `Human.cs` и `Scientist.cs`
+### 3.3 Changes to `Human.cs` and `Scientist.cs`
 
-Минимальные правки — читать speed multiplier из AbilityManager.
+Minimal edits — read the speed multiplier from AbilityManager.
 
-В `Human.Update()`, в каждом месте где устанавливается `agent.speed`:
+In `Human.Update()`, everywhere `agent.speed` is set:
 
 ```csharp
-// БЫЛО:
+// BEFORE:
 agent.speed = runSpeed;
 
-// СТАЛО:
+// AFTER:
 float boost = AbilityManager.Instance != null ? AbilityManager.Instance.GetSpeedMultiplier() : 1f;
 agent.speed = runSpeed * boost;
 ```
 
-Аналогично для `walkSpeed`:
+Same for `walkSpeed`:
 ```csharp
 agent.speed = walkSpeed * boost;
 ```
 
-То же самое в `Scientist.cs` (если там аналогичная логика скорости).
+Same in `Scientist.cs` (if it has similar speed logic).
 
-> **Важно:** `GetSpeedMultiplier()` возвращает 1f когда AbilityManager не активен — null-safe.
+> **Important:** `GetSpeedMultiplier()` returns 1f when AbilityManager isn't active — null-safe.
 
 ---
 
-### 3.4 Изменения в `GameManager.cs`
+### 3.4 Changes to `GameManager.cs`
 
-В методе `AddRescuedFromTransport()`, после существующей логики:
+In the `AddRescuedFromTransport()` method, after the existing logic:
 
 ```csharp
-// Существующий код:
+// Existing code:
 XPManager.Instance?.OnCivilianEvacuated(humans, scientists);
 
-// Добавить строку:
+// Add this line:
 AbilityManager.Instance?.AddCharge(total);
 ```
 
@@ -183,7 +183,7 @@ AbilityManager.Instance?.AddCharge(total);
 
 ### TutorialSequence ScriptableObject
 
-Создать: `Assets/Data/Tutorials/Tutorial_AbilityReady.asset`
+Create: `Assets/Data/Tutorials/Tutorial_AbilityReady.asset`
 
 ```
 tutorialId: "Tutorial_Ability"
@@ -192,28 +192,28 @@ steps:
     stepType: DialogAndClick
     targetId: "ability_button"
     useDarkMask: true
-    dialogText: "Ты спас достаточно людей! Нажми на способность — ускорь всех мирных!"
-    characterIcon: [иконка персонажа, та же что в Level 1 туторе]
+    dialogText: "You've rescued enough people! Press the ability — speed up everyone!"
+    characterIcon: [character icon, same one as in the Level 1 tutorial]
     dialogPosition: Bottom
 ```
 
-**Как это работает технически:**
-1. `AbilityManager` вызывает `TutorialManager.Instance.StartTutorial(abilityReadyTutorialSequence)`
-2. `TutorialManager.StartTutorial()` устанавливает `Time.timeScale = 0f`
-3. Появляется диалог + finger pointer на кнопке ability
-4. Кнопка остаётся интерактивной (TutorialTarget "ability_button" = "дырка" в маске)
-5. Игрок нажимает кнопку → срабатывают оба листенера:
-   - `AbilityManager.ActivateAbility()` (назначен в инспекторе через Button.onClick)
-   - `TutorialManager.NextStep()` (добавляется динамически TutorialManager'ом)
+**How this works technically:**
+1. `AbilityManager` calls `TutorialManager.Instance.StartTutorial(abilityReadyTutorialSequence)`
+2. `TutorialManager.StartTutorial()` sets `Time.timeScale = 0f`
+3. The dialog + finger pointer on the ability button appear
+4. The button stays interactable (TutorialTarget "ability_button" = a "hole" in the mask)
+5. The player presses the button → both listeners fire:
+   - `AbilityManager.ActivateAbility()` (wired up in the Inspector via Button.onClick)
+   - `TutorialManager.NextStep()` (added dynamically by TutorialManager)
 6. `TutorialManager.FinishTutorial()` → `Time.timeScale = 1f`
-7. Ability активируется, мирные ускоряются
+7. The ability activates, civilians speed up
 
-> **Порядок имеет значение:** `FinishTutorial` восстанавливает timeScale ДО того, как coroutine drain в AbilityManager начнёт считать время. Это нормально — Unity обрабатывает onClick-листенеры в порядке добавления. `ActivateAbility()` запускается после `NextStep()` так как добавлен в инспекторе раньше, либо можно явно вызвать `ActivateAbility()` из `NextStep` через `OnAbilityTutorialCompleted`-коллбек. **Рекомендация:** вызывать `ActivateAbility()` в конце `FinishTutorial` через событие, а не через Button.onClick, чтобы избежать гонки.
+> **Order matters:** `FinishTutorial` restores timeScale BEFORE the drain coroutine in AbilityManager starts counting time. That's fine — Unity processes onClick listeners in the order they were added. `ActivateAbility()` runs after `NextStep()` since it was added earlier in the Inspector, or you can explicitly call `ActivateAbility()` from `NextStep` via an `OnAbilityTutorialCompleted` callback. **Recommendation:** call `ActivateAbility()` at the end of `FinishTutorial` via an event, not via Button.onClick, to avoid a race.
 
-### Альтернативная clean-реализация (рекомендуется):
+### Alternative clean implementation (recommended):
 
 ```csharp
-// В AbilityManager:
+// In AbilityManager:
 private void OnAbilityButtonClicked()
 {
     if (state == AbilityState.Ready)
@@ -223,45 +223,45 @@ private void OnAbilityButtonClicked()
 }
 ```
 
-Кнопка вызывает только `AbilityManager.OnAbilityButtonClicked()`. TutorialManager добавляет `NextStep` как второй листенер. Порядок не имеет значения — оба метода идемпотентны.
+The button only calls `AbilityManager.OnAbilityButtonClicked()`. TutorialManager adds `NextStep` as a second listener. Order doesn't matter — both methods are idempotent.
 
 ---
 
 ## 5. Edge Cases
 
-| Сценарий | Поведение |
+| Scenario | Behavior |
 |---|---|
-| Ability заряжается когда GameState = Planning | `AddCharge()` принимает заряд, но туториал не запускается до Playing |
-| Игрок умирает пока ability Active | `AbilityManager.OnGameOver()` → сбрасывает state в Idle, не сохраняет заряд |
-| Мирных нет на карте в момент активации | Ability работает, просто не на кого влиять. Не критично. |
-| Заряд накапливается повторно после использования | Да, ability перезаряжается. Без cooldown между uses в MVP. |
-| Туториал уже показан (повторный запуск уровня) | `PlayerPrefs.HasKey("ABILITY_TUTORIAL_SHOWN")` = true → туториал пропускается |
-| AbilityManager = null (не на игровой сцене) | Все обращения через `?.` — null-safe |
+| Ability charges while GameState = Planning | `AddCharge()` accepts the charge, but the tutorial doesn't start until Playing |
+| Player dies while the ability is Active | `AbilityManager.OnGameOver()` → resets state to Idle, doesn't save the charge |
+| No civilians on the map at activation time | The ability runs, there's just nobody to affect. Not critical. |
+| Charge builds up again after use | Yes, the ability recharges. No cooldown between uses in the MVP. |
+| Tutorial already shown (replaying the level) | `PlayerPrefs.HasKey("ABILITY_TUTORIAL_SHOWN")` = true → tutorial is skipped |
+| AbilityManager = null (not in the gameplay scene) | All access goes through `?.` — null-safe |
 
 ---
 
-## 6. VFX / Audio (scope на усмотрение)
+## 6. VFX / Audio (scope at discretion)
 
-- **При переходе в Ready:** sound "charge complete" + вибрация
-- **При активации:** sound "whoosh/boost" + мирные получают визуальный эффект (частицы над головой или кольцо по земле)
-- **При окончании:** sound "fade out" тихий
+- **On transitioning to Ready:** "charge complete" sound + vibration
+- **On activation:** "whoosh/boost" sound + civilians get a visual effect (particles above the head or a ring on the ground)
+- **On expiry:** quiet "fade out" sound
 
 ---
 
-## 7. Новые файлы
+## 7. New files
 
-| Файл | Тип | Описание |
+| File | Type | Description |
 |---|---|---|
-| `Assets/Scripts/AbilityManager.cs` | MonoBehaviour (Singleton) | Логика заряда и ability |
-| `Assets/Scripts/UI/AbilityButtonUI.cs` | MonoBehaviour | Визуальные состояния кнопки |
-| `Assets/Data/Tutorials/Tutorial_AbilityReady.asset` | ScriptableObject | TutorialSequence для ability |
+| `Assets/Scripts/AbilityManager.cs` | MonoBehaviour (Singleton) | Charge and ability logic |
+| `Assets/Scripts/UI/AbilityButtonUI.cs` | MonoBehaviour | Button visual states |
+| `Assets/Data/Tutorials/Tutorial_AbilityReady.asset` | ScriptableObject | TutorialSequence for the ability |
 
-## 8. Изменения существующих файлов
+## 8. Changes to existing files
 
-| Файл | Изменение |
+| File | Change |
 |---|---|
-| `GameManager.cs` | +1 строка в `AddRescuedFromTransport()` |
-| `Human.cs` | Умножать `agent.speed` на `AbilityManager.GetSpeedMultiplier()` (3 места) |
-| `Scientist.cs` | Аналогично Human.cs |
-| Игровая сцена | Добавить AbilityManager GO, AbilityButtonUI в Canvas, TutorialTarget на кнопку |
-| `Tutorial_AbilityReady.asset` | Создать через ScriptableObject меню |
+| `GameManager.cs` | +1 line in `AddRescuedFromTransport()` |
+| `Human.cs` | Multiply `agent.speed` by `AbilityManager.GetSpeedMultiplier()` (3 places) |
+| `Scientist.cs` | Same as Human.cs |
+| Gameplay scene | Add AbilityManager GO, AbilityButtonUI in Canvas, TutorialTarget on the button |
+| `Tutorial_AbilityReady.asset` | Create via the ScriptableObject menu |

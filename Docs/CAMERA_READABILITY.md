@@ -144,7 +144,7 @@ too small/large after the camera changes above — it's a flat multiplier, so 1.
 ## What couldn't be verified without a device build
 
 This environment has no connected phone and no Device Simulator package installed (same
-limitation noted in the responsive-layout pass, `CLAUDE.md` §"Респонсив-лейаут"). Everything
+limitation noted in the responsive-layout pass, `CLAUDE.md` §"Responsive layout"). Everything
 below was checked as far as this Editor session allows — math verified via direct `eval` calls and
 reflection on live field values — but not on real touch hardware:
 

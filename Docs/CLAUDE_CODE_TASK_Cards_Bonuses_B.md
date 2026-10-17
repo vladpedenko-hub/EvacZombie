@@ -1,27 +1,27 @@
 # Claude Code Task — Card Level-5 Bonuses, Batch B (needs new logic)
 
-4 карты: CombatHelicopter, Soldier, Bait, Helicopter. Сложнее батча A — либо новая механика, либо логика вынесена в другой файл (`Zombie.cs`). Делать по одной, тестировать между собой — не пытаться сделать все 4 в одном заходе.
+4 cards: CombatHelicopter, Soldier, Bait, Helicopter. Harder than batch A — either a new mechanic, or logic that lives in another file (`Zombie.cs`). Do them one at a time, testing in between — don't try to do all 4 in one pass.
 
-Как и в батче A: уровень карты уже доступен через `PlayerProfile.Instance.ownedCardsProgress` в каждом контроллере, никакого нового хранилища модификаторов не нужно.
+Same as batch A: the card level is already available via `PlayerProfile.Instance.ownedCardsProgress` in every controller, no new modifier store is needed.
 
 ---
 
-## 1. CombatHelicopter — добивает зомби ниже 20% HP
+## 1. CombatHelicopter — finishes off zombies below 20% HP
 
-**Файлы:** `Assets/Scripts/Zombie.cs`, `Assets/Scripts/Bonus/CombatHelicopter.cs`
+**Files:** `Assets/Scripts/Zombie.cs`, `Assets/Scripts/Bonus/CombatHelicopter.cs`
 
-### Шаг 1 — добавить публичный геттер HP в `Zombie.cs`
+### Step 1 — add a public HP getter in `Zombie.cs`
 
-`currentHealth` сейчас `protected`, снаружи недоступен. Добавь публичное свойство (например, рядом с `public bool IsDead => isDead;`):
+`currentHealth` is currently `protected`, inaccessible from outside. Add a public property (e.g. next to `public bool IsDead => isDead;`):
 ```csharp
 public float HealthFraction => maxHealth > 0 ? (float)currentHealth / maxHealth : 0f;
 ```
 
-### Шаг 2 — `CombatHelicopter.cs`
+### Step 2 — `CombatHelicopter.cs`
 
-Сейчас `currentLevel` — локальная переменная в `Start()`, а бонус нужен в `SniperShoot()`. Подними в поле класса:
+Right now `currentLevel` is a local variable in `Start()`, but the bonus is needed in `SniperShoot()`. Promote it to a class field:
 
-Замени:
+Replace:
 ```csharp
 private void Start()
 {
@@ -29,7 +29,7 @@ private void Start()
 	if (PlayerProfile.Instance != null && myCardData != null)
 	{
 ```
-на:
+with:
 ```csharp
 private int currentLevel = 1;
 
@@ -39,7 +39,7 @@ private void Start()
 	{
 ```
 
-В `SniperShoot()`, найди:
+In `SniperShoot()`, find:
 ```csharp
 Zombie targetZombie = FindClosestZombie();
 if (targetZombie != null)
@@ -49,7 +49,7 @@ if (targetZombie != null)
 	StartCoroutine(DrawTracer(transform.position, targetZombie.transform.position + Vector3.up));
 }
 ```
-замени на:
+and replace with:
 ```csharp
 Zombie targetZombie = FindClosestZombie();
 if (targetZombie != null)
@@ -63,15 +63,15 @@ if (targetZombie != null)
 
 ---
 
-## 2. Soldier — стреляет по 2 целям одновременно
+## 2. Soldier — fires at 2 targets simultaneously
 
-**Файл:** `Assets/Scripts/Bonus/Soldier.cs`
+**File:** `Assets/Scripts/Bonus/Soldier.cs`
 
-Самая инвазивная правка в этом батче — трогает таргетинг. Делать аккуратно, не менять аим/визуал одиночной цели.
+The most invasive change in this batch — it touches targeting. Do it carefully, don't change the aim/visual for a single target.
 
-### Шаг 1 — поднять `currentLevel` в поле, добавить флаг
+### Step 1 — promote `currentLevel` to a field, add a flag
 
-Замени:
+Replace:
 ```csharp
 private void Start()
 {
@@ -79,7 +79,7 @@ private void Start()
 	if (PlayerProfile.Instance != null && myCardData != null)
 	{
 ```
-на:
+with:
 ```csharp
 private int currentLevel = 1;
 private bool hasDualTargetBonus = false;
@@ -89,14 +89,14 @@ private void Start()
 	if (PlayerProfile.Instance != null && myCardData != null)
 	{
 ```
-После блока, где читается `currentLevel` (после `if (progress != null) currentLevel = progress.currentLevel;`), добавь:
+After the block where `currentLevel` is read (after `if (progress != null) currentLevel = progress.currentLevel;`), add:
 ```csharp
 hasDualTargetBonus = currentLevel >= 5;
 ```
 
-### Шаг 2 — добавить метод для поиска до N целей
+### Step 2 — add a method to find up to N targets
 
-По аналогии с `FindTopNTargets` в `Sniper.cs`, добавь в `Soldier.cs`:
+Following the pattern of `FindTopNTargets` in `Sniper.cs`, add to `Soldier.cs`:
 ```csharp
 private System.Collections.Generic.List<Zombie> FindTargets(int n)
 {
@@ -114,9 +114,9 @@ private System.Collections.Generic.List<Zombie> FindTargets(int n)
 }
 ```
 
-### Шаг 3 — в `ShootRoutine()`, стрелять по нескольким целям
+### Step 3 — in `ShootRoutine()`, shoot at multiple targets
 
-Найди:
+Find:
 ```csharp
 private IEnumerator ShootRoutine()
 {
@@ -138,7 +138,7 @@ private IEnumerator ShootRoutine()
 	}
 }
 ```
-замени на:
+and replace with:
 ```csharp
 private IEnumerator ShootRoutine()
 {
@@ -170,23 +170,23 @@ private IEnumerator ShootRoutine()
 }
 ```
 
-Прицеливание (`Update()`, поворот к `FindTarget()`) не трогаем — солдат визуально доворачивается на ближайшую цель, а трассеры рисуются на обе цели через `DoShot`.
+Leave the aiming (`Update()`, turning to face `FindTarget()`) alone — the soldier visually turns toward the nearest target, and tracers are drawn for both targets via `DoShot`.
 
 ---
 
-## 3. Bait — притянутые зомби замедляются
+## 3. Bait — attracted zombies slow down
 
-**Файлы:** `Assets/Scripts/Bonus/Bait.cs`, `Assets/Scripts/Zombie.cs`
+**Files:** `Assets/Scripts/Bonus/Bait.cs`, `Assets/Scripts/Zombie.cs`
 
-Логика движения зомби к приманке живёт в `Zombie.cs` (`currentBait`, `FindTargetWithBaitPriority`, `SetBaitTarget`), не в `Bait.cs` — сама `Bait.cs` только выставляет радиус/точку притяжения. Бонус трогает `Zombie.cs`.
+The logic for zombies moving toward the bait lives in `Zombie.cs` (`currentBait`, `FindTargetWithBaitPriority`, `SetBaitTarget`), not in `Bait.cs` — `Bait.cs` itself only sets the attraction radius/point. The bonus touches `Zombie.cs`.
 
-### Шаг 1 — `Bait.cs`: пометить, разблокирован ли бонус
+### Step 1 — `Bait.cs`: flag whether the bonus is unlocked
 
-Добавь публичное свойство и приватное поле уровня:
+Add a public property and a private level field:
 ```csharp
 public bool HasSlowBonus { get; private set; }
 ```
-В `InitStatsFromCardData()`, внутри блока `if (PlayerProfile.Instance != null && myCardData != null) { ... }`, добавь чтение уровня (сейчас там его нет вообще) и выставление флага:
+In `InitStatsFromCardData()`, inside the `if (PlayerProfile.Instance != null && myCardData != null) { ... }` block, add reading the level (currently not read there at all) and setting the flag:
 ```csharp
 var progress = PlayerProfile.Instance.ownedCardsProgress.Find(p => p.cardId == myCardData.name);
 int currentLevel = progress != null ? progress.currentLevel : 1;
@@ -194,11 +194,11 @@ HasSlowBonus = currentLevel >= 5;
 
 attractRadius = myCardData.GetCalculatedStat(StatType.Radius, currentLevel);
 ```
-(замени существующую строку `attractRadius = myCardData.GetCalculatedStat(StatType.Radius, currentLevel);`, которая раньше не объявляла `currentLevel` вообще — используй везде ту же переменную, которую ниже читает `duration`.)
+(replace the existing line `attractRadius = myCardData.GetCalculatedStat(StatType.Radius, currentLevel);`, which previously didn't declare `currentLevel` at all — use the same variable everywhere that `duration` reads below it.)
 
-### Шаг 2 — `Zombie.cs`: централизовать смену `currentBait`
+### Step 2 — `Zombie.cs`: centralize changing `currentBait`
 
-Сейчас `currentBait = ...` присваивается в нескольких местах (`FindTargetWithBaitPriority`, `SetBaitTarget`, и очищается в паре мест как `currentBait = null`). Чтобы не забыть какой-то из путей, добавь приватный helper и замени ВСЕ прямые присваивания `currentBait = X;` на вызов этого метода:
+Right now `currentBait = ...` is assigned in several places (`FindTargetWithBaitPriority`, `SetBaitTarget`, and cleared in a couple of places as `currentBait = null`). To make sure none of those paths get missed, add a private helper and replace ALL direct assignments of `currentBait = X;` with a call to this method:
 
 ```csharp
 private void SetCurrentBait(Bait bait)
@@ -206,27 +206,27 @@ private void SetCurrentBait(Bait bait)
 	currentBait = bait;
 
 	if (bait != null && bait.HasSlowBonus)
-		agent.speed = moveSpeed * 0.5f; // замедление, число временное — баланс на потом
+		agent.speed = moveSpeed * 0.5f; // slowdown, the number is provisional -- balance it later
 	else
 		agent.speed = moveSpeed;
 }
 ```
 
-Найди все места в файле, где напрямую пишется `currentBait = ...` (включая `currentBait = null;` в паре мест сброса), и замени на `SetCurrentBait(...)` с тем же аргументом (`SetCurrentBait(bait);` или `SetCurrentBait(null);` соответственно). Это гарантирует, что скорость корректно восстанавливается при потере/смене цели-приманки.
+Find every place in the file that writes `currentBait = ...` directly (including the couple of `currentBait = null;` resets), and replace them with `SetCurrentBait(...)` using the same argument (`SetCurrentBait(bait);` or `SetCurrentBait(null);` respectively). This guarantees speed is correctly restored when the bait target is lost/changed.
 
-**Важно:** если `agent.speed` где-то ещё переустанавливается напрямую в других местах файла (например, после смерти/деспавна), проверь, что это не конфликтует с новым замедлением — если конфликт есть, сообщить, не гадать.
+**Important:** if `agent.speed` is set directly anywhere else in the file (e.g. after death/despawn), check that it doesn't conflict with the new slowdown — if there is a conflict, report it, don't guess.
 
 ---
 
-## 4. Helicopter — мини-пулемёт во время погрузки
+## 4. Helicopter — mini machine gun during loading
 
-**Файл:** `Assets/Scripts/Bonus/HelicopterController.cs`
+**File:** `Assets/Scripts/Bonus/HelicopterController.cs`
 
-Это чистый рескью-вертолёт, сейчас вообще не умеет стрелять. Паттерн стрельбы переиспользуем из `CombatHelicopter.SniperShoot()` (см. батч этого же файла) — упрощённая версия, без execute-бонуса.
+This is a pure rescue helicopter, currently unable to shoot at all. We reuse the shooting pattern from `CombatHelicopter.SniperShoot()` (see that card's section in this same batch) — a simplified version, without the execute bonus.
 
-### Шаг 1 — поднять `currentLevel` в поле, добавить поля стрельбы
+### Step 1 — promote `currentLevel` to a field, add shooting fields
 
-Замени:
+Replace:
 ```csharp
 private void Start()
 {
@@ -234,7 +234,7 @@ private void Start()
 	if (PlayerProfile.Instance != null && myCardData != null)
 	{
 ```
-на:
+with:
 ```csharp
 private int currentLevel = 1;
 private bool hasGunBonus = false;
@@ -247,14 +247,14 @@ private void Start()
 	if (PlayerProfile.Instance != null && myCardData != null)
 	{
 ```
-После блока чтения уровня, добавь:
+After the block that reads the level, add:
 ```csharp
 hasGunBonus = currentLevel >= 5;
 ```
 
-### Шаг 2 — метод стрельбы (копия паттерна из CombatHelicopter)
+### Step 2 — shooting method (copy of the CombatHelicopter pattern)
 
-Добавь:
+Add:
 ```csharp
 private void MiniGunShoot()
 {
@@ -291,17 +291,17 @@ private Zombie FindClosestZombieInRange(float shootRangeForGun)
 }
 ```
 
-### Шаг 3 — вызывать во время погрузки
+### Step 3 — call it during loading
 
-В `LoadRoutine()`, внутри цикла `while (currentLoad < maxCapacity && !isTooHot && waitTimer < loadTime) { ... }`, добавь вызов `MiniGunShoot();` в начале тела цикла (после строки `panicCheckTimer += dt;` подойдёт).
+In `LoadRoutine()`, inside the `while (currentLoad < maxCapacity && !isTooHot && waitTimer < loadTime) { ... }` loop, add a call to `MiniGunShoot();` at the start of the loop body (right after the `panicCheckTimer += dt;` line works).
 
-**Баланс `gunDamage`/`gunFireRate`/радиус 15f — временные числа, тюнить позже.** Визуал (трассер) не добавляем в этой задаче — только логика урона, чтобы проверить, что бонус вообще работает; трассер можно добавить отдельным шагом, скопировав `DrawTracer` из `CombatHelicopter.cs`, если понравится в игре.
+**`gunDamage`/`gunFireRate`/the 15f radius are provisional numbers, tune them later.** No visual (tracer) is added in this task — logic only, just to verify the bonus works at all; a tracer can be added as a separate step later, copying `DrawTracer` from `CombatHelicopter.cs`, if it reads well in the game.
 
 ---
 
 ## Acceptance checklist
-- [ ] CombatHelicopter 5 уровня добивает зомби с HP ≤ 20%, на уровнях < 5 — обычный урон без изменений
-- [ ] Soldier 5 уровня стреляет по 2 целям одновременно (если целей ≥ 2 в радиусе), на уровнях < 5 — как раньше, одна цель
-- [ ] Bait 5 уровня: зомби, идущие к приманке, заметно медленнее обычных; после того как приманка исчезла/зомби выбрал новую цель — скорость восстанавливается до нормальной (нет "зависшего" замедления)
-- [ ] Helicopter 5 уровня отстреливает ближайших зомби во время погрузки, не мешая посадке гражданских; на уровнях < 5 — как раньше, безоружный
-- [ ] Ни у одной из карт < 5 уровня поведение не изменилось (regression check)
+- [ ] A level-5 CombatHelicopter finishes off zombies with HP ≤ 20%; at levels < 5, normal damage, unchanged
+- [ ] A level-5 Soldier fires at 2 targets simultaneously (if there are ≥ 2 targets in range); at levels < 5, as before, a single target
+- [ ] A level-5 Bait: zombies heading to the bait are noticeably slower than normal; once the bait disappears/the zombie picks a new target, speed is restored to normal (no "stuck" slowdown)
+- [ ] A level-5 Helicopter shoots nearby zombies while loading, without interfering with civilians boarding; at levels < 5, as before, unarmed
+- [ ] None of the cards below level 5 have changed behavior (regression check)

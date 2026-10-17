@@ -1,37 +1,37 @@
 # EvacZombie — Hero System & Roguelite In-Run Progression
 **GDD v1.0 — MVP Design Document**
 
-> Этот документ описывает две связанные системы:
-> 1. **Система героев** — карты эвакуации становятся персонажами с уникальной идентичностью
-> 2. **Roguelite прогрессия** — XP за убийства и эвакуации → левел ап → выбор из 3 улучшений
+> This document describes two related systems:
+> 1. **Hero system** — evacuation cards become characters with a unique identity
+> 2. **Roguelite progression** — XP from kills and evacuations → level up → choose 1 of 3 upgrades
 
 ---
 
-## 1. СИСТЕМА ГЕРОЕВ
+## 1. HERO SYSTEM
 
-### 1.1 Концепция
+### 1.1 Concept
 
-Три эвакуационные карты (`Helicopter`, `Car`, `CombatHelicopter`) становятся **героями**. Герой — это постоянный персонаж игрока в забеге. Обычные карты-способности (Sniper, Soldier, Bomb, Barricade, Bait) формируют колоду, привязанную к герою.
+Three evacuation cards (`Helicopter`, `Car`, `CombatHelicopter`) become **heroes**. A hero is the player's persistent character for the run. Regular ability cards (Sniper, Soldier, Bomb, Barricade, Bait) form the deck tied to that hero.
 
-### 1.2 Список героев
+### 1.2 Hero list
 
-| Герой | CardType | Стартовый | Условие разблокировки |
+| Hero | CardType | Starting | Unlock condition |
 |---|---|---|---|
-| 🚁 Вертолёт «Феникс» | `Helicopter` | ✅ Да | — |
-| 🚗 Броневик «Локус» | `Car` | ❌ | Пройти 5 уровней |
-| 🚁🔫 Боевой Вертолёт «Призрак» | `CombatHelicopter` | ❌ | Пройти 15 уровней |
+| 🚁 Helicopter "Phoenix" | `Helicopter` | ✅ Yes | — |
+| 🚗 Armored Truck "Locus" | `Car` | ❌ | Clear 5 levels |
+| 🚁🔫 Combat Helicopter "Ghost" | `CombatHelicopter` | ❌ | Clear 15 levels |
 
-### 1.3 Механика героя в забеге
+### 1.3 Hero mechanics in a run
 
-- Игрок входит в уровень с **1 активным героем** и **своей колодой** (3–5 карт-способностей).
-- Герой — это единственная эвакуационная карта. Других эвакуационных карт в колоде быть не может.
-- Карты-способности используются так же, как сейчас (размещение на поле).
-- Герой активируется кнопкой в UI (отдельная зона) — не частью обычной колоды.
+- The player enters a level with **1 active hero** and **their own deck** (3–5 ability cards).
+- The hero is the only evacuation card. No other evacuation card can be in the deck.
+- Ability cards are used the same way as now (placed on the field).
+- The hero is activated via a UI button (a separate zone) — not part of the regular deck.
 
-### 1.4 Структура данных (C#)
+### 1.4 Data structure (C#)
 
 ```csharp
-// Новый ScriptableObject для героя
+// New ScriptableObject for a hero
 [CreateAssetMenu(fileName = "NewHeroData", menuName = "ZombieGame/Hero Data")]
 public class HeroData : ScriptableObject
 {
@@ -40,82 +40,82 @@ public class HeroData : ScriptableObject
     [TextArea] public string loreText;
     public Sprite heroIcon;
     public CardType heroCardType; // Helicopter / Car / CombatHelicopter
-    public CardData linkedCardData; // Ссылка на существующий CardData
+    public CardData linkedCardData; // Reference to the existing CardData
 
-    // Условие разблокировки
-    public int levelsRequiredToUnlock; // 0 = стартовый
+    // Unlock condition
+    public int levelsRequiredToUnlock; // 0 = starting hero
 }
 
-// В PlayerProfile добавить:
-public string selectedHeroId;         // id текущего активного героя
-public List<string> unlockedHeroIds;  // список разблокированных героев
+// Add to PlayerProfile:
+public string selectedHeroId;         // id of the currently active hero
+public List<string> unlockedHeroIds;  // list of unlocked heroes
 ```
 
 ---
 
-## 2. ROGUELITE ПРОГРЕССИЯ (В РАМКАХ ОДНОГО УРОВНЯ)
+## 2. ROGUELITE PROGRESSION (WITHIN A SINGLE LEVEL)
 
-### 2.1 Источники XP
+### 2.1 XP sources
 
-| Событие | XP |
+| Event | XP |
 |---|---|
-| Убийство обычного зомби | +5 |
-| Убийство ZombieBoss | +50 |
-| Эвакуация обычного гражданина | +20 |
-| Эвакуация учёного (Scientist) | +40 |
-| Полная загрузка эвакуационного транспорта | +25 (бонус) |
+| Killing a regular zombie | +5 |
+| Killing a ZombieBoss | +50 |
+| Evacuating a regular civilian | +20 |
+| Evacuating a Scientist | +40 |
+| Full evacuation-transport load | +25 (bonus) |
 
-### 2.2 Шкала уровней XP (в рамках одного забега)
+### 2.2 XP level scale (within a single run)
 
 ```
-Уровень 1 → 2:   100 XP
-Уровень 2 → 3:   150 XP
-Уровень 3 → 4:   200 XP
-Уровень 4 → 5:   250 XP
-Уровень 5 → 6:   300 XP
-Уровень 6 → 7:   375 XP
-Уровень 7 → 8:   450 XP
-Уровень 8 → 9:   550 XP
-Уровень 9 → 10:  700 XP
-Уровень 10+:     +200 XP каждый следующий
+Level 1 → 2:   100 XP
+Level 2 → 3:   150 XP
+Level 3 → 4:   200 XP
+Level 4 → 5:   250 XP
+Level 5 → 6:   300 XP
+Level 6 → 7:   375 XP
+Level 7 → 8:   450 XP
+Level 8 → 9:   550 XP
+Level 9 → 10:  700 XP
+Level 10+:     +200 XP each subsequent level
 ```
 
-Целевой опыт на уровень: **8–12 левел апов** за средний уровень.
+Target pacing: **8–12 level-ups** per average level.
 
-### 2.3 Логика Level Up
+### 2.3 Level Up logic
 
-1. Когда XP достигает порога — игра **паузится** (Time.timeScale = 0).
-2. Появляется UI с **3 вариантами улучшений** на выбор.
-3. Игрок выбирает 1 → эффект применяется немедленно → игра возобновляется.
+1. When XP reaches the threshold — the game **pauses** (Time.timeScale = 0).
+2. A UI appears with **3 upgrade options** to choose from.
+3. The player picks 1 → the effect applies immediately → the game resumes.
 
-### 2.4 Формирование пула улучшений
+### 2.4 Building the upgrade pool
 
-Пул строится по этим правилам:
-1. Для каждой карты в колоде игрока — добавить **все незамаксированные улучшения** этой карты в пул.
-2. Для героя — добавить **все незамаксированные улучшения героя** в пул.
-3. Добавить **все общие улучшения**, которые применимы.
-4. Из пула случайно выбрать **3 уникальных варианта** (без повторений в одном предложении).
-5. Если улучшений одного типа несколько (из-за стакинга) — показать ту же карточку, но с повышенным тиром.
+The pool is built using these rules:
+1. For each card in the player's deck — add **all non-maxed upgrades** for that card to the pool.
+2. For the hero — add **all non-maxed hero upgrades** to the pool.
+3. Add **all general upgrades** that are applicable.
+4. From the pool, randomly pick **3 unique options** (no duplicates in a single offer).
+5. If there are several upgrades of the same type (due to stacking) — show the same card, but at the increased tier.
 
-**Весовая система (MVP):**
-- Улучшения карт, которые игрок ещё ни разу не выбирал: вес 1.5x (поощряем разнообразие)
-- Улучшения, взятые 1 раз (доступен тир 2): вес 1.2x
-- Общие улучшения: вес 1.0x
+**Weighting system (MVP):**
+- Upgrades for cards the player has never picked yet: weight 1.5x (encourages variety)
+- Upgrades taken once (tier 2 available): weight 1.2x
+- General upgrades: weight 1.0x
 
 ---
 
-## 3. СИСТЕМА СТАКИНГА И УЛЬТИМАТИВНЫХ УЛУЧШЕНИЙ
+## 3. STACKING AND ULTIMATE UPGRADE SYSTEM
 
-### 3.1 Принцип
+### 3.1 Principle
 
-Каждое улучшение имеет 3 тира:
-- **Тир 1** (первый выбор): базовое улучшение.
-- **Тир 2** (второй выбор той же карточки): **Enhanced** — значительное усиление, меняет поведение.
-- **Тир 3 / Ультимативное** (третий выбор): **ULTIMATE** — кардинальное изменение механики.
+Each upgrade has 3 tiers:
+- **Tier 1** (first pick): base upgrade.
+- **Tier 2** (second pick of the same card): **Enhanced** — a significant boost that changes behavior.
+- **Tier 3 / Ultimate** (third pick): **ULTIMATE** — a fundamental change to the mechanic.
 
-После выбора тира 3 — улучшение удаляется из пула (максимум достигнут).
+After picking tier 3, the upgrade is removed from the pool (maxed out).
 
-### 3.2 Структура данных
+### 3.2 Data structure
 
 ```csharp
 public enum UpgradeTier { Tier1, Tier2_Enhanced, Tier3_Ultimate }
@@ -123,353 +123,353 @@ public enum UpgradeTier { Tier1, Tier2_Enhanced, Tier3_Ultimate }
 [System.Serializable]
 public class RunUpgradeDefinition
 {
-    public string upgradeId;           // уникальный ID, напр. "helicopter_quicklanding"
-    public CardType targetCardType;    // к какой карте относится (или None для General)
-    public string displayName;         // "Быстрая посадка"
-    public string description;         // описание тира 1
-    public string descriptionEnhanced; // описание тира 2
-    public string descriptionUltimate; // описание тира 3
+    public string upgradeId;           // unique ID, e.g. "helicopter_quicklanding"
+    public CardType targetCardType;    // which card this belongs to (or None for General)
+    public string displayName;         // "Quick Landing"
+    public string description;         // tier 1 description
+    public string descriptionEnhanced; // tier 2 description
+    public string descriptionUltimate; // tier 3 description
     public Sprite icon;
 }
 
-// Хранится в RunSessionData (сбрасывается после уровня)
+// Stored in RunSessionData (reset after each level)
 [System.Serializable]
 public class RunSessionData
 {
-    public Dictionary<string, int> upgradeStacks; // upgradeId → количество раз взято (0-3)
+    public Dictionary<string, int> upgradeStacks; // upgradeId → number of times taken (0-3)
     public int currentXP;
     public int currentRunLevel;
-    // Применяемые бонусы хранятся как мультипликаторы/аддитивы:
+    // Applied bonuses are stored as multipliers/additives:
     public Dictionary<string, float> runModifiers; // "helicopter_capacity" → 8f
 }
 ```
 
-### 3.3 Применение эффектов
+### 3.3 Applying effects
 
-Эффекты применяются **в момент размещения карты** (через RunSessionData.runModifiers). Каждый контроллер (HelicopterController, Sniper и т.д.) при Start() запрашивает не только `PlayerProfile`, но и `RunSessionData`:
+Effects are applied **at the moment a card is placed** (via RunSessionData.runModifiers). Each controller (HelicopterController, Sniper, etc.) queries not only `PlayerProfile` but also `RunSessionData` in Start():
 
 ```csharp
-// Пример для HelicopterController
-float capacityMod = RunSession.GetModifier("helicopter_capacity"); // 0 если не взято
+// Example for HelicopterController
+float capacityMod = RunSession.GetModifier("helicopter_capacity"); // 0 if not taken
 maxCapacity = (int)(baseCapacity + capacityMod);
 ```
 
 ---
 
-## 4. ДЕРЕВЬЯ УЛУЧШЕНИЙ
+## 4. UPGRADE TREES
 
-### Обозначения в таблицах
-- **[Параметр]** — конкретный StatType из CardData (Capacity, Speed, Damage, FireRate, Radius, Duration, Cooldown, Count, Health)
-- ✨ Enhanced — тир 2 (взято 2 раза)
-- 💥 ULTIMATE — тир 3 (взято 3 раза)
-
----
-
-## 4.1 ГЕРОЙ: 🚁 ВЕРТОЛЁТ «ФЕНИКС»
-*Параметры: Capacity, Speed (вертикальная скорость), Radius (attractRadius), Duration (loadTime), Cooldown (boardingCooldown)*
-
-### Улучшение A: Быстрая Посадка
-- **Тир 1** `quicklanding`: `verticalSpeed` +35% → вертолёт быстрее достигает точки посадки
-- ✨ **Тир 2** `quicklanding x2` — **«Форсаж»**: `verticalSpeed` x2.5 + первые 3 секунды после посадки зомби не вызывают панику
-- 💥 **ULTIMATE** `quicklanding x3` — **«VTOL-Протокол»**: вертолёт телепортируется в точку мгновенно (без анимации полёта), `verticalSpeed` x10
-
-### Улучшение B: Мегафон
-- **Тир 1** `megaphone`: `attractRadius` +40% → привлекает гражданских с большей дистанции
-- ✨ **Тир 2** `megaphone x2` — **«Экстренное вещание»**: `attractRadius` x2 + все гражданские в зоне начинают бежать (скорость x2)
-- 💥 **ULTIMATE** `megaphone x3` — **«Городская Тревога»**: ВСЕ гражданские на карте начинают движение к вертолёту независимо от дистанции
-
-### Улучшение C: Дополнительные Места
-- **Тир 1** `extraseats`: `maxCapacity` +2 → берёт больше пассажиров за рейс
-- ✨ **Тир 2** `extraseats x2` — **«Тяжёлый Транспорт»**: `maxCapacity` +6 суммарно, учёные грузятся в приоритете
-- 💥 **ULTIMATE** `extraseats x3` — **«Массовая Эвакуация»**: `maxCapacity` становится неограниченным (забирает всех, кто успел добежать за loadTime)
-
-### Улучшение D: Скоростная Посадка
-- **Тир 1** `fastboarding`: `boardingCooldown` -30% → следующий гражданин садится быстрее
-- ✨ **Тир 2** `fastboarding x2` — **«Экспресс»**: `boardingCooldown` -60%, 2 гражданина в тик вместо 1
-- 💥 **ULTIMATE** `fastboarding x3` — **«Магнит»**: все гражданские в `boardingRadius` телепортируются в вертолёт мгновенно
-
-### Улучшение E: Долгое Дежурство
-- **Тир 1** `longstay`: `loadTime` +6s → вертолёт дольше ждёт на площадке
-- ✨ **Тир 2** `longstay x2` — **«Укреплённая ЛЗ»**: `panicRadius` уменьшен вдвое (зомби должны подойти вплотную чтобы вызвать панику)
-- 💥 **ULTIMATE** `longstay x3` — **«Несгибаемый»**: вертолёт полностью невосприимчив к панике — никогда не улетает из-за зомби
+### Notation used in the tables
+- **[Parameter]** — a specific StatType from CardData (Capacity, Speed, Damage, FireRate, Radius, Duration, Cooldown, Count, Health)
+- ✨ Enhanced — tier 2 (taken twice)
+- 💥 ULTIMATE — tier 3 (taken three times)
 
 ---
 
-## 4.2 ГЕРОЙ: 🚗 БРОНЕВИК «ЛОКУС»
-*Параметры: Capacity, Duration (loadTime), Radius (sirenRadius), Cooldown (boardingCooldown), Speed (moveSpeed)*
+## 4.1 HERO: 🚁 HELICOPTER "PHOENIX"
+*Parameters: Capacity, Speed (vertical speed), Radius (attractRadius), Duration (loadTime), Cooldown (boardingCooldown)*
 
-### Улучшение A: Турбодвигатель
-- **Тир 1** `turboengine`: `moveSpeed` +35%
-- ✨ **Тир 2** `turboengine x2` — **«Раллийный Пилот»**: `moveSpeed` x2, машина делает второй рейс после выезда (въезжает снова)
-- 💥 **ULTIMATE** `turboengine x3` — **«Спидран»**: машина завершает весь маршрут за 40% обычного времени и игнорирует `dangerRadius`
+### Upgrade A: Quick Landing
+- **Tier 1** `quicklanding`: `verticalSpeed` +35% → the helicopter reaches the landing point faster
+- ✨ **Tier 2** `quicklanding x2` — **"Afterburner"**: `verticalSpeed` x2.5 + for the first 3 seconds after landing, zombies don't trigger panic
+- 💥 **ULTIMATE** `quicklanding x3` — **"VTOL Protocol"**: the helicopter teleports to the point instantly (no flight animation), `verticalSpeed` x10
 
-### Улучшение B: Увеличенный Кузов
-- **Тир 1** `biggertrunk`: `maxCapacity` +3
-- ✨ **Тир 2** `biggertrunk x2` — **«Автобус»**: `maxCapacity` становится 12
-- 💥 **ULTIMATE** `biggertrunk x3` — **«Конвой»**: при активации автоматически спавнится второй Броневик к той же точке
+### Upgrade B: Megaphone
+- **Tier 1** `megaphone`: `attractRadius` +40% → attracts civilians from a greater distance
+- ✨ **Tier 2** `megaphone x2` — **"Emergency Broadcast"**: `attractRadius` x2 + all civilians in the zone start running (speed x2)
+- 💥 **ULTIMATE** `megaphone x3` — **"City-Wide Alert"**: EVERY civilian on the map starts moving toward the helicopter regardless of distance
 
-### Улучшение C: Громкая Сирена
-- **Тир 1** `loudsiren`: `sirenRadius` +50%
-- ✨ **Тир 2** `loudsiren x2` — **«Паника»**: гражданские в зоне начинают бежать к машине (скорость x2)
-- 💥 **ULTIMATE** `loudsiren x3` — **«Региональная Тревога»**: ВСЕ гражданские на карте начинают движение к ближайшему выезду
+### Upgrade C: Extra Seats
+- **Tier 1** `extraseats`: `maxCapacity` +2 → carries more passengers per trip
+- ✨ **Tier 2** `extraseats x2` — **"Heavy Transport"**: `maxCapacity` +6 total, scientists board with priority
+- 💥 **ULTIMATE** `extraseats x3` — **"Mass Evacuation"**: `maxCapacity` becomes unlimited (picks up everyone who makes it in time for loadTime)
 
-### Улучшение D: Тараньщик
-- **Тир 1** `crashbar`: `crushRadius` +50% → машина давит зомби в большем радиусе при движении
-- ✨ **Тир 2** `crashbar x2` — **«Берсерк»**: машина давит зомби даже стоя на месте (во время загрузки)
-- 💥 **ULTIMATE** `crashbar x3` — **«Танк»**: машина получает полосу HP (200 HP), зомби атакуют машину вместо того чтобы блокировать загрузку; машина не уезжает пока жива
+### Upgrade D: Fast Boarding
+- **Tier 1** `fastboarding`: `boardingCooldown` -30% → the next civilian boards faster
+- ✨ **Tier 2** `fastboarding x2` — **"Express"**: `boardingCooldown` -60%, 2 civilians per tick instead of 1
+- 💥 **ULTIMATE** `fastboarding x3` — **"Magnet"**: every civilian within `boardingRadius` teleports into the helicopter instantly
 
-### Улучшение E: Быстрые Двери
-- **Тир 1** `fastdoors`: `boardingCooldown` -35%
-- ✨ **Тир 2** `fastdoors x2` — **«Открытый Кузов»**: анимация посадки пропускается полностью
-- 💥 **ULTIMATE** `fastdoors x3` — **«На Ходу»**: гражданские прыгают в машину пока она едет (загрузка начинается ещё при движении к точке)
-
----
-
-## 4.3 ГЕРОЙ: 🚁🔫 БОЕВОЙ ВЕРТОЛЁТ «ПРИЗРАК»
-*Параметры: Capacity, Speed (flySpeed), Duration (loadTime), Radius (shootRadius), FireRate, Damage*
-
-### Улучшение A: Бронекорпус
-- **Тир 1** `heavyarmor`: `loadTime` +4s → дольше остаётся в зоне
-- ✨ **Тир 2** `heavyarmor x2` — **«Несокрушимый»**: остаётся в зоне пока не заберёт полную загрузку или всех оставшихся гражданских
-- 💥 **ULTIMATE** `heavyarmor x3` — **«Вечный»**: вертолёт становится постоянной боевой единицей на весь уровень
-
-### Улучшение B: Снайперский ИИ
-- **Тир 1** `marksman`: `damage` x1.5
-- ✨ **Тир 2** `marksman x2` — **«Протокол Одного Выстрела»**: урон x3, убивает любого обычного зомби за 1 выстрел
-- 💥 **ULTIMATE** `marksman x3` — **«Рельсотрон»**: выстрелы пробивают до 10 зомби насквозь (piercing по линии огня)
-
-### Улучшение C: Скорострельность
-- **Тир 1** `rapidfire`: `fireRate` улучшен на 40% (интервал между выстрелами уменьшен)
-- ✨ **Тир 2** `rapidfire x2` — **«Миниган»**: `fireRate` = 0.08s, визуальный трассер становится непрерывным
-- 💥 **ULTIMATE** `rapidfire x3` — **«Огненный Шторм»**: каждый выстрел становится мини-взрывом (AoE урон), `fireRate` = 0.2s
-
-### Улучшение D: Широкое Прикрытие
-- **Тир 1** `widenet`: `shootRadius` +40%
-- ✨ **Тир 2** `widenet x2` — **«Зона Отказа»**: `shootRadius` перекрывает половину карты
-- 💥 **ULTIMATE** `widenet x3` — **«Ковровый Огонь»**: одновременно стреляет по ВСЕМ зомби в зоне за каждый тик
-
-### Улучшение E: Перегруз
-- **Тир 1** `overloaded`: `maxCapacity` +5
-- ✨ **Тир 2** `overloaded x2` — **«Транспортник»**: `maxCapacity` = 25
-- 💥 **ULTIMATE** `overloaded x3` — **«Авианосец»**: все гражданские на карте телепортируются на борт при посадке
+### Upgrade E: Extended Dwell Time
+- **Tier 1** `longstay`: `loadTime` +6s → the helicopter waits longer at the landing site
+- ✨ **Tier 2** `longstay x2` — **"Fortified LZ"**: `panicRadius` halved (zombies must get right up close to trigger panic)
+- 💥 **ULTIMATE** `longstay x3` — **"Unshakeable"**: the helicopter becomes completely immune to panic — it never leaves because of zombies
 
 ---
 
-## 4.4 КАРТА: 🎯 СНАЙПЕР
-*Параметры (из CardData): Cooldown, Radius (attackRange), Damage, Duration (lifespan)*
+## 4.2 HERO: 🚗 ARMORED TRUCK "LOCUS"
+*Parameters: Capacity, Duration (loadTime), Radius (sirenRadius), Cooldown (boardingCooldown), Speed (moveSpeed)*
 
-### Улучшение A: Удлинённый Ствол
-- **Тир 1** `sniper_range`: `attackRange` +35%
-- ✨ **Тир 2**: **«Дальнобойная Платформа»** — дальность фактически охватывает всю карту
-- 💥 **ULTIMATE**: **«Всевидящее Око»** — снайпер видит и поражает ЛЮБОГО зомби на карте независимо от позиции
+### Upgrade A: Turbo Engine
+- **Tier 1** `turboengine`: `moveSpeed` +35%
+- ✨ **Tier 2** `turboengine x2` — **"Rally Driver"**: `moveSpeed` x2, the truck makes a second trip after leaving (drives back in again)
+- 💥 **ULTIMATE** `turboengine x3` — **"Speedrun"**: the truck completes its entire route in 40% of the normal time and ignores `dangerRadius`
 
-### Улучшение B: Бронебойные Патроны
-- **Тир 1** `sniper_damage`: `damage` x1.5
-- ✨ **Тир 2**: **«Экзекутор»** — инстакилл любого не-босс зомби
-- 💥 **ULTIMATE**: **«Противотанковая Винтовка»** — теперь поражает и наносит урон ZombieBoss (30 HP за выстрел)
+### Upgrade B: Bigger Trunk
+- **Tier 1** `biggertrunk`: `maxCapacity` +3
+- ✨ **Tier 2** `biggertrunk x2` — **"Bus"**: `maxCapacity` becomes 12
+- 💥 **ULTIMATE** `biggertrunk x3` — **"Convoy"**: on activation, a second Armored Truck automatically spawns heading to the same point
 
-### Улучшение C: Быстрая Перезарядка
-- **Тир 1** `sniper_cooldown`: `cooldownDelay` -35%
-- ✨ **Тир 2**: **«Подавляющий Огонь»** — `cooldownDelay` = 0.3s, почти непрерывная стрельба
-- 💥 **ULTIMATE**: **«Шторм Свинца»** — одновременно держит на прицеле 3 разных цели, стреляет по всем одновременно
+### Upgrade C: Loud Siren
+- **Tier 1** `loudsiren`: `sirenRadius` +50%
+- ✨ **Tier 2** `loudsiren x2` — **"Panic"**: civilians in the zone start running to the truck (speed x2)
+- 💥 **ULTIMATE** `loudsiren x3` — **"Regional Alert"**: EVERY civilian on the map starts moving toward the nearest exit
 
-### Улучшение D: Долгая Вахта
-- **Тир 1** `sniper_duration`: `lifespan` +8s
-- ✨ **Тир 2**: **«Оверватч»** — `lifespan` = весь уровень (постоянная единица)
-- 💥 **ULTIMATE**: **«Вечный Страж»** — постоянная единица + перерождается через 10s после уничтожения
+### Upgrade D: Ram Bar
+- **Tier 1** `crashbar`: `crushRadius` +50% → the truck crushes zombies in a wider radius while moving
+- ✨ **Tier 2** `crashbar x2` — **"Berserk"**: the truck crushes zombies even while standing still (while loading)
+- 💥 **ULTIMATE** `crashbar x3` — **"Tank"**: the truck gets an HP bar (200 HP), zombies attack the truck instead of blocking loading; the truck doesn't leave as long as it's alive
 
-### Улучшение E: Повышенное Давление
-- **Тир 1** `sniper_pierce`: `maxPierceTargets` +2 → пробивает больше зомби одним выстрелом
-- ✨ **Тир 2**: **«Бесконечный Пробой»** — пробивает ВСЕХ зомби по линии огня
-- 💥 **ULTIMATE**: **«Пильная Цепь»** — выстрел рикошетит между зомби до 6 раз после пробития
-
----
-
-## 4.5 КАРТА: 💣 БОМБА
-*Параметры: Radius (damageRadius), Damage*
-
-### Улучшение A: Увеличенная Боеголовка
-- **Тир 1** `bomb_radius`: `damageRadius` +40%
-- ✨ **Тир 2**: **«Тактическое Ядро»** — `damageRadius` x3
-- 💥 **ULTIMATE**: **«Термобарика»** — убивает ВСЕХ зомби на половине карты мгновенно
-
-### Улучшение B: Ударная Волна
-- **Тир 1** `bomb_damage`: `damage` x2
-- ✨ **Тир 2**: **«Избыточная Сила»** — гарантированная смерть любого зомби (любое HP)
-- 💥 **ULTIMATE**: **«ЭМИ-Взрыв»** — уцелевшие зомби в радиусе парализованы на 5 секунд
-
-### Улучшение C: Кассетная Начинка
-- **Тир 1** `bomb_cluster`: при взрыве спавнятся 3 мини-бомбы в случайных точках в радиусе
-- ✨ **Тир 2**: **«Ковровая Бомбардировка»** — 8 мини-бомб, покрывают всю зону
-- 💥 **ULTIMATE**: **«Роевой Удар»** — 20 мини-бомб, полное покрытие карты
-
-### Улучшение D: Пробиватель Бункеров
-- **Тир 1** `bomb_buildings`: взрыв теперь уничтожает здания в зоне
-- ✨ **Тир 2**: **«Выжженная Земля»** — уничтожает все постройки + заборы + баррикады в зоне
-- 💥 **ULTIMATE**: **«Сровнять с Землёй»** — всё в зоне разрушается, NavMesh временно перестраивается
-
-### Улучшение E: Разделяющиеся Боеголовки
-- **Тир 1** `bomb_mirv`: при активации падают 2 бомбы вместо 1 (небольшое смещение)
-- ✨ **Тир 2**: **«Залп»** — 5 бомб в широком разбросе вокруг точки
-- 💥 **ULTIMATE**: **«Орбитальный Удар»** — лазерный луч с орбиты прочёсывает линию через всю карту
+### Upgrade E: Fast Doors
+- **Tier 1** `fastdoors`: `boardingCooldown` -35%
+- ✨ **Tier 2** `fastdoors x2` — **"Open Bed"**: the boarding animation is skipped entirely
+- 💥 **ULTIMATE** `fastdoors x3` — **"On the Move"**: civilians jump into the truck while it's still driving (loading starts while it's still en route to the point)
 
 ---
 
-## 4.6 КАРТА: 🧱 БАРРИКАДА
-*Параметры: Health*
+## 4.3 HERO: 🚁🔫 COMBAT HELICOPTER "GHOST"
+*Parameters: Capacity, Speed (flySpeed), Duration (loadTime), Radius (shootRadius), FireRate, Damage*
 
-### Улучшение A: Армированный Бетон
-- **Тир 1** `barricade_hp`: `maxHealth` x1.5
-- ✨ **Тир 2**: **«Крепостная Стена»** — `maxHealth` x4 (выдерживает атаки стада)
-- 💥 **ULTIMATE**: **«Несокрушимый Бункер»** — баррикада не может быть уничтожена зомби (существует до конца уровня)
+### Upgrade A: Heavy Armor
+- **Tier 1** `heavyarmor`: `loadTime` +4s → stays in the zone longer
+- ✨ **Tier 2** `heavyarmor x2` — **"Unbreakable"**: stays in the zone until it reaches full capacity or picks up every remaining civilian
+- 💥 **ULTIMATE** `heavyarmor x3` — **"Eternal"**: the helicopter becomes a permanent combat unit for the rest of the level
 
-### Улучшение B: Колючая Проволока
-- **Тир 1** `barricade_spike`: атакующие зомби получают обратный урон (25% отражение)
-- ✨ **Тир 2**: **«Бритвенный Провод»** — 100% отражение урона + небольшое AoE вокруг баррикады
-- 💥 **ULTIMATE**: **«Зона Смерти»** — любой зомби вошедший в радиус 1.5м от баррикады мгновенно умирает
+### Upgrade B: Marksman AI
+- **Tier 1** `marksman`: `damage` x1.5
+- ✨ **Tier 2** `marksman x2` — **"One-Shot Protocol"**: damage x3, kills any regular zombie in 1 shot
+- 💥 **ULTIMATE** `marksman x3` — **"Railgun"**: shots pierce through up to 10 zombies (piercing along the line of fire)
 
-### Улучшение C: Электрификация
-- **Тир 1** `barricade_stun`: атакующие зомби оглушены на 1.5s
-- ✨ **Тир 2**: **«Электрическая Сеть»** — зона оглушения распространяется на 2м вокруг баррикады
-- 💥 **ULTIMATE**: **«Дуговой Реактор»** — непрерывный электрический импульс убивает слабых зомби рядом, сильных оглушает
+### Upgrade C: Rate of Fire
+- **Tier 1** `rapidfire`: `fireRate` improved by 40% (interval between shots reduced)
+- ✨ **Tier 2** `rapidfire x2` — **"Minigun"**: `fireRate` = 0.08s, the visual tracer becomes continuous
+- 💥 **ULTIMATE** `rapidfire x3` — **"Firestorm"**: every shot becomes a mini-explosion (AoE damage), `fireRate` = 0.2s
 
-### Улучшение D: Широкий Охват
-- **Тир 1** `barricade_width`: NavMeshObstacle масштаб +50% (перекрывает больше пути)
-- ✨ **Тир 2**: **«Великая Стена»** — баррикада перекрывает дорогу от края до края
-- 💥 **ULTIMATE**: **«Железный Занавес»** — создаёт полную стену через всю улицу (все NavMesh-пути заблокированы)
+### Upgrade D: Wide Coverage
+- **Tier 1** `widenet`: `shootRadius` +40%
+- ✨ **Tier 2** `widenet x2` — **"Exclusion Zone"**: `shootRadius` covers half the map
+- 💥 **ULTIMATE** `widenet x3` — **"Carpet Fire"**: fires on EVERY zombie in the zone simultaneously each tick
 
-### Улучшение E: Быстрое Развёртывание
-- **Тир 1** `barricade_count`: 2 баррикады вместо 1 за активацию
-- ✨ **Тир 2**: **«Минное Поле»** — 3 баррикады в настраиваемом паттерне
-- 💥 **ULTIMATE**: **«Периметр»** — автоматически генерируется кольцо из 6 баррикад вокруг выбранной точки
-
----
-
-## 4.7 КАРТА: 🪤 ПРИМАНКА
-*Параметры: Radius (attractRadius), Duration (lifeTime)*
-
-### Улучшение A: Усиленный Сигнал
-- **Тир 1** `bait_radius`: `attractRadius` +50%
-- ✨ **Тир 2**: **«Неотразимый»** — ВСЕ зомби на карте привлечены к приманке
-- 💥 **ULTIMATE**: **«Мировой Сигнал»** — все зомби мгновенно телепортируются к точке приманки при установке
-
-### Улучшение B: Увеличенный Заряд
-- **Тир 1** `bait_duration`: `lifeTime` +6s
-- ✨ **Тир 2**: **«Постоянный Декой»** — `lifeTime` = 60s (весь уровень)
-- 💥 **ULTIMATE**: **«Вечная Ловушка»** — становится перманентной точкой привлечения на весь уровень, перезапускается при каждой волне
-
-### Улучшение C: Смертоносная Ловушка
-- **Тир 1** `bait_lethal`: при истечении времени — взрыв в зоне `attractRadius` (урон = 150)
-- ✨ **Тир 2**: **«Гранатный Котлован»** — урон взрыва = полная бомба (1000+)
-- 💥 **ULTIMATE**: **«Тактическое Ядро-Приманка»** — убивает ВСЕХ зомби в двойном радиусе attractRadius
-
-### Улучшение D: Массовая Истерия
-- **Тир 1** `bait_priority`: зомби в радиусе игнорируют гражданских и сфокусированы ТОЛЬКО на приманке
-- ✨ **Тир 2**: **«Зомби-Магнит»** — зомби бегут к приманке со скоростью x2
-- 💥 **ULTIMATE**: **«Массовое Захоронение»** — 5 приманок спавнятся одновременно в случайных точках
-
-### Улучшение E: Замедленный Взрыватель
-- **Тир 1** `bait_mine`: приманка взрывается при входе зомби в радиус (proximity mine)
-- ✨ **Тир 2**: **«Направленный Взрыв»** — explosion направлен в сторону скопления зомби
-- 💥 **ULTIMATE**: **«Ядерная Яма»** — взрыв покрывает 50% площади карты
+### Upgrade E: Overload
+- **Tier 1** `overloaded`: `maxCapacity` +5
+- ✨ **Tier 2** `overloaded x2` — **"Transporter"**: `maxCapacity` = 25
+- 💥 **ULTIMATE** `overloaded x3` — **"Carrier"**: every civilian on the map teleports aboard on landing
 
 ---
 
-## 4.8 КАРТА: 🪖 СОЛДАТ
-*Параметры: FireRate, Radius (attackRange), Damage, Duration (lifespan)*
+## 4.4 CARD: 🎯 SNIPER
+*Parameters (from CardData): Cooldown, Radius (attackRange), Damage, Duration (lifespan)*
 
-### Улучшение A: Боевая Подготовка
-- **Тир 1** `soldier_damage`: `damage` x1.5
-- ✨ **Тир 2**: **«Элитный Оперативник»** — `damage` x3
-- 💥 **ULTIMATE**: **«Человек-Армия»** — убивает ZombieBoss за 5 попаданий
+### Upgrade A: Extended Barrel
+- **Tier 1** `sniper_range`: `attackRange` +35%
+- ✨ **Tier 2**: **"Long-Range Platform"** — range effectively covers the whole map
+- 💥 **ULTIMATE**: **"All-Seeing Eye"** — the sniper sees and hits ANY zombie on the map regardless of position
 
-### Улучшение B: Расширенная Командировка
-- **Тир 1** `soldier_duration`: `lifespan` +6s
-- ✨ **Тир 2**: **«Наёмник»** — `lifespan` = весь уровень (постоянная единица)
-- 💥 **ULTIMATE**: **«Бессмертный»** — перерождается через 10s после смерти (до конца уровня)
+### Upgrade B: Armor-Piercing Rounds
+- **Tier 1** `sniper_damage`: `damage` x1.5
+- ✨ **Tier 2**: **"Executioner"** — instakills any non-boss zombie
+- 💥 **ULTIMATE**: **"Anti-Tank Rifle"** — now also damages ZombieBoss (30 HP per shot)
 
-### Улучшение C: Подавляющий Огонь
-- **Тир 1** `soldier_firerate`: `fireRate` x1.5 (интервал уменьшается)
-- ✨ **Тир 2**: **«Пулемёт»** — `fireRate` = 0.08s, непрерывный огонь
-- 💥 **ULTIMATE**: **«Пулемётчик»** — одновременно ведёт огонь по всем зомби в зоне
+### Upgrade C: Quick Reload
+- **Tier 1** `sniper_cooldown`: `cooldownDelay` -35%
+- ✨ **Tier 2**: **"Suppressing Fire"** — `cooldownDelay` = 0.3s, near-continuous fire
+- 💥 **ULTIMATE**: **"Storm of Lead"** — tracks 3 different targets at once, firing on all of them simultaneously
 
-### Улучшение D: Орлиный Глаз
-- **Тир 1** `soldier_range`: `attackRange` +35%
-- ✨ **Тир 2**: **«Дальний Стрелок»** — дальность охватывает половину карты
-- 💥 **ULTIMATE**: **«Глобальное Прикрытие»** — солдат атакует любого зомби на карте
+### Upgrade D: Long Watch
+- **Tier 1** `sniper_duration`: `lifespan` +8s
+- ✨ **Tier 2**: **"Overwatch"** — `lifespan` = the whole level (a permanent unit)
+- 💥 **ULTIMATE**: **"Eternal Guardian"** — a permanent unit + respawns 10s after being destroyed
 
-### Улучшение E: Тактика Отряда
-- **Тир 1** `soldier_count`: 2 солдата вместо 1
-- ✨ **Тир 2**: **«Огневая Группа»** — 4 солдата образуют оборонительный периметр
-- 💥 **ULTIMATE**: **«Взвод»** — 8 солдат формируют полный периметр вокруг выбранной точки
+### Upgrade E: Increased Pressure
+- **Tier 1** `sniper_pierce`: `maxPierceTargets` +2 → pierces more zombies with a single shot
+- ✨ **Tier 2**: **"Infinite Piercing"** — pierces EVERY zombie along the line of fire
+- 💥 **ULTIMATE**: **"Chainsaw Round"** — the shot ricochets between zombies up to 6 times after piercing
 
 ---
 
-## 5. ОБЩИЕ УЛУЧШЕНИЯ (General Upgrades)
+## 4.5 CARD: 💣 BOMB
+*Parameters: Radius (damageRadius), Damage*
 
-Всегда доступны в пуле независимо от колоды. MVP: реализовать первые 6.
+### Upgrade A: Bigger Warhead
+- **Tier 1** `bomb_radius`: `damageRadius` +40%
+- ✨ **Tier 2**: **"Tactical Core"** — `damageRadius` x3
+- 💥 **ULTIMATE**: **"Thermobaric"** — instantly kills EVERY zombie across half the map
 
-| ID | Название | Эффект |
+### Upgrade B: Shockwave
+- **Tier 1** `bomb_damage`: `damage` x2
+- ✨ **Tier 2**: **"Overkill"** — guaranteed kill on any zombie (any HP)
+- 💥 **ULTIMATE**: **"EMP Blast"** — surviving zombies in the radius are paralyzed for 5 seconds
+
+### Upgrade C: Cluster Payload
+- **Tier 1** `bomb_cluster`: on explosion, 3 mini-bombs spawn at random points within the radius
+- ✨ **Tier 2**: **"Carpet Bombing"** — 8 mini-bombs, covering the whole zone
+- 💥 **ULTIMATE**: **"Swarm Strike"** — 20 mini-bombs, full map coverage
+
+### Upgrade D: Bunker Buster
+- **Tier 1** `bomb_buildings`: the explosion now destroys buildings in the zone
+- ✨ **Tier 2**: **"Scorched Earth"** — destroys all buildings + fences + barricades in the zone
+- 💥 **ULTIMATE**: **"Flatten"** — everything in the zone is destroyed, the NavMesh temporarily rebuilds
+
+### Upgrade E: Split Warheads
+- **Tier 1** `bomb_mirv`: on activation, 2 bombs drop instead of 1 (slightly offset)
+- ✨ **Tier 2**: **"Volley"** — 5 bombs in a wide spread around the point
+- 💥 **ULTIMATE**: **"Orbital Strike"** — a laser beam from orbit sweeps a line across the entire map
+
+---
+
+## 4.6 CARD: 🧱 BARRICADE
+*Parameters: Health*
+
+### Upgrade A: Reinforced Concrete
+- **Tier 1** `barricade_hp`: `maxHealth` x1.5
+- ✨ **Tier 2**: **"Fortress Wall"** — `maxHealth` x4 (withstands a horde's attacks)
+- 💥 **ULTIMATE**: **"Unbreakable Bunker"** — the barricade cannot be destroyed by zombies (lasts until the end of the level)
+
+### Upgrade B: Barbed Wire
+- **Tier 1** `barricade_spike`: attacking zombies take reflected damage (25% reflection)
+- ✨ **Tier 2**: **"Razor Wire"** — 100% damage reflection + a small AoE around the barricade
+- 💥 **ULTIMATE**: **"Death Zone"** — any zombie entering within 1.5m of the barricade dies instantly
+
+### Upgrade C: Electrification
+- **Tier 1** `barricade_stun`: attacking zombies are stunned for 1.5s
+- ✨ **Tier 2**: **"Electric Grid"** — the stun zone extends 2m around the barricade
+- 💥 **ULTIMATE**: **"Arc Reactor"** — a continuous electric pulse kills weak zombies nearby and stuns strong ones
+
+### Upgrade D: Wide Span
+- **Tier 1** `barricade_width`: NavMeshObstacle scale +50% (blocks more of the path)
+- ✨ **Tier 2**: **"Great Wall"** — the barricade blocks the road edge-to-edge
+- 💥 **ULTIMATE**: **"Iron Curtain"** — creates a full wall across the entire street (every NavMesh path is blocked)
+
+### Upgrade E: Rapid Deployment
+- **Tier 1** `barricade_count`: 2 barricades instead of 1 per activation
+- ✨ **Tier 2**: **"Minefield"** — 3 barricades in a configurable pattern
+- 💥 **ULTIMATE**: **"Perimeter"** — automatically generates a ring of 6 barricades around the chosen point
+
+---
+
+## 4.7 CARD: 🪤 BAIT
+*Parameters: Radius (attractRadius), Duration (lifeTime)*
+
+### Upgrade A: Boosted Signal
+- **Tier 1** `bait_radius`: `attractRadius` +50%
+- ✨ **Tier 2**: **"Irresistible"** — EVERY zombie on the map is attracted to the bait
+- 💥 **ULTIMATE**: **"World Signal"** — every zombie instantly teleports to the bait's point when it's placed
+
+### Upgrade B: Extended Charge
+- **Tier 1** `bait_duration`: `lifeTime` +6s
+- ✨ **Tier 2**: **"Permanent Decoy"** — `lifeTime` = 60s (the whole level)
+- 💥 **ULTIMATE**: **"Eternal Trap"** — becomes a permanent attraction point for the rest of the level, refreshing with every wave
+
+### Upgrade C: Lethal Trap
+- **Tier 1** `bait_lethal`: on expiry — an explosion within `attractRadius` (damage = 150)
+- ✨ **Tier 2**: **"Grenade Crater"** — explosion damage = a full bomb (1000+)
+- 💥 **ULTIMATE**: **"Tactical Core Bait"** — kills EVERY zombie within double the attractRadius
+
+### Upgrade D: Mass Hysteria
+- **Tier 1** `bait_priority`: zombies within the radius ignore civilians and focus ONLY on the bait
+- ✨ **Tier 2**: **"Zombie Magnet"** — zombies run to the bait at x2 speed
+- 💥 **ULTIMATE**: **"Mass Grave"** — 5 baits spawn simultaneously at random points
+
+### Upgrade E: Delayed Fuse
+- **Tier 1** `bait_mine`: the bait explodes when a zombie enters its radius (proximity mine)
+- ✨ **Tier 2**: **"Directional Blast"** — the explosion is aimed toward the zombie cluster
+- 💥 **ULTIMATE**: **"Nuclear Pit"** — the explosion covers 50% of the map's area
+
+---
+
+## 4.8 CARD: 🪖 SOLDIER
+*Parameters: FireRate, Radius (attackRange), Damage, Duration (lifespan)*
+
+### Upgrade A: Combat Training
+- **Tier 1** `soldier_damage`: `damage` x1.5
+- ✨ **Tier 2**: **"Elite Operative"** — `damage` x3
+- 💥 **ULTIMATE**: **"One-Man Army"** — kills a ZombieBoss in 5 hits
+
+### Upgrade B: Extended Deployment
+- **Tier 1** `soldier_duration`: `lifespan` +6s
+- ✨ **Tier 2**: **"Mercenary"** — `lifespan` = the whole level (a permanent unit)
+- 💥 **ULTIMATE**: **"Immortal"** — respawns 10s after dying (until the end of the level)
+
+### Upgrade C: Suppressing Fire
+- **Tier 1** `soldier_firerate`: `fireRate` x1.5 (interval decreases)
+- ✨ **Tier 2**: **"Machine Gun"** — `fireRate` = 0.08s, continuous fire
+- 💥 **ULTIMATE**: **"Gunner"** — fires on every zombie in the zone simultaneously
+
+### Upgrade D: Eagle Eye
+- **Tier 1** `soldier_range`: `attackRange` +35%
+- ✨ **Tier 2**: **"Long-Range Shooter"** — range covers half the map
+- 💥 **ULTIMATE**: **"Global Coverage"** — the soldier attacks any zombie on the map
+
+### Upgrade E: Squad Tactics
+- **Tier 1** `soldier_count`: 2 soldiers instead of 1
+- ✨ **Tier 2**: **"Fire Team"** — 4 soldiers form a defensive perimeter
+- 💥 **ULTIMATE**: **"Platoon"** — 8 soldiers form a full perimeter around the chosen point
+
+---
+
+## 5. GENERAL UPGRADES
+
+Always available in the pool regardless of deck. MVP: implement the first 6.
+
+| ID | Name | Effect |
 |---|---|---|
-| `general_adrenaline` | **Адреналиновый Рывок** | Следующая эвакуация завершается на 50% быстрее (одноразово на волну) |
-| `general_triage` | **Медицинский Протокол** | Каждая успешная эвакуация восстанавливает 25 HP всем баррикадам |
-| `general_combatbonus` | **Боевой Бонус** | Убийство 10 зомби подряд даёт +50% XP за следующие 30 секунд |
-| `general_cascade` | **Каскад** | После полной загрузки транспорта все карточки получают -1 от кулдауна |
-| `general_veteran` | **Ветеранский Инстинкт** | Герой невосприимчив к панике 5 секунд после обнаружения зомби |
-| `general_precisionstrike` | **Точный Удар** | Следующая бомба наносит x2 урон и не ранит гражданских (одноразово) |
-| `general_fieldmedic` | **Полевой Медик** | 30% шанс что эвакуированный гражданин даёт двойной XP |
-| `general_overcharge` | **Перегрузка** | Все активные карты: +30% к длительности на текущую волну |
-| `general_desperatehour` | **Отчаянный Час** | Если осталось ≤5 гражданских — вместимость героя становится неограниченной |
-| `general_doublexp` | **Ускоренное Обучение** | +25% к получаемому XP на следующие 2 волны |
+| `general_adrenaline` | **Adrenaline Rush** | The next evacuation completes 50% faster (one-time use per wave) |
+| `general_triage` | **Medical Protocol** | Every successful evacuation restores 25 HP to all barricades |
+| `general_combatbonus` | **Combat Bonus** | Killing 10 zombies in a row grants +50% XP for the next 30 seconds |
+| `general_cascade` | **Cascade** | After a full transport load, every card's cooldown is reduced by 1 |
+| `general_veteran` | **Veteran Instinct** | The hero is immune to panic for 5 seconds after spotting a zombie |
+| `general_precisionstrike` | **Precision Strike** | The next bomb deals x2 damage and doesn't harm civilians (one-time use) |
+| `general_fieldmedic` | **Field Medic** | 30% chance that an evacuated civilian grants double XP |
+| `general_overcharge` | **Overcharge** | All active cards: +30% duration for the current wave |
+| `general_desperatehour` | **Desperate Hour** | If ≤5 civilians remain — the hero's capacity becomes unlimited |
+| `general_doublexp` | **Accelerated Learning** | +25% XP gained for the next 2 waves |
 
 ---
 
-## 6. СТРУКТУРА ДАННЫХ ДЛЯ CLAUDE CODE
+## 6. DATA STRUCTURE FOR CLAUDE CODE
 
-### 6.1 Новые файлы для создания
+### 6.1 New files to create
 
 ```
 Assets/Scripts/
   Roguelite/
-    RunSessionData.cs        ← данные текущего забега (XP, стаки, модификаторы)
-    RunUpgradeDefinition.cs  ← ScriptableObject для каждого улучшения
-    UpgradeManager.cs        ← логика пула, выбора, применения
-    XPManager.cs             ← начисление XP, триггер левел апа
+    RunSessionData.cs        ← current run's data (XP, stacks, modifiers)
+    RunUpgradeDefinition.cs  ← ScriptableObject for each upgrade
+    UpgradeManager.cs        ← pool logic, selection, application
+    XPManager.cs             ← XP awarding, level-up trigger
 
   Heroes/
-    HeroData.cs              ← ScriptableObject героя
-    HeroManager.cs           ← выбор/смена героя (мета-уровень)
+    HeroData.cs              ← hero ScriptableObject
+    HeroManager.cs           ← hero selection/switching (meta level)
 
   UI/
-    LevelUpScreen.cs         ← UI экрана выбора улучшения (3 карточки)
-    UpgradeCardUI.cs         ← одна карточка улучшения в UI
-    XPBarUI.cs               ← полоска XP в HUD
+    LevelUpScreen.cs         ← upgrade-choice screen UI (3 cards)
+    UpgradeCardUI.cs         ← a single upgrade card in the UI
+    XPBarUI.cs               ← XP bar in the HUD
 ```
 
-### 6.2 RunSessionData (синглтон, сбрасывается перед каждым уровнем)
+### 6.2 RunSessionData (singleton, reset before each level)
 
 ```csharp
 public class RunSessionData : MonoBehaviour
 {
     public static RunSessionData Instance;
 
-    // XP и прогрессия
+    // XP and progression
     public int currentXP;
     public int currentRunLevel;
     public int[] xpThresholds; // {100, 150, 200, 250, 300, ...}
 
-    // Стаки улучшений: upgradeId → количество раз взято (0-3)
+    // Upgrade stacks: upgradeId → number of times taken (0-3)
     public Dictionary<string, int> upgradeStacks = new Dictionary<string, int>();
 
-    // Числовые модификаторы: ключ → значение
-    // Контроллеры карт считывают их при Init
+    // Numeric modifiers: key → value
+    // Card controllers read these at Init
     public Dictionary<string, float> modifiers = new Dictionary<string, float>();
 
-    // Специальные флаги (для Ultimate эффектов)
+    // Special flags (for Ultimate effects)
     public HashSet<string> activeFlags = new HashSet<string>();
 
     public float GetModifier(string key, float defaultValue = 0f);
-    public void AddModifier(string key, float value); // аддитивно
+    public void AddModifier(string key, float value); // additive
     public void SetFlag(string flagId);
     public bool HasFlag(string flagId);
 
@@ -486,16 +486,16 @@ public class UpgradeManager : MonoBehaviour
 {
     public static UpgradeManager Instance;
 
-    // Все определения улучшений (заполнить в инспекторе)
+    // All upgrade definitions (fill in via the inspector)
     public List<RunUpgradeDefinition> allUpgrades;
 
-    // Вернуть 3 случайных улучшения для показа игроку
+    // Return 3 random upgrades to show the player
     public List<RunUpgradeDefinition> GetUpgradeOptions(List<CardData> currentDeck, CardType heroType);
 
-    // Применить выбранное улучшение
+    // Apply the chosen upgrade
     public void ApplyUpgrade(string upgradeId);
 
-    // Получить текущий тир улучшения (для отображения в UI)
+    // Get the current tier of an upgrade (for UI display)
     public UpgradeTier GetCurrentTier(string upgradeId);
 
     private float GetUpgradeWeight(RunUpgradeDefinition upgrade);
@@ -520,22 +520,22 @@ public class RunUpgradeDefinition : ScriptableObject
     public Sprite iconTier1;
     public Sprite iconTier2;
     public Sprite iconTier3;
-    public Color accentColor; // цвет рамки карточки в UI
+    public Color accentColor; // card border color in the UI
 }
 ```
 
-### 6.5 Изменения в существующих контроллерах
+### 6.5 Changes to existing controllers
 
-Каждый контроллер карты должен быть изменён: после чтения из `PlayerProfile`, применить `RunSessionData` модификаторы.
+Every card controller needs to be changed: after reading from `PlayerProfile`, apply `RunSessionData` modifiers.
 
-**Пример для HelicopterController.cs:**
+**Example for HelicopterController.cs:**
 ```csharp
 private void Start()
 {
-    // Существующий код чтения из CardData...
+    // Existing CardData-reading code...
     maxCapacity = (int)myCardData.GetCalculatedStat(StatType.Capacity, currentLevel);
 
-    // НОВОЕ: применяем run-модификаторы
+    // NEW: apply run modifiers
     if (RunSessionData.Instance != null)
     {
         maxCapacity += (int)RunSessionData.Instance.GetModifier("helicopter_capacity");
@@ -544,16 +544,16 @@ private void Start()
         loadTime += RunSessionData.Instance.GetModifier("helicopter_loadtime");
         boardingCooldown *= (1f - RunSessionData.Instance.GetModifier("helicopter_boarding_reduction"));
 
-        // Ultimate флаги
+        // Ultimate flags
         if (RunSessionData.Instance.HasFlag("helicopter_no_panic"))
-            panicRadius = 0f; // никогда не паникует
+            panicRadius = 0f; // never panics
         if (RunSessionData.Instance.HasFlag("helicopter_instant_landing"))
-            verticalSpeed = 9999f; // мгновенная посадка
+            verticalSpeed = 9999f; // instant landing
     }
 }
 ```
 
-**Аналогичные ключи для остальных карт:**
+**Equivalent keys for the other cards:**
 - `car_speed_mult`, `car_capacity`, `car_siren_radius_mult`, `car_boarding_reduction`, `car_crush_radius_mult`
 - `sniper_range_mult`, `sniper_damage_mult`, `sniper_cooldown_reduction`, `sniper_duration`, `sniper_pierce_count`
 - `bomb_radius_mult`, `bomb_damage_mult`, `bomb_cluster_count`, `bomb_count`
@@ -561,77 +561,77 @@ private void Start()
 - `bait_radius_mult`, `bait_duration`, `bait_explosion_damage`, `bait_count`
 - `soldier_damage_mult`, `soldier_duration`, `soldier_firerate_mult`, `soldier_range_mult`, `soldier_count`
 
-### 6.6 XP начисление (GameManager + XPManager)
+### 6.6 XP awarding (GameManager + XPManager)
 
-В `GameManager.cs` добавить вызовы при:
+In `GameManager.cs`, add calls on:
 - `AddRescuedFromTransport()` → `XPManager.AddXP(humanCount * 20 + scientistCount * 40)`
 - `Zombie.Die()` → `XPManager.AddXP(isBoss ? 50 : 5)`
-- Полная загрузка транспорта → `XPManager.AddXP(25)` (бонус)
+- A full transport load → `XPManager.AddXP(25)` (bonus)
 
 ---
 
-## 7. UI ТРЕБОВАНИЯ (MVP)
+## 7. UI REQUIREMENTS (MVP)
 
-### 7.1 HUD — XP Бар
-- Полоска XP в верхней части экрана (или встроена в карточку героя)
-- Показывает: текущий XP / порог следующего уровня
-- Лёгкая анимация при начислении XP
+### 7.1 HUD — XP Bar
+- An XP bar at the top of the screen (or built into the hero card)
+- Shows: current XP / threshold for the next level
+- A light animation when XP is awarded
 
-### 7.2 Экран Level Up
-- `Time.timeScale = 0` при показе
-- 3 карточки улучшений горизонтально
-- Каждая карточка содержит:
-  - Иконку карты (с тиром-бейджем: ★ ★★ ★★★)
-  - Название улучшения (с учётом тира: обычное / Enhanced / ULTIMATE)
-  - Описание эффекта текущего тира
-  - Акцентный цвет для ULTIMATE улучшений (золотой/пурпурный)
-- Тап по карточке → применить → скрыть экран → `Time.timeScale = 1`
-- При ULTIMATE — особая анимация появления карточки (вспышка/эффект)
+### 7.2 Level Up screen
+- `Time.timeScale = 0` while shown
+- 3 upgrade cards, laid out horizontally
+- Each card contains:
+  - The card's icon (with a tier badge: ★ ★★ ★★★)
+  - The upgrade's name (reflecting its tier: regular / Enhanced / ULTIMATE)
+  - A description of the current tier's effect
+  - An accent color for ULTIMATE upgrades (gold/purple)
+- Tapping a card → apply it → hide the screen → `Time.timeScale = 1`
+- For ULTIMATE — a special appearance animation for the card (flash/effect)
 
-### 7.3 Выбор Героя (Meta-UI)
-- На экране выбора уровня / главного меню добавить секцию «Герой»
-- Показ текущего героя + заблокированные с условием разблокировки
-- Кнопка смены героя (если открыт хотя бы 1 дополнительный)
-
----
-
-## 8. MVP СКОУП
-
-### Что реализовать в MVP
-
-**Обязательно:**
-- [ ] `RunSessionData.cs` — XP, стаки, модификаторы
-- [ ] `XPManager.cs` — начисление XP из GameManager
-- [ ] `UpgradeManager.cs` — пул и применение (без весов, random достаточно)
-- [ ] Экран Level Up (3 карточки, пауза)
-- [ ] XP бар в HUD
-- [ ] Изменения во всех контроллерах карт (чтение модификаторов)
-- [ ] 3 улучшения для каждой карты из колоды (Тиры 1–3)
-- [ ] 3–4 общих улучшения
-- [ ] HeroData + HeroManager (базовый, только Helicopter)
-- [ ] `RunUpgradeDefinition` ScriptableObjects для всех MVP-улучшений
-
-**Не в MVP (Post-MVP):**
-- Весовая система в пуле
-- Разблокировка Car и CombatHelicopter (геройская прогрессия)
-- Весь экран выбора героя в мета-UI
-- Специальные анимации для Ultimate
-- Сохранение run-статистики (лучший уровень, макс. стак и т.д.)
-- Синергии между улучшениями разных карт
-
-### Приоритетный порядок реализации
-
-1. `RunSessionData` → базовая система XP и модификаторов
-2. `XPManager` → вызовы из `GameManager`
-3. XP бар в HUD
-4. Экран Level Up (UI без эффектов)
-5. `UpgradeManager` — рандомный пул из доступных улучшений
-6. Применение модификаторов в `HelicopterController` (начать с одного героя)
-7. `RunUpgradeDefinition` ScriptableObjects для Вертолёта (5 улучшений x3 тира)
-8. Применение модификаторов в остальных контроллерах
-9. ScriptableObjects для остальных карт
-10. Тестирование balance: средний уровень = 8–12 левел апов
+### 7.3 Hero Selection (Meta-UI)
+- Add a "Hero" section to the level-select screen / main menu
+- Show the current hero + locked heroes with their unlock condition
+- A hero-switch button (if at least 1 additional hero is unlocked)
 
 ---
 
-*Документ создан для передачи в Claude Code. При реализации — следовать порядку из раздела 8.*
+## 8. MVP SCOPE
+
+### What to implement in the MVP
+
+**Required:**
+- [ ] `RunSessionData.cs` — XP, stacks, modifiers
+- [ ] `XPManager.cs` — XP awarding from GameManager
+- [ ] `UpgradeManager.cs` — pool and application (no weighting, random is enough)
+- [ ] Level Up screen (3 cards, pause)
+- [ ] XP bar in the HUD
+- [ ] Changes to every card controller (reading modifiers)
+- [ ] 3 upgrades for each card in the deck (Tiers 1–3)
+- [ ] 3–4 general upgrades
+- [ ] HeroData + HeroManager (basic, Helicopter only)
+- [ ] `RunUpgradeDefinition` ScriptableObjects for all MVP upgrades
+
+**Not in MVP (Post-MVP):**
+- Weighting system in the pool
+- Unlocking Car and CombatHelicopter (hero progression)
+- The full hero-selection screen in the meta-UI
+- Special animations for Ultimate
+- Saving run stats (best level, max stack, etc.)
+- Synergies between upgrades from different cards
+
+### Implementation priority order
+
+1. `RunSessionData` → the basic XP and modifiers system
+2. `XPManager` → calls from `GameManager`
+3. XP bar in the HUD
+4. Level Up screen (UI, no effects)
+5. `UpgradeManager` — a random pool from the available upgrades
+6. Applying modifiers in `HelicopterController` (start with one hero)
+7. `RunUpgradeDefinition` ScriptableObjects for the Helicopter (5 upgrades x 3 tiers)
+8. Applying modifiers in the other controllers
+9. ScriptableObjects for the other cards
+10. Balance testing: average level = 8–12 level-ups
+
+---
+
+*Document created for handoff to Claude Code. When implementing, follow the order in section 8.*

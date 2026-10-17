@@ -1,112 +1,112 @@
 # EvacZombie — Card System Design Doc
-*Живой документ, обновляется по ходу обсуждения. Начат 2026-08-23.*
+*Living document, updated as discussion progresses. Started 2026-08-23.*
 
 ---
 
-## 1. Аудит текущего арт-стиля (по факту, не по ощущению)
+## 1. Audit of the current art style (as it actually is, not as it feels)
 
-Проверил конкретные ассеты в проекте, а не только твоё описание "кубы". Вот что реально есть:
+Checked the actual assets in the project, not just your "cubes" description. Here's what's really there:
 
-### 3D-мир (уровень)
-- `Human.prefab` и `Scientist.prefab` используют **встроенный Unity Cube mesh** (не кастомная модель).
-- `Zombie.prefab` использует встроенный **Capsule mesh**.
-- Материалы — плоские однотонные цвета без текстур (`_BaseColor` / `_Color`, никаких текстурных карт): Bait = голубой, Barricade = бирюзовый, Bomb = оранжевый, и т.д.
+### 3D world (level)
+- `Human.prefab` and `Scientist.prefab` use Unity's **built-in Cube mesh** (not a custom model).
+- `Zombie.prefab` uses the built-in **Capsule mesh**.
+- Materials are flat solid colors with no textures (`_BaseColor` / `_Color`, no texture maps): Bait = light blue, Barricade = teal, Bomb = orange, etc.
 
-**Вывод**: это не "минимализм как осознанный арт-стиль" — это буквально дефолтные примитивы Unity с заливкой цветом. Технически это programmer art / плейсхолдер, а не выбранное направление. НО это не плохо само по себе — плоская геометрия с цветовым кодированием по функции (у каждой карты свой цвет материала) — это уже сама по себе рабочая база для минималистичного направления, если делать это осознанно (референсы жанра: Rebel Inc, Plague Inc, Mini Motorways — плоская геометрия, но выглядит как стиль, а не заглушка).
+**Conclusion**: this isn't "minimalism as a deliberate art style" — it's literally Unity's default primitives with a color fill. Technically this is programmer art / a placeholder, not a chosen direction. BUT that's not bad in itself — flat geometry with color-coding by function (each card has its own material color) is already a working base for a minimalist direction, if done deliberately (genre references: Rebel Inc, Plague Inc, Mini Motorways — flat geometry, but it reads as a style, not a stand-in).
 
-### Иконки карт (важная находка)
-Проверил, откуда берутся иконки на скриншотах (тот "чувак в тюрбане", "ящик", "зелёный монстрик") — они ВСЕ ссылаются на один и тот же файл: `Assets/TextMesh Pro/Resources/Sprite Assets/InlineIcons.png`.
+### Card icons (an important finding)
+Checked where the icons on the screenshots come from (that "guy in a turban", "crate", "little green monster") — they ALL point to the same file: `Assets/TextMesh Pro/Resources/Sprite Assets/InlineIcons.png`.
 
-**Это не наша арт — это встроенный набор иконок, который идёт В КОМПЛЕКТЕ с пакетом TextMesh Pro** (используется для инлайн-иконок в тексте). То есть иконки карт сейчас — это не заглушка "в нашем стиле", это случайный набор чужих значков, который оказался под рукой. Ни один из 8 card-иконок не является нарисованной под игру артой.
+**This isn't our art — it's the built-in icon set that ships WITH the TextMesh Pro package** (used for inline icons in text). So the card icons right now aren't a placeholder "in our style" — they're a random set of someone else's icons that happened to be on hand. None of the 8 card icons is art drawn for this game.
 
-### Что это значит для дизайна карточки
-У нас сейчас **чистый лист** по арту карт — не "минимализм, который надо развить", а "вообще ничего своего ещё не нарисовано". Это меняет вопрос с "как адаптировать наш стиль под карточки" на "какой стиль выбираем с нуля, с учётом того что 3D-мир уже плоский/геометричный и мы соло-дев без арт-бюджета".
+### What this means for card design
+We currently have a **blank slate** for card art — not "minimalism that needs developing further", but "nothing of our own has been drawn yet". This changes the question from "how do we adapt our style to cards" to "which style do we pick from scratch, given that the 3D world is already flat/geometric and we're a solo dev with no art budget".
 
-**Рекомендация (обсудить)**: осознанно брать направление "флэт/геометрический минимализм" как стиль, а не как временную заглушку — дёшево делать самому/генерировать, визуально совпадает с уже существующим 3D-миром (не будет диссонанса между картой-иконкой и юнитом на поле), и это реальный жанровый прецедент, а не "бедный вид". Alternative — стилизованные иллюстрации (как у Marvel Snap/Hearthstone) выглядят лучше сами по себе, но требуют арт-скилла/времени, которого нет, и будут спорить по стилю с кубами на уровне, если не поднимать весь арт разом (не в скоупе MVP).
-
----
-
-## 2. Анатомия карточки по 3 контекстам
-
-### В бою (HUD, `CardUI.cs`)
-- Иконка
-- Кулдаун-заливка + таймер (уже есть)
-- Рамка по category/rarity — только цвет, без текста (новое)
-- НЕТ имени, НЕТ статов — осознанно, чтобы не грузить игрока в реальном времени (см. п.4 — это не "так все делают", это осознанное отличие от turn-based карточных игр типа Marvel Snap)
-
-### В колоде (`MetaCardUI.cs`, плитка)
-- Иконка
-- Имя карты (подключить — сейчас не используется)
-- Уровень + прогресс дубликатов (уже есть)
-- Рамка по редкости (новое)
-
-### По тапу (`CardInfoPopup.cs` — уже почти полностью реализован)
-- Полное имя, description (подключить — сейчас поле пустое/дублирует имя)
-- Category + rarity текстом
-- Уровень, кураторские "главные" статы с "+X на след. уровне" (уже есть)
-- Прогресс до апгрейда, кнопка апгрейда (уже есть)
+**Recommendation (to discuss)**: deliberately take the "flat/geometric minimalism" direction as a style, not as a temporary placeholder — cheap to do yourself/generate, visually matches the already-existing 3D world (no dissonance between a card icon and the unit on the field), and it's a real genre precedent, not a "cheap look". Alternative — stylized illustrations (like Marvel Snap/Hearthstone) look better on their own, but need art skill/time we don't have, and would clash in style with the cubes at level scope unless we overhaul all the art at once (not in MVP scope).
 
 ---
 
-## 3. Цветовая кодировка редкости
+## 2. Card anatomy across 3 contexts
 
-Проверено на референсах (Hearthstone, Marvel Snap) — почти универсальная конвенция:
-**Common = белый/серый → Rare = синий → Epic = фиолетовый → Legendary = оранжевый**
+### In combat (HUD, `CardUI.cs`)
+- Icon
+- Cooldown fill + timer (already there)
+- Border by category/rarity — color only, no text (new)
+- NO name, NO stats — deliberate, so as not to overload the player in real time (see item 4 — this isn't "that's how everyone does it", it's a deliberate difference from turn-based card games like Marvel Snap)
 
-У нас в `CardInfoPopup.cs` УЖЕ зашита ровно эта палитра (4 тира, без "uncommon/зелёный" — как у Hearthstone, не как у Marvel Snap с их 6 тирами). Ничего менять не надо, только расширить на HUD и плитку.
+### In the deck (`MetaCardUI.cs`, tile)
+- Icon
+- Card name (needs wiring up — currently unused)
+- Level + duplicate progress (already there)
+- Border by rarity (new)
+
+### On tap (`CardInfoPopup.cs` — already almost fully implemented)
+- Full name, description (needs wiring up — field is currently empty/duplicates the name)
+- Category + rarity as text
+- Level, curated "headline" stats with "+X at next level" (already there)
+- Progress to upgrade, upgrade button (already there)
 
 ---
 
-## 4. Референсы — что подтвердилось, что нет
+## 3. Rarity color coding
 
-- **Цвет по редкости** — подтверждено, универсальный стандарт жанра.
-- **"В бою карта должна быть проще"** — НЕ универсальное правило (Marvel Snap делает наоборот, добавляет "сочность" в момент розыгрыша). У нас это осознанное решение из-за real-time природы игры (зомби бегают одновременно, в отличие от turn-based карточных игр), не слепое следование конвенции.
-- **"Левелап — это событие"** — у топовых карточных игр это визуальная эволюция арта по редкости/тиру. У нас это будет играться через **геймплейный бонус на 5 уровне** (см. раздел 5), а не через смену визуала — не дублируем одну идею двумя способами.
+Checked against references (Hearthstone, Marvel Snap) — an almost universal convention:
+**Common = white/gray → Rare = blue → Epic = purple → Legendary = orange**
+
+`CardInfoPopup.cs` already has EXACTLY this palette hardcoded (4 tiers, no "uncommon/green" — like Hearthstone, not like Marvel Snap with its 6 tiers). Nothing needs to change, just extend it to the HUD and the tile.
 
 ---
 
-## 5. Бонус карты на 5 уровне (финализировано 2026-08-23)
+## 4. References — what held up, what didn't
 
-Мотивация: дать игроку качественный (не просто циферный) скачок при прокачке карты, переиспользуя контент из замороженной roguelite-системы вместо разработки с нуля.
+- **Color by rarity** — confirmed, a universal genre standard.
+- **"In combat the card should be simpler"** — NOT a universal rule (Marvel Snap does the opposite, adding "juice" at the moment of play). For us this is a deliberate decision stemming from the real-time nature of the game (zombies move simultaneously, unlike turn-based card games), not blind convention-following.
+- **"Leveling up is an event"** — top card games do this through a visual evolution of the art by rarity/tier. For us this will play out through a **gameplay bonus at level 5** (see section 5) instead of a visual change — we don't duplicate one idea two ways.
 
-**Решено**: один бонус на карту, на текущем макс. уровне (5), без расширения потолка сейчас. Экономика дубликатов не трогается.
+---
 
-| Карта | Бонус на 5 ур. | Тех. заметка |
+## 5. Card bonus at level 5 (finalized 2026-08-23)
+
+Motivation: give the player a qualitative (not just numeric) leap when upgrading a card, reusing content from the frozen roguelite system instead of building from scratch.
+
+**Decided**: one bonus per card, at the current max level (5), with no raised ceiling for now. The duplicate economy is untouched.
+
+| Card | Bonus at level 5 | Technical note |
 |---|---|---|
-| Barricade | Отражает 25% урона атакующему зомби | Код уже есть в `Barricade.cs` (`barricade_reflect_pct`), сейчас неактивен (RunSessionData заморожен) |
-| Sniper | Пробитие убивает все 3 цели вместо затухания урона (100%→50%→25%) | Почти бесплатно — `maxPierceTargets`/`pierceDamageFalloff` уже есть в `Sniper.cs` |
-| Bomb | Не наносит урон своим (Human/Soldier/Sniper) | Чинит реальный текущий баг: Bomb сейчас может убить своих в радиусе взрыва |
-| Helicopter | Мини-пулемёт отстреливает зомби во время погрузки | Новая механика, но паттерн уже есть в `CombatHelicopter.SniperShoot()` — переиспользовать слабее |
-| Bait | Притянутые зомби замедляются на подходе | Новая механика в `Bait.cs` |
-| Soldier | Каждый солдат стреляет по 2 целям одновременно | Новая механика |
-| Car | Увеличенная вместимость (просто число) | Простой стат-баф, идею получше — отдельно позже |
-| CombatHelicopter | Добивает зомби ниже 20% HP | Проверено: НЕ бесполезно (урон 35 на 5 ур. vs 100 HP зомби) |
+| Barricade | Reflects 25% of damage to the attacking zombie | Code already exists in `Barricade.cs` (`barricade_reflect_pct`), currently inactive (RunSessionData is frozen) |
+| Sniper | Piercing kills all 3 targets instead of falling off (100%→50%→25%) | Almost free — `maxPierceTargets`/`pierceDamageFalloff` already exist in `Sniper.cs` |
+| Bomb | Deals no damage to allies (Human/Soldier/Sniper) | Fixes a real current bug: Bomb can currently kill allies in the blast radius |
+| Helicopter | A mini machine gun shoots zombies during loading | New mechanic, but the pattern already exists in `CombatHelicopter.SniperShoot()` — reuse a weaker version |
+| Bait | Attracted zombies slow down on approach | New mechanic in `Bait.cs` |
+| Soldier | Each soldier fires at 2 targets simultaneously | New mechanic |
+| Car | Increased capacity (just a number) | Simple stat buff, a better idea to be figured out separately later |
+| CombatHelicopter | Finishes off zombies below 20% HP | Checked: NOT useless (35 damage at level 5 vs. 100 HP zombie) |
 
-**Техническая зависимость — ОБНОВЛЕНО 2026-08-29**: изначально думали, что всем 8 бонусам нужно общее персистентное хранилище модификаторов (по аналогии с `RunSessionData.GetModifier/HasFlag`). Проверил код всех 8 контроллеров — оказалось, что оно НЕ нужно. Каждый контроллер (`Bait.cs`, `Bomb.cs`, `CarController.cs`, `CombatHelicopter.cs`, `HelicopterController.cs`, `Sniper.cs`, `Soldier.cs`, `Barricade.cs`) уже читает текущий уровень карты напрямую из `PlayerProfile.Instance.ownedCardsProgress` при старте. Бонус 5 уровня — это просто `if (currentLevel >= 5) { ... }` рядом с уже существующим кодом, без новой инфраструктуры.
+**Technical dependency — UPDATED 2026-08-29**: initially thought all 8 bonuses would need a shared persistent modifier store (similar to `RunSessionData.GetModifier/HasFlag`). Checked the code of all 8 controllers — turns out it's NOT needed. Every controller (`Bait.cs`, `Bomb.cs`, `CarController.cs`, `CombatHelicopter.cs`, `HelicopterController.cs`, `Sniper.cs`, `Soldier.cs`, `Barricade.cs`) already reads the card's current level directly from `PlayerProfile.Instance.ownedCardsProgress` at start. The level-5 bonus is simply `if (currentLevel >= 5) { ... }` next to the already-existing code, with no new infrastructure.
 
-Персистентное хранилище модификаторов остаётся нужным ТОЛЬКО для будущего Talent Tree (там бонусы не привязаны к уровню конкретной карты) — строить его сейчас ради карточных бонусов было бы преждевременной инфраструктурой, решением несуществующей пока проблемы.
-
----
-
-## 6. Открытые вопросы / TODO
-
-- [ ] Финализировать направление арт-стиля карт (флэт-минимализм vs иллюстрации) — раздел 1
-- [x] ~~Спроектировать персистентное хранилище модификаторов~~ — не нужно для карточных бонусов, см. раздел 5 (обновлено 2026-08-29). Нужно будет отдельно для Talent Tree, когда до него дойдём.
-- [ ] Починить drag-reflow баг в HUD (`CardUI.OnBeginDrag` реродителинг ломает Layout Group) — бриф готов, см. раздел 7
-- [ ] Подключить `description` в `CardInfoPopup` — бриф готов, см. раздел 7
-- [ ] Добавить рамку по category/rarity в `CardUI` (HUD) и `MetaCardUI` (плитка) — бриф готов, см. раздел 7
-- [ ] Курировать по каждой из 8 карт — какие статы показывать игроку (не автоматизируется, ручная работа)
-- [ ] Реализовать 8 бонусов 5 уровня в коде каждой карты — брифы готовы, см. раздел 7
-- [ ] Заказать/сделать реальные иконки карт (сейчас — чужие TMP-плейсхолдеры)
+The persistent modifier store is still needed ONLY for the future Talent Tree (where bonuses aren't tied to a specific card's level) — building it now for the sake of card bonuses would be premature infrastructure, solving a problem that doesn't exist yet.
 
 ---
 
-## 7. План реализации — брифы для Клод Кода (2026-08-29)
+## 6. Open questions / TODO
 
-Порядок — от дешёвого/безопасного к дорогому/рискованному. Каждый бриф — отдельный файл рядом с этим документом, можно прогонять по одному и тестировать между собой.
+- [ ] Finalize the card art-style direction (flat minimalism vs. illustrations) — section 1
+- [x] ~~Design a persistent modifier store~~ — not needed for card bonuses, see section 5 (updated 2026-08-29). Will be needed separately for the Talent Tree, once we get there.
+- [ ] Fix the drag-reflow bug in the HUD (`CardUI.OnBeginDrag` reparenting breaks the Layout Group) — brief ready, see section 7
+- [ ] Wire up `description` in `CardInfoPopup` — brief ready, see section 7
+- [ ] Add a category/rarity border to `CardUI` (HUD) and `MetaCardUI` (tile) — brief ready, see section 7
+- [ ] Curate, for each of the 8 cards, which stats to show the player (not automatable, manual work)
+- [ ] Implement the 8 level-5 bonuses in each card's code — briefs ready, see section 7
+- [ ] Commission/make real card icons (currently someone else's TMP placeholders)
 
-1. **`CLAUDE_CODE_TASK_Cards_QuickWins.md`** — 3 независимых фикса без зависимостей: drag-reflow баг (`LayoutElement.ignoreLayout` + собственный `Canvas` с override sorting вместо реродителинга), подключение `description` в попап, рамка по редкости на HUD/плитке (вынесено в общий `CardVisuals.GetRarityColor()`, чтобы не дублировать switch третий раз).
-2. **`CLAUDE_CODE_TASK_Cards_Bonuses_A.md`** — бонусы 5 уровня для Barricade, Sniper, Bomb, Car. Дёшево — либо код уже существует (просто меняем источник данных с `RunSessionData` на прямую проверку уровня), либо тривиальный стат-баф.
-3. **`CLAUDE_CODE_TASK_Cards_Bonuses_B.md`** — бонусы 5 уровня для CombatHelicopter, Soldier, Bait, Helicopter. Дороже — либо новая механика (мини-пулемёт у Helicopter, дабл-таргет у Soldier), либо логика в соседнем файле (Bait-замедление реализуется в `Zombie.cs`, не в `Bait.cs`, т.к. вся логика погони за приманкой живёт там).
+---
 
-**Не реализуем сейчас**: персистентное хранилище модификаторов — см. раздел 5, отложено до Talent Tree.
+## 7. Implementation plan — briefs for Claude Code (2026-08-29)
+
+Order — from cheap/safe to expensive/risky. Each brief is a separate file next to this document, and they can be run one at a time and tested against each other.
+
+1. **`CLAUDE_CODE_TASK_Cards_QuickWins.md`** — 3 independent fixes with no dependencies: the drag-reflow bug (`LayoutElement.ignoreLayout` + its own `Canvas` with override sorting instead of reparenting), wiring up `description` in the popup, a rarity border on the HUD/tile (factored into a shared `CardVisuals.GetRarityColor()` so we don't duplicate the switch a third time).
+2. **`CLAUDE_CODE_TASK_Cards_Bonuses_A.md`** — level-5 bonuses for Barricade, Sniper, Bomb, Car. Cheap — either the code already exists (just swap the data source from `RunSessionData` to a direct level check), or it's a trivial stat buff.
+3. **`CLAUDE_CODE_TASK_Cards_Bonuses_B.md`** — level-5 bonuses for CombatHelicopter, Soldier, Bait, Helicopter. More expensive — either a new mechanic (Helicopter's mini machine gun, Soldier's double-target), or logic that lives in a neighboring file (the Bait slowdown is implemented in `Zombie.cs`, not `Bait.cs`, since all the bait-chasing logic lives there).
+
+**Not implementing now**: a persistent modifier store — see section 5, deferred until the Talent Tree.

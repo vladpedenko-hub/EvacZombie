@@ -1,55 +1,55 @@
-# Механика: персистентное хранилище модификаторов/флагов (АРХИВ — вопрос закрыт иначе)
+# Mechanic: persistent modifier/flag store (ARCHIVE — the question was closed differently)
 
-*Статус: ЗАКРЫТО 09.10.2026, но не так, как здесь спроектировано. Talent Tree реализован и шипнут — но не через отдельное персистентное key-value хранилище, описанное ниже (ни Вариант A, ни Вариант B из раздела "Где хранить" не выбирались). Вместо этого модификаторы Talent Tree живут в `MetaRuntime.Modifiers` (`Assets/Scripts/Meta/Modifiers/MetaModifiers.cs`), применяются глобально ко всем картам, и сохраняются через отдельный от `PlayerProfile` слой — `MetaProgressionState` + `MetaSaveService` (`Assets/Scripts/Meta/Save/*`, один JSON-блоб под ключом `"MetaProgression"`). См. `CLAUDE.md` → "Мета-слой 'город' + Talent Tree" и `Docs/REFACTOR_AUDIT.md` §1 за полной картой системы.*
+*Status: CLOSED 09.10.2026, but not the way this document designed it. The Talent Tree is implemented and shipped — but not through a separate persistent key-value store as described below (neither Option A nor Option B from the "Where to store it" section was chosen). Instead, Talent Tree modifiers live in `MetaRuntime.Modifiers` (`Assets/Scripts/Meta/Modifiers/MetaModifiers.cs`), apply globally to all cards, and are saved through a layer separate from `PlayerProfile` — `MetaProgressionState` + `MetaSaveService` (`Assets/Scripts/Meta/Save/*`, a single JSON blob under the key `"MetaProgression"`). See `CLAUDE.md` → "Meta layer 'city' + Talent Tree" and `Docs/REFACTOR_AUDIT.md` §1 for the full system map.*
 
-*Документ ниже оставлен как архив дизайн-рационале (23.08–29.08.2026) — требования и два рассмотренных варианта хранения, на случай если понадобится история решения. Не читать как активную спеку: Talent Tree уже реализован, этот файл его не описывает.*
+*The document below is kept as an archive of the design rationale (23.08–29.08.2026) — the requirements and the two storage options that were considered, in case the decision history is ever needed. Don't read it as an active spec: the Talent Tree is already implemented, and this file doesn't describe it.*
 
-## Зачем
+## Why
 
-**ОБНОВЛЕНО 29.08.2026**: изначально (23.08.2026) сюда попадали две фичи — Talent Tree и card milestone-бонусы. Card milestone-бонусы больше не в списке: проверка кода (`Docs/CARD_SYSTEM_DESIGN.md` §5) показала, что каждый контроллер карты уже читает текущий уровень напрямую из `PlayerProfile.Instance.ownedCardsProgress` — отдельное хранилище модификаторов для этого не нужно, бонус реализуется как обычная проверка `currentLevel >= 5`.
+**UPDATED 29.08.2026**: originally (23.08.2026) two features landed here — the Talent Tree and card milestone bonuses. Card milestone bonuses are no longer on the list: a code check (`Docs/CARD_SYSTEM_DESIGN.md` §5) showed that every card controller already reads the current level directly from `PlayerProfile.Instance.ownedCardsProgress` — a separate modifier store isn't needed for that, the bonus is implemented as a plain `currentLevel >= 5` check.
 
-Единственный потребитель этого хранилища теперь:
+The only consumer of this store now is:
 
-1. **Talent Tree** (см. `Docs/GDD_CORE_LOOP.md`, Layer 4) — 8-12 узлов, флэт % модификаторы на `StatType` (Damage, Health, FireRate, Speed, Radius), применяются глобально ко всем картам. Не привязан к уровню конкретной карты (в отличие от card-бонусов) — именно поэтому ему нужен настоящий персистентный key-value стор, а не прямое чтение поля.
+1. **Talent Tree** (see `Docs/GDD_CORE_LOOP.md`, Layer 4) — 8-12 nodes, flat % modifiers on `StatType` (Damage, Health, FireRate, Speed, Radius), applied globally to all cards. Not tied to a specific card's level (unlike card bonuses) — which is exactly why it needs a real persistent key-value store instead of reading a field directly.
 
-В проекте уже есть готовый паттерн интерфейса (`RunSessionData`), просто не персистентный.
+The project already has a ready-made interface pattern (`RunSessionData`), it's just not persistent.
 
-## Референс: уже существующий (но НЕ персистентный) аналог
+## Reference: an existing (but NOT persistent) analog
 
-`RunSessionData.cs` (`Assets/Scripts/Roguelite/`) — синглтон-на-уровень, сбрасывается через `ResetForNewLevel()`. Публичный интерфейс:
+`RunSessionData.cs` (`Assets/Scripts/Roguelite/`) — a per-level singleton, reset via `ResetForNewLevel()`. Public interface:
 
 ```
-AddModifier(string key, float value)      // аддитивно, повторный вызов с тем же key суммируется
-GetModifier(string key, float default=0)  // возвращает default если key не установлен
+AddModifier(string key, float value)      // additive, a repeated call with the same key sums up
+GetModifier(string key, float default=0)  // returns default if the key isn't set
 SetFlag(string flagId)
 HasFlag(string flagId)
 ```
 
-Карточные контроллеры уже читают его через null-safe вызов: `RunSessionData.Instance?.GetModifier("barricade_reflect_pct")` (пример из `Barricade.cs`). Сейчас `Instance` = null, потому что `RunSessionData`-объект выключен в сцене (см. `CLAUDE.md`) — это НЕ мешает новому персистентному хранилищу, оно read-модель для другого объекта.
+Card controllers already read it through a null-safe call: `RunSessionData.Instance?.GetModifier("barricade_reflect_pct")` (example from `Barricade.cs`). Right now `Instance` is null because the `RunSessionData` object is disabled in the scene (see `CLAUDE.md`) — that does NOT get in the way of the new persistent store; it's a read model for a different object.
 
-## Что нужно новое
+## What's newly needed
 
-Второй источник модификаторов/флагов с **тем же интерфейсом** (`GetModifier`/`HasFlag`), но:
-- Не привязан к сцене уровня — живёт между уровнями и между запусками игры.
-- Сохраняется на диск и переживает перезапуск приложения.
+A second source of modifiers/flags with the **same interface** (`GetModifier`/`HasFlag`), but:
+- Not tied to the level scene — lives across levels and across game sessions.
+- Saved to disk and survives an app restart.
 
-## Где хранить: открытый вопрос архитектуры (ЗАКРЫТ — см. статус в начале файла; ни один из вариантов ниже не выбирался)
+## Where to store it: open architecture question (CLOSED — see the status note at the top of the file; neither option below was chosen)
 
-В проекте уже есть ровно один персистентный слой — `PlayerProfile.cs` (синглтон, `DontDestroyOnLoad`, сохраняется через `PlayerPrefs` + `JsonUtility`, списки вроде `ownedCardsProgress` идут через `SerializationWrapper<T>`). Два варианта:
+The project already has exactly one persistent layer — `PlayerProfile.cs` (singleton, `DontDestroyOnLoad`, saved via `PlayerPrefs` + `JsonUtility`, lists like `ownedCardsProgress` go through the `SerializationWrapper<T>` pattern). Two options:
 
-**Вариант A (рекомендация)** — модификаторы/флаги как новые поля прямо на `PlayerProfile` (`Dictionary<string,float>` + `HashSet<string>`, сериализованные тем же `SerializationWrapper`-паттерном, что и остальные списки). Плюс: один персистентный объект в проекте, не два. Минус: `PlayerProfile.cs` уже 449 строк, дальше растёт.
+**Option A (recommended)** — modifiers/flags as new fields directly on `PlayerProfile` (`Dictionary<string,float>` + `HashSet<string>`, serialized with the same `SerializationWrapper` pattern as the other lists). Pro: one persistent object in the project, not two. Con: `PlayerProfile.cs` is already 449 lines and keeps growing.
 
-**Вариант B** — отдельный синглтон `PersistentModifierStore` (по образу `RunSessionData`, но с сохранением через `PlayerPrefs`), который карточные контроллеры опрашивают наравне с `RunSessionData.Instance`. Плюс: чистое разделение ответственности, легче найти код. Минус: два похожих синглтона в проекте, дублирование save/load-обвязки.
+**Option B** — a separate `PersistentModifierStore` singleton (modeled on `RunSessionData`, but saved via `PlayerPrefs`), polled by card controllers alongside `RunSessionData.Instance`. Pro: clean separation of responsibility, easier to find the code. Con: two similar singletons in the project, duplicated save/load plumbing.
 
-Это архитектурное решение, не диктую его сам — нужно подтверждение перед тем, как оформлять как `Docs/tasks/CLAUDE_CODE_TASK_*.md` бриф для Claude Code.
+This is an architectural decision, not something to dictate unilaterally — needs confirmation before turning it into a `Docs/tasks/CLAUDE_CODE_TASK_*.md` brief for Claude Code.
 
-## Потребители (кто будет читать это хранилище)
+## Consumers (who will read this store)
 
-- Talent Tree UI (ещё не построен) — пишет модификаторы при разлочке узла, карточные контроллеры читают их так же, как сейчас читают `RunSessionData`.
+- Talent Tree UI (not built yet) — writes modifiers when a node is unlocked, card controllers read them the same way they currently read `RunSessionData`.
 
-*(Card milestone-бонусы сюда больше не входят — см. "Зачем" выше. Они читают уровень карты напрямую из `PlayerProfile`, без этого хранилища.)*
+*(Card milestone bonuses no longer belong here — see "Why" above. They read the card's level directly from `PlayerProfile`, without this store.)*
 
-## Что НЕ входит в эту задачу
+## What's NOT part of this task
 
-- UI дерева прокачки (отдельная задача, зависит от этого хранилища).
-- Ретюн конкретных значений модификаторов под milestone-бонусы (частично уже сделан, см. таблицу в `card-milestone-bonuses.md`) — хранилище только транспорт, не источник баланса.
+- The talent tree UI (a separate task, depends on this store).
+- Retuning the specific modifier values for milestone bonuses (partly already done, see the table in `card-milestone-bonuses.md`) — the store is only the transport, not the source of balance.

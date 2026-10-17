@@ -1,72 +1,72 @@
-# Feedback: звук, вибро, эффекты, настройки
+# Feedback: sound, vibration, effects, settings
 
-Статус: реализовано как **заглушки** (04.10.2026). Вся логика готова, ассеты заменяются без правки кода.
-Код: `Assets/Scripts/Feedback/`.
+Status: implemented as **placeholders** (04.10.2026). All the logic is ready, assets get swapped in without touching code.
+Code: `Assets/Scripts/Feedback/`.
 
-## Как это устроено (1 минута)
+## How it's wired up (1 minute)
 
-Игровой код вызывает **одну строку**:
+Game code calls **one line**:
 
 ```csharp
-Feedback.Play(FeedbackEvent.ZombieDeath, position);   // с позицией — будут частицы, off-screen события отсекаются
-Feedback.Play(FeedbackEvent.UiToggle);                // без позиции — UI / глобальные моменты
+Feedback.Play(FeedbackEvent.ZombieDeath, position);   // with a position — spawns particles, off-screen events are culled
+Feedback.Play(FeedbackEvent.UiToggle);                // no position — UI / global moments
 ```
 
-Таблица `Feedback.table` в `Feedback.cs` — **единственное место**, где событию назначены звук + вибро + частицы + тряска камеры. Хотите поменять «как ощущается» — правите одну строку там.
+The `Feedback.table` table in `Feedback.cs` is the **single place** where an event is assigned sound + vibration + particles + camera shake. Want to change "how it feels"? Edit one line there.
 
-| Файл | Роль |
+| File | Role |
 |---|---|
-| `Feedback.cs` | Фасад + таблица событий (тюнинг тут) |
-| `AudioManager.cs` | Пул источников, лимиты частоты, музыка по сцене. Создаётся сам до первой сцены |
-| `PlaceholderSfx.cs` | Синтезирует заглушки кодом, если реального файла нет |
-| `Haptics.cs` | Android: JNI VibrationEffect; iOS: только сильные события (см. ограничения) |
-| `VfxManager.cs` | Пул процедурных частиц (таблица `specs` — тюнинг) |
-| `CameraShake.cs` | Тряска камеры только на время рендера (не конфликтует с `CameraController`) |
-| `UiClickFeedback.cs` | Автоматический клик-звук на **любую** Button/Toggle во всех сценах |
+| `Feedback.cs` | Facade + event table (tuning lives here) |
+| `AudioManager.cs` | Source pool, frequency limits, per-scene music. Creates itself before the first scene |
+| `PlaceholderSfx.cs` | Synthesizes placeholders in code if there's no real file |
+| `Haptics.cs` | Android: JNI VibrationEffect; iOS: only strong events (see limitations) |
+| `VfxManager.cs` | Pool of procedural particles (the `specs` table is where tuning lives) |
+| `CameraShake.cs` | Camera shake only during render time (doesn't conflict with `CameraController`) |
+| `UiClickFeedback.cs` | Automatic click sound on **any** Button/Toggle across every scene |
 | `GameSettings.cs` | Sound / Music / Vibration / 60 FPS, PlayerPrefs |
-| `SettingsPopup.cs`, `SettingsButtonInjector.cs`, `RuntimeUiKit.cs` | Окно настроек и шестерёнка в MainMenu (строятся кодом, сцены не менялись) |
-| `GameLinks.cs` | URL Privacy / Terms, e-mail поддержки — **заполнить до сабмита** |
+| `SettingsPopup.cs`, `SettingsButtonInjector.cs`, `RuntimeUiKit.cs` | Settings window and gear icon in MainMenu (built in code, scenes untouched) |
+| `GameLinks.cs` | Privacy / Terms URLs, support e-mail — **fill in before submission** |
 
-Все менеджеры создаются через `[RuntimeInitializeOnLoadMethod]` — в сцены ничего добавлять не нужно.
+All managers are created via `[RuntimeInitializeOnLoadMethod]` — nothing needs adding to any scene.
 
-## Где подключено (хуки в существующем коде)
+## Where it's hooked in (hooks in existing code)
 
-Везде одна добавленная строка, логика не менялась.
+Everywhere, it's one added line — no logic was changed.
 
-| Момент | Файл | Событие |
+| Moment | File | Event |
 |---|---|---|
-| Взять карту / отпустить в зоне игры с отказом / кулдаун прошёл | `CardUI` | `CardPickUp` / `CardPlaceInvalid` / `CardReady` |
-| Карта успешно разыграна | `InputManager.EndDragging` | `CardPlaceOk` (+ кольцо частиц) |
-| Волна предупреждена | `LevelManager.PrepareAndWarnWave` | `WaveWarning` |
-| Наступила ночь | `UIManager.ShowNightPopup` | `NightStart` (крик — существующий AudioSource, теперь учитывает настройку Sound) |
-| Зомби: попадание / смерть / заразил человека или учёного | `Zombie` | `ZombieHit` / `ZombieDeath` / `ZombieInfect` |
-| Снайпер / солдат / боевой вертолёт стреляет | `Sniper`, `Soldier`, `CombatHelicopter` | `SniperShot` / `SoldierShot` / `HeliGun` |
-| Бомба: взрыв / гибель своих | `Bomb.Explode` | `BombExplosion` (+тряска, тяжёлая вибрация) / `CivilianLost` |
-| Баррикада: удар / разрушение | `Barricade` | `BarricadeHit` / `BarricadeBreak` |
-| Вертолёт эвакуации: посадка / взлёт | `HelicopterController` | `HeliArrive` / `HeliTakeoff` |
-| Машина выехала | `CarController.Launch` | `CarArrive` |
-| Жители уехали / +N долетело до счётчика / цель выполнена | `UIManager` | `RescueDeparted` / `RescueTick` / `GoalReached` (один раз за уровень) |
-| Ультимейт готов / активирован | `AbilityButtonUI` | `AbilityReady` (заменил голый `Handheld.Vibrate()`) / `AbilityActivate` |
-| Босс впадает в ярость | `ZombieBoss.RageLoop` | `BossRage` (+тряска) |
-| Победа / идеальная победа / поражение | `UIManager.ShowResultPopup` / `ShowLosePopup` | `Win` / `PerfectClear` / `Lose` |
-| Звёзды на экране результата, награда-карта | `ResultPopupUI` | `UiStar` (на каждую звезду) / `UiReward` |
-| Старт уровня / нет энергии | `LevelMissionPopupUI` | `UiLevelStart` / `UiError` |
-| Покупка энергии / реклама-награда | `EnergyStorePopupUI` | `UiReward` |
-| Экипировать / снять / апгрейд карты | `CardPopupManager`, `CardInfoPopup` | `UiEquip` / `UiUpgrade` |
-| Награда региона / переход региона | `MapController` | `UiReward` |
-| Любой клик по кнопке | `UiClickFeedback` (авто) | `UiClick` / `UiBack` (имя содержит close/back/cancel/nothanks) |
+| Pick up a card / drop it in the play area with a rejection / cooldown finished | `CardUI` | `CardPickUp` / `CardPlaceInvalid` / `CardReady` |
+| Card successfully played | `InputManager.EndDragging` | `CardPlaceOk` (+ particle ring) |
+| Wave warning shown | `LevelManager.PrepareAndWarnWave` | `WaveWarning` |
+| Night falls | `UIManager.ShowNightPopup` | `NightStart` (scream — existing AudioSource, now respects the Sound setting) |
+| Zombie: hit / death / infected a human or scientist | `Zombie` | `ZombieHit` / `ZombieDeath` / `ZombieInfect` |
+| Sniper / soldier / combat helicopter fires | `Sniper`, `Soldier`, `CombatHelicopter` | `SniperShot` / `SoldierShot` / `HeliGun` |
+| Bomb: explosion / own-side casualty | `Bomb.Explode` | `BombExplosion` (+shake, heavy vibration) / `CivilianLost` |
+| Barricade: hit / destroyed | `Barricade` | `BarricadeHit` / `BarricadeBreak` |
+| Evac helicopter: landing / takeoff | `HelicopterController` | `HeliArrive` / `HeliTakeoff` |
+| Car drove off | `CarController.Launch` | `CarArrive` |
+| Civilians evacuated / +N reaches the counter / goal reached | `UIManager` | `RescueDeparted` / `RescueTick` / `GoalReached` (once per level) |
+| Ultimate ready / activated | `AbilityButtonUI` | `AbilityReady` (replaced a bare `Handheld.Vibrate()`) / `AbilityActivate` |
+| Boss enters rage | `ZombieBoss.RageLoop` | `BossRage` (+shake) |
+| Win / perfect win / lose | `UIManager.ShowResultPopup` / `ShowLosePopup` | `Win` / `PerfectClear` / `Lose` |
+| Stars on the result screen, reward card | `ResultPopupUI` | `UiStar` (per star) / `UiReward` |
+| Level start / out of energy | `LevelMissionPopupUI` | `UiLevelStart` / `UiError` |
+| Energy purchase / ad reward | `EnergyStorePopupUI` | `UiReward` |
+| Equip / unequip / upgrade a card | `CardPopupManager`, `CardInfoPopup` | `UiEquip` / `UiUpgrade` |
+| Region reward / region transition | `MapController` | `UiReward` |
+| Any button click | `UiClickFeedback` (auto) | `UiClick` / `UiBack` (name contains close/back/cancel/nothanks) |
 
-Защита от спама (рой зомби): минимальный интервал на звук (`AudioManager.minInterval`), кулдаун вибро на событие (`hapticCooldown`), глобальный лимит вибро 50 мс, лимит 60 одновременных партиклов, события за пределами экрана отбрасываются целиком.
+Anti-spam protection (zombie swarm): a minimum interval per sound (`AudioManager.minInterval`), a haptic cooldown per event (`hapticCooldown`), a global 50ms haptic limit, a cap of 60 simultaneous particles, and events fully off-screen are dropped entirely.
 
-## Как заменить заглушку на настоящий звук
+## How to swap a placeholder for a real sound
 
-Положить файл **с именем значения enum** в `Assets/Resources/Audio/Sfx/`, например `Assets/Resources/Audio/Sfx/SniperShot.ogg` (wav/mp3/ogg). Больше ничего.
-Музыка: `Assets/Resources/Audio/Music/menu.ogg` и `gameplay.ogg` (зациклится сама; сейчас играет синтезированный дрон — выключить: `UsePlaceholderMusic = false` в `AudioManager`).
+Drop a file **named after the enum value** into `Assets/Resources/Audio/Sfx/`, e.g. `Assets/Resources/Audio/Sfx/SniperShot.ogg` (wav/mp3/ogg). Nothing else needed.
+Music: `Assets/Resources/Audio/Music/menu.ogg` and `gameplay.ogg` (loops on its own; a synthesized drone plays right now — turn it off with `UsePlaceholderMusic = false` in `AudioManager`).
 
-Рекомендации по импорту (мобайл): SFX — mono, Load Type «Decompress On Load», Compression «Vorbis» ~q50 (короткие, <1 с — «ADPCM»); музыка — «Streaming».
-В проекте уже лежит CC0-пак `ExternalAssets/kenney_ui-audio` — подходит под UI-звуки (click/switch/rollover) почти без поиска.
+Import recommendations (mobile): SFX — mono, Load Type "Decompress On Load", Compression "Vorbis" ~q50 (short, <1s clips — "ADPCM"); music — "Streaming".
+The project already has the CC0 pack `ExternalAssets/kenney_ui-audio` — fits the UI sounds (click/switch/rollover) with barely any searching.
 
-Список имён файлов:
+List of file names:
 
 ```
 UiClick
@@ -109,47 +109,47 @@ PerfectClear
 Lose
 ```
 
-## Как добавить новое событие
+## How to add a new event
 
-1. Значение в `FeedbackEvent` (и, если нужен новый звук, в `SfxId`; частицы — в `VfxId` + строка в `VfxManager.specs`).
-2. Строка в `Feedback.table`.
-3. `Feedback.Play(...)` в нужном месте.
+1. A value in `FeedbackEvent` (and, if a new sound is needed, in `SfxId`; particles go in `VfxId` + a line in `VfxManager.specs`).
+2. A line in `Feedback.table`.
+3. `Feedback.Play(...)` at the right spot.
 
-## Настройки (экран)
+## Settings (screen)
 
-Шестерёнка в правом верхнем углу MainMenu (отдельный Canvas, sorting 4000, внутри safe area; позиция — константа `Offset` в `SettingsButtonInjector`). Окно: **Sound**, **Music**, **Vibration** (скрывается на устройствах без вибромотора), **Smooth 60 FPS** (выкл = 30 FPS, экономия батареи), **Privacy Policy**, **Terms of Service**, **Contact Support**, версия.
+A gear icon in MainMenu's top-right corner (its own Canvas, sorting 4000, inside the safe area; position is the `Offset` constant in `SettingsButtonInjector`). Window: **Sound**, **Music**, **Vibration** (hidden on devices with no vibration motor), **Smooth 60 FPS** (off = 30 FPS, saves battery), **Privacy Policy**, **Terms of Service**, **Contact Support**, version.
 
-Открыть из любого места: `SettingsPopup.Show()` — пригодится для паузы в Gameplay.
+Open it from anywhere: `SettingsPopup.Show()` — useful for a pause in Gameplay.
 
-### Что ещё обычно нужно в настройках (не сделано — по мере появления фич)
+### What else settings usually need (not done yet — add as features land)
 
-| Пункт | Когда нужен |
+| Item | When it's needed |
 |---|---|
-| Privacy choices / Consent (повторно открыть окно согласия) | Как только подключим рекламу / аналитику (GDPR: отозвать согласие должно быть так же просто, как дать) |
-| Language | Когда появится локализация |
-| Notifications | Когда добавим пуши «энергия восстановлена» |
-| Restore Purchases | Как только появится IAP (требование App Store) |
-| Reset progress / Delete my data | Желательно к релизу; обязательно, если появятся аккаунты (Google Play требует удаление аккаунта в приложении) |
-| Credits / Licenses | Synty, Kenney (CC0), DOTween — перед релизом |
-| Rate us | После soft-launch |
-| Cloud save / аккаунт | Если решим |
+| Privacy choices / Consent (reopen the consent dialog) | As soon as we add ads / analytics (GDPR: withdrawing consent must be as easy as giving it) |
+| Language | Once localization lands |
+| Notifications | Once we add "energy restored" pushes |
+| Restore Purchases | As soon as IAP lands (App Store requirement) |
+| Reset progress / Delete my data | Good to have before launch; mandatory if accounts ever appear (Google Play requires in-app account deletion) |
+| Credits / Licenses | Synty, Kenney (CC0), DOTween — before launch |
+| Rate us | After soft-launch |
+| Cloud save / account | If we decide to |
 
-## Privacy / GDPR — нужна ли ссылка
+## Privacy / GDPR — do we need a link
 
-- **Privacy Policy URL нужен всегда**: Google Play (поле в карточке + Data Safety форма) и App Store (URL + privacy labels) требуют его для любого приложения, даже если мы ничего не собираем. Ссылка в самом приложении обязательна для Google Play, если приложение работает с персональными данными, и считается нормой в остальных случаях.
-- Отдельная «GDPR ссылка» не нужна — достаточно политики, где есть GDPR-раздел (какие данные, зачем, как удалить, контакты).
-- **Окно согласия (consent) сегодня не нужно**: монетизации и аналитики нет, `Watch Ad` — заглушка. Как только подключим рекламу/аналитику: EEA/UK — сертифицированный CMP (Google UMP для AdMob/MAX), iOS — ATT-запрос, и пункт «Privacy choices» в настройках.
-- Не юридическая консультация — перед сабмитом проверить формулировки политики.
+- **A Privacy Policy URL is always needed**: Google Play (store listing field + Data Safety form) and the App Store (URL + privacy labels) require one for any app, even if we collect nothing. An in-app link is mandatory for Google Play if the app handles personal data, and is standard practice otherwise.
+- A separate "GDPR link" isn't needed — a policy with a GDPR section (what data, why, how to delete it, contacts) is enough.
+- **A consent window isn't needed today**: no monetization or analytics yet, `Watch Ad` is a placeholder. As soon as we add ads/analytics: EEA/UK need a certified CMP (Google UMP for AdMob/MAX), iOS needs an ATT prompt, and a "Privacy choices" entry in settings.
+- Not legal advice — review the policy wording before submission.
 
-**Блокер до сабмита:** заполнить `GameLinks.PrivacyPolicyUrl` (сейчас пусто — кнопка логирует предупреждение и играет звук ошибки).
+**Blocker before submission:** fill in `GameLinks.PrivacyPolicyUrl` (currently empty — the button logs a warning and plays an error sound).
 
-## Известные ограничения / TODO
+## Known limitations / TODO
 
-- **iOS-хаптики**: у Unity нет API лёгкого тапа без нативного плагина — на iOS вибрируют только Heavy/Success/Failure через `Handheld.Vibrate()` (грубый buzz). Для нормального Taptic: Nice Vibrations / Lofelt или свой нативный плагин (заменить iOS-ветку в `Haptics.Play`).
-- **Android**: `VIBRATE` permission добавляется Unity, пока в коде есть `Handheld.Vibrate()` (оставлен как fallback в `Haptics`). Если убирать — добавить permission вручную.
-- **UI настроек строится кодом** (простые прямоугольники, шрифт TMP по умолчанию) — когда будет арт, перенести в префаб, сохранив API `SettingsPopup.Show()`.
-- **В Gameplay нет входа в настройки** — есть только существующая `MenuButton`. Нужна кнопка паузы → `SettingsPopup.Show()` + `TimeManager.PauseTime()/ResumeTime()` (учесть `InputManager.IsPaused`).
-- Озвучка не затухает (ducking) при перекрытии, зацикленных звуков (ротор вертолёта) пока нет — заглушки одноразовые.
-- Тряска камеры не отключается настройкой (можно добавить «Reduce motion»).
-- Нейтрализованы только звуки, идущие через `Feedback`/`AudioManager` + два существующих AudioSource (`nightSound`, `Bait`). Новые AudioSource в сценах/префабах должны проверять `AudioManager.SfxAllowed`.
-- Код не прогонялся в Unity Editor (в среде сборки нет Unity): проверен синтаксис всех файлов, логика ревьюилась вручную. Первый запуск → открыть MainMenu, нажать шестерёнку, затем сыграть уровень.
+- **iOS haptics**: Unity has no light-tap API without a native plugin — on iOS only Heavy/Success/Failure vibrate, via `Handheld.Vibrate()` (a crude buzz). For proper Taptic feedback: Nice Vibrations / Lofelt, or a custom native plugin (replace the iOS branch in `Haptics.Play`).
+- **Android**: the `VIBRATE` permission is added by Unity as long as `Handheld.Vibrate()` is in the code (kept as a fallback in `Haptics`). If it's removed, add the permission manually.
+- **Settings UI is built in code** (plain rectangles, default TMP font) — once there's art, move it into a prefab while keeping the `SettingsPopup.Show()` API.
+- **No settings entry point in Gameplay** — only the existing `MenuButton`. Needs a pause button → `SettingsPopup.Show()` + `TimeManager.PauseTime()/ResumeTime()` (account for `InputManager.IsPaused`).
+- Audio doesn't duck when overlapping, and there are no looping sounds yet (helicopter rotor) — placeholders are one-shot.
+- Camera shake isn't gated by a setting (could add a "Reduce motion" option).
+- Only sounds routed through `Feedback`/`AudioManager` + the two existing AudioSources (`nightSound`, `Bait`) are muted by settings. New AudioSources in scenes/prefabs must check `AudioManager.SfxAllowed`.
+- The code hasn't been run in the Unity Editor (no Unity in the build environment): every file's syntax was checked, logic was reviewed manually. First run → open MainMenu, press the gear icon, then play a level.

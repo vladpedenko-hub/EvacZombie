@@ -1,30 +1,30 @@
 # TASK: Roguelite In-Run Progression System (MVP)
-> Передай этот файл Claude Code как промпт. Он содержит всё необходимое для реализации.
+> Hand this file to Claude Code as a prompt. It contains everything needed for implementation.
 
 ---
 
-## КОНТЕКСТ ПРОЕКТА
+## PROJECT CONTEXT
 
-Unity-игра EvacZombie. Top-down тактика: игрок размещает карты-способности до волны зомби, эвакуирует гражданских.
+Unity game EvacZombie. Top-down tactics: the player places ability cards ahead of a zombie wave, evacuating civilians.
 
-### Ключевые существующие файлы (прочитай их в первую очередь):
+### Key existing files (read these first):
 
 ```
-Assets/Scripts/Data/CardData.cs          ← ScriptableObject карты, StatType enum
-Assets/Scripts/CardManager.cs            ← CardType enum, рендер колоды
-Assets/Scripts/PlayerProfile.cs          ← профиль игрока, currentDeck, ownedCardsProgress
+Assets/Scripts/Data/CardData.cs          ← card ScriptableObject, StatType enum
+Assets/Scripts/CardManager.cs            ← CardType enum, deck rendering
+Assets/Scripts/PlayerProfile.cs          ← player profile, currentDeck, ownedCardsProgress
 Assets/Scripts/GameManager.cs            ← AddRescuedFromTransport(), AddRescuedHumans()
-Assets/Scripts/Bonus/HelicopterController.cs  ← герой MVP, читай паттерн инициализации
-Assets/Scripts/Bonus/Sniper.cs           ← паттерн чтения CardData + Start()
-Assets/Scripts/Bonus/Bomb.cs             ← паттерн чтения CardData + Start()
-Assets/Scripts/Bonus/Barricade.cs        ← паттерн чтения CardData + Start()
-Assets/Scripts/Bonus/Soldier.cs          ← для справки
-Assets/Scripts/Bonus/Bait.cs             ← для справки
-Assets/Scripts/Bonus/CarController.cs    ← для справки
-Assets/Scripts/Bonus/CombatHelicopter.cs ← для справки
+Assets/Scripts/Bonus/HelicopterController.cs  ← MVP hero, read its init pattern
+Assets/Scripts/Bonus/Sniper.cs           ← CardData-reading + Start() pattern
+Assets/Scripts/Bonus/Bomb.cs             ← CardData-reading + Start() pattern
+Assets/Scripts/Bonus/Barricade.cs        ← CardData-reading + Start() pattern
+Assets/Scripts/Bonus/Soldier.cs          ← for reference
+Assets/Scripts/Bonus/Bait.cs             ← for reference
+Assets/Scripts/Bonus/CarController.cs    ← for reference
+Assets/Scripts/Bonus/CombatHelicopter.cs ← for reference
 ```
 
-### Существующие enum'ы (не менять):
+### Existing enums (do not change):
 
 ```csharp
 // CardData.cs
@@ -36,7 +36,7 @@ public enum CardRarity { Common, Rare, Epic, Legendary }
 public enum CardType { None, Helicopter, Soldier, Bait, Bomb, Car, Sniper, CombatHelicopter, Barricade }
 ```
 
-### Паттерн инициализации карты (используется ВЕЗДЕ — не нарушать):
+### Card initialization pattern (used EVERYWHERE — do not break it):
 
 ```csharp
 private void Start()
@@ -48,72 +48,72 @@ private void Start()
         if (progress != null) currentLevel = progress.currentLevel;
 
         someValue = myCardData.GetCalculatedStat(StatType.Capacity, currentLevel);
-        // ... остальные статы
+        // ... other stats
     }
-    // fallback defaults если CardData null
+    // fallback defaults if CardData is null
 }
 ```
 
 ---
 
-## ЗАДАЧА
+## TASK
 
-Реализовать систему roguelite прогрессии **только внутри одного уровня**:
-- Игрок получает XP за убийство зомби и эвакуацию гражданских
-- При накоплении нужного XP — пауза, выбор из 3 улучшений
-- Улучшения модифицируют статы карт **только в текущем забеге**
-- При старте нового уровня — всё сбрасывается
-- Стакинг: взял одно улучшение 2 раза → Enhanced-версия; 3 раза → Ultimate
+Implement a roguelite progression system **scoped to a single level only**:
+- The player gains XP from killing zombies and evacuating civilians
+- Once enough XP accumulates — pause, choose 1 of 3 upgrades
+- Upgrades modify card stats **only for the current run**
+- Everything resets when a new level starts
+- Stacking: pick the same upgrade twice → Enhanced version; three times → Ultimate
 
-**MVP-скоуп: Герой Вертолёт + Карты Sniper, Bomb, Barricade**
+**MVP scope: Helicopter Hero + Sniper, Bomb, Barricade cards**
 
 ---
 
-## ШАГ 1: Создать `Assets/Scripts/Roguelite/RunSessionData.cs`
+## STEP 1: Create `Assets/Scripts/Roguelite/RunSessionData.cs`
 
-Синглтон. Хранит состояние текущего забега. Сбрасывается при каждом старте уровня.
+A singleton. Holds the current run's state. Resets at the start of every level.
 
 ```csharp
 using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Синглтон — хранит XP, апгрейды и модификаторы текущего забега.
-/// Сбрасывается при старте каждого уровня через ResetForNewLevel().
-/// НЕ сохраняется между уровнями.
+/// Singleton — holds the current run's XP, upgrades, and modifiers.
+/// Reset at the start of every level via ResetForNewLevel().
+/// NOT persisted between levels.
 /// </summary>
 public class RunSessionData : MonoBehaviour
 {
     public static RunSessionData Instance { get; private set; }
 
-    // ── XP и уровни ──────────────────────────────────────────────────────
+    // ── XP and levels ──────────────────────────────────────────────────────
     public int CurrentXP { get; private set; }
     public int CurrentRunLevel { get; private set; } = 1;
 
-    // Пороги XP для каждого уровня (индекс = уровень-1, значение = нужный XP для перехода)
+    // XP thresholds for each level (index = level-1, value = XP needed to advance)
     private static readonly int[] XpThresholds = { 100, 150, 200, 250, 300, 375, 450, 550, 700, 900 };
 
-    // ── Стаки апгрейдов: upgradeId → сколько раз взято (0-3) ─────────────
+    // ── Upgrade stacks: upgradeId → number of times taken (0-3) ─────────
     public Dictionary<string, int> UpgradeStacks { get; private set; } = new Dictionary<string, int>();
 
-    // ── Числовые модификаторы (аддитивные поверх базовых статов) ─────────
-    // Ключи: см. раздел "КЛЮЧИ МОДИФИКАТОРОВ" ниже
+    // ── Numeric modifiers (additive on top of base stats) ─────────
+    // Keys: see the "MODIFIER KEYS" section below
     private Dictionary<string, float> _modifiers = new Dictionary<string, float>();
 
-    // ── Флаги для Ultimate-эффектов ───────────────────────────────────────
+    // ── Flags for Ultimate effects ───────────────────────────────────────
     private HashSet<string> _flags = new HashSet<string>();
 
-    // ── Событие левел апа (UI подписывается) ──────────────────────────────
+    // ── Level-up event (UI subscribes to this) ──────────────────────────────
     public System.Action OnLevelUp;
 
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        // НЕ DontDestroyOnLoad — сессионные данные живут только в сцене уровня
+        // NOT DontDestroyOnLoad — session data only lives for the level's scene
     }
 
-    // ── Публичный API ─────────────────────────────────────────────────────
+    // ── Public API ─────────────────────────────────────────────────────
 
     public void ResetForNewLevel()
     {
@@ -124,7 +124,7 @@ public class RunSessionData : MonoBehaviour
         _flags.Clear();
     }
 
-    /// <summary>Начислить XP. Вызывать из GameManager и контроллеров зомби.</summary>
+    /// <summary>Award XP. Call from GameManager and zombie controllers.</summary>
     public void AddXP(int amount)
     {
         if (amount <= 0) return;
@@ -132,14 +132,14 @@ public class RunSessionData : MonoBehaviour
         CheckLevelUp();
     }
 
-    /// <summary>Аддитивный модификатор. Один и тот же ключ может быть добавлен несколько раз.</summary>
+    /// <summary>Additive modifier. The same key can be added to multiple times.</summary>
     public void AddModifier(string key, float value)
     {
         if (!_modifiers.ContainsKey(key)) _modifiers[key] = 0f;
         _modifiers[key] += value;
     }
 
-    /// <summary>Прочитать суммарный модификатор. Возвращает defaultValue если не задан.</summary>
+    /// <summary>Read the accumulated modifier. Returns defaultValue if not set.</summary>
     public float GetModifier(string key, float defaultValue = 0f)
     {
         return _modifiers.TryGetValue(key, out float val) ? val : defaultValue;
@@ -148,7 +148,7 @@ public class RunSessionData : MonoBehaviour
     public void SetFlag(string flagId) => _flags.Add(flagId);
     public bool HasFlag(string flagId) => _flags.Contains(flagId);
 
-    /// <summary>Применить апгрейд — увеличить стак и запустить эффект.</summary>
+    /// <summary>Apply an upgrade — increase its stack and run its effect.</summary>
     public void ApplyUpgrade(RunUpgradeDefinition upgrade)
     {
         if (!UpgradeStacks.ContainsKey(upgrade.upgradeId))
@@ -167,12 +167,12 @@ public class RunSessionData : MonoBehaviour
 
     public bool IsMaxed(string upgradeId) => GetStack(upgradeId) >= 3;
 
-    // ── Внутреннее ───────────────────────────────────────────────────────
+    // ── Internal ───────────────────────────────────────────────────────
 
     private void CheckLevelUp()
     {
         int thresholdIndex = CurrentRunLevel - 1;
-        if (thresholdIndex >= XpThresholds.Length) return; // достигнут максимум
+        if (thresholdIndex >= XpThresholds.Length) return; // max reached
 
         if (CurrentXP >= XpThresholds[thresholdIndex])
         {
@@ -192,9 +192,9 @@ public class RunSessionData : MonoBehaviour
 
 ---
 
-## ШАГ 2: Создать `Assets/Scripts/Roguelite/RunUpgradeDefinition.cs`
+## STEP 2: Create `Assets/Scripts/Roguelite/RunUpgradeDefinition.cs`
 
-ScriptableObject для каждого улучшения. Логика эффекта — здесь, не в UpgradeManager.
+A ScriptableObject for each upgrade. The effect logic lives here, not in UpgradeManager.
 
 ```csharp
 using UnityEngine;
@@ -202,93 +202,93 @@ using UnityEngine;
 public enum UpgradeTier { Tier1 = 1, Tier2_Enhanced = 2, Tier3_Ultimate = 3 }
 public enum UpgradeEffectType
 {
-    // Вертолёт
+    // Helicopter
     Helicopter_SpeedMult,       // verticalSpeed *= (1 + value)
     Helicopter_CapacityAdd,     // maxCapacity += value
     Helicopter_RadiusMult,      // attractRadius *= (1 + value)
     Helicopter_LoadTimeAdd,     // loadTime += value
     Helicopter_BoardingReduction, // boardingCooldown *= (1 - value)
-    Helicopter_NoPanic,         // флаг: никогда не паникует
-    Helicopter_InstantLand,     // флаг: мгновенная посадка
-    Helicopter_UnlimitedCapacity, // флаг: безлимитная вместимость
-    Helicopter_MegaphoneUlt,    // флаг: все гражданские бегут к вертолёту
+    Helicopter_NoPanic,         // flag: never panics
+    Helicopter_InstantLand,     // flag: instant landing
+    Helicopter_UnlimitedCapacity, // flag: unlimited capacity
+    Helicopter_MegaphoneUlt,    // flag: every civilian runs to the helicopter
 
-    // Снайпер
+    // Sniper
     Sniper_RangeMult,           // attackRange *= (1 + value)
     Sniper_DamageMult,          // damage *= (1 + value)
     Sniper_CooldownReduction,   // cooldownDelay *= (1 - value)
     Sniper_DurationAdd,         // lifespan += value
     Sniper_PierceAdd,           // maxPierceTargets += value
-    Sniper_Instakill,           // флаг: instakill non-boss
-    Sniper_Permanent,           // флаг: lifespan = бесконечен
-    Sniper_GlobalRange,         // флаг: бьёт по всей карте
-    Sniper_TripleTarget,        // флаг: 3 цели одновременно
+    Sniper_Instakill,           // flag: instakill non-boss
+    Sniper_Permanent,           // flag: lifespan = infinite
+    Sniper_GlobalRange,         // flag: hits anywhere on the map
+    Sniper_TripleTarget,        // flag: 3 targets at once
 
-    // Бомба
+    // Bomb
     Bomb_RadiusMult,            // damageRadius *= (1 + value)
     Bomb_DamageMult,            // damage *= (1 + value)
-    Bomb_ClusterCount,          // мини-бомбы: добавить value штук
-    Bomb_Count,                 // количество бомб за активацию += value
-    Bomb_DestroyBuildings,      // флаг: уничтожает здания
-    Bomb_Stun,                  // флаг: оглушает выживших зомби
-    Bomb_MegaRadius,            // флаг: radius = половина карты
+    Bomb_ClusterCount,          // mini-bombs: add value of them
+    Bomb_Count,                 // number of bombs per activation += value
+    Bomb_DestroyBuildings,      // flag: destroys buildings
+    Bomb_Stun,                  // flag: stuns surviving zombies
+    Bomb_MegaRadius,            // flag: radius = half the map
 
-    // Баррикада
+    // Barricade
     Barricade_HPMult,           // maxHealth *= (1 + value)
-    Barricade_ReflectDamage,    // флаг + value: % отражения урона
-    Barricade_StunDuration,     // длительность оглушения += value
+    Barricade_ReflectDamage,    // flag + value: % damage reflected
+    Barricade_StunDuration,     // stun duration += value
     Barricade_WidthMult,        // NavMeshObstacle scale *= (1 + value)
-    Barricade_CountAdd,         // количество баррикад за установку += value
-    Barricade_Indestructible,   // флаг: нельзя уничтожить
-    Barricade_DeathZone,        // флаг: зона мгновенной смерти
-    Barricade_FullWidth,        // флаг: блокирует всю улицу
+    Barricade_CountAdd,         // number of barricades placed += value
+    Barricade_Indestructible,   // flag: cannot be destroyed
+    Barricade_DeathZone,        // flag: instant-death zone
+    Barricade_FullWidth,        // flag: blocks the entire street
 
-    // Общие
-    General_XPMult,             // множитель входящего XP
-    General_NoPanic,            // флаг: герой не паникует 5с после зомби рядом
+    // General
+    General_XPMult,             // multiplier on incoming XP
+    General_NoPanic,            // flag: the hero doesn't panic for 5s after a zombie gets close
 }
 
 [CreateAssetMenu(fileName = "NewUpgrade", menuName = "ZombieGame/Run Upgrade")]
 public class RunUpgradeDefinition : ScriptableObject
 {
-    [Header("Идентификация")]
-    public string upgradeId;              // напр. "helicopter_quicklanding"
+    [Header("Identity")]
+    public string upgradeId;              // e.g. "helicopter_quicklanding"
     public CardManager.CardType targetCardType; // CardType.None = General
 
-    [Header("Отображение (Тир 1)")]
+    [Header("Display (Tier 1)")]
     public string displayName;
     [TextArea(2, 4)] public string descriptionTier1;
     public Sprite iconTier1;
     public Color accentColor = Color.white;
 
-    [Header("Отображение (Тир 2 — Enhanced)")]
+    [Header("Display (Tier 2 — Enhanced)")]
     public string displayNameEnhanced;
     [TextArea(2, 4)] public string descriptionTier2;
     public Sprite iconTier2;
 
-    [Header("Отображение (Тир 3 — ULTIMATE)")]
+    [Header("Display (Tier 3 — ULTIMATE)")]
     public string displayNameUltimate;
     [TextArea(2, 4)] public string descriptionTier3;
     public Sprite iconTier3;
-    public Color ultimateColor = new Color(1f, 0.8f, 0.2f); // золотой
+    public Color ultimateColor = new Color(1f, 0.8f, 0.2f); // gold
 
-    [Header("Эффекты")]
+    [Header("Effects")]
     public UpgradeEffectType effectType;
-    public float valueT1;   // значение для тира 1
-    public float valueT2;   // значение для тира 2 (суммарное с T1)
-    public float valueT3;   // значение для тира 3 / флаг (суммарное)
+    public float valueT1;   // value for tier 1
+    public float valueT2;   // value for tier 2 (cumulative with T1)
+    public float valueT3;   // value for tier 3 / flag (cumulative)
 
-    // ── Применение эффекта ────────────────────────────────────────────────
+    // ── Applying the effect ────────────────────────────────────────────────
 
-    /// <summary>Вызывается из RunSessionData.ApplyUpgrade(). tier = 1, 2 или 3.</summary>
+    /// <summary>Called from RunSessionData.ApplyUpgrade(). tier = 1, 2, or 3.</summary>
     public void ApplyEffect(int tier, RunSessionData session)
     {
-        // Определяем значение для текущего тира
+        // Determine the value for the current tier
         float val = tier == 1 ? valueT1 : tier == 2 ? valueT2 : valueT3;
 
         switch (effectType)
         {
-            // ── Вертолёт ──────────────────────────────────────────────
+            // ── Helicopter ──────────────────────────────────────────────
             case UpgradeEffectType.Helicopter_SpeedMult:
                 session.AddModifier("heli_speed_mult", val);
                 break;
@@ -317,7 +317,7 @@ public class RunUpgradeDefinition : ScriptableObject
                 session.SetFlag("heli_global_attract");
                 break;
 
-            // ── Снайпер ──────────────────────────────────────────────
+            // ── Sniper ──────────────────────────────────────────────
             case UpgradeEffectType.Sniper_RangeMult:
                 session.AddModifier("sniper_range_mult", val);
                 break;
@@ -346,7 +346,7 @@ public class RunUpgradeDefinition : ScriptableObject
                 session.SetFlag("sniper_triple_target");
                 break;
 
-            // ── Бомба ────────────────────────────────────────────────
+            // ── Bomb ────────────────────────────────────────────────
             case UpgradeEffectType.Bomb_RadiusMult:
                 session.AddModifier("bomb_radius_mult", val);
                 break;
@@ -369,7 +369,7 @@ public class RunUpgradeDefinition : ScriptableObject
                 session.SetFlag("bomb_mega_radius");
                 break;
 
-            // ── Баррикада ────────────────────────────────────────────
+            // ── Barricade ────────────────────────────────────────────
             case UpgradeEffectType.Barricade_HPMult:
                 session.AddModifier("barricade_hp_mult", val);
                 break;
@@ -395,7 +395,7 @@ public class RunUpgradeDefinition : ScriptableObject
                 session.SetFlag("barricade_full_width");
                 break;
 
-            // ── Общие ────────────────────────────────────────────────
+            // ── General ────────────────────────────────────────────────
             case UpgradeEffectType.General_XPMult:
                 session.AddModifier("general_xp_mult", val);
                 break;
@@ -405,7 +405,7 @@ public class RunUpgradeDefinition : ScriptableObject
         }
     }
 
-    // ── Хелперы для UI ────────────────────────────────────────────────────
+    // ── UI helpers ────────────────────────────────────────────────────
 
     public string GetDisplayName(int tier) => tier switch
     {
@@ -437,9 +437,9 @@ public class RunUpgradeDefinition : ScriptableObject
 
 ---
 
-## ШАГ 3: Создать `Assets/Scripts/Roguelite/UpgradeManager.cs`
+## STEP 3: Create `Assets/Scripts/Roguelite/UpgradeManager.cs`
 
-Формирует пул, выбирает 3 варианта, передаёт выбор в RunSessionData.
+Builds the pool, picks 3 options, hands the choice off to RunSessionData.
 
 ```csharp
 using UnityEngine;
@@ -450,7 +450,7 @@ public class UpgradeManager : MonoBehaviour
 {
     public static UpgradeManager Instance { get; private set; }
 
-    [Header("Все апгрейды в игре (заполни в инспекторе или через Resources.LoadAll)")]
+    [Header("All upgrades in the game (fill in via inspector or Resources.LoadAll)")]
     public List<RunUpgradeDefinition> allUpgrades;
 
     private void Awake()
@@ -458,7 +458,7 @@ public class UpgradeManager : MonoBehaviour
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
 
-        // Автозагрузка из Resources/Upgrades/ если список пуст
+        // Auto-load from Resources/Upgrades/ if the list is empty
         if (allUpgrades == null || allUpgrades.Count == 0)
         {
             allUpgrades = Resources.LoadAll<RunUpgradeDefinition>("Upgrades").ToList();
@@ -466,8 +466,8 @@ public class UpgradeManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Вернуть 3 случайных апгрейда для показа игроку.
-    /// Исключает максимально прокачанные (стак = 3).
+    /// Return 3 random upgrades to show the player.
+    /// Excludes fully-maxed ones (stack = 3).
     /// </summary>
     public List<(RunUpgradeDefinition upgrade, int nextTier)> GetUpgradeOptions(
         List<CardData> currentDeck,
@@ -476,7 +476,7 @@ public class UpgradeManager : MonoBehaviour
         var session = RunSessionData.Instance;
         var pool = new List<(RunUpgradeDefinition, int nextTier)>();
 
-        // Собираем типы карт в деке
+        // Collect the card types present in the deck
         var deckCardTypes = new HashSet<CardManager.CardType>(
             currentDeck.Select(c => c.cardType)
         );
@@ -485,17 +485,17 @@ public class UpgradeManager : MonoBehaviour
 
         foreach (var upg in allUpgrades)
         {
-            // Только для карт, которые есть в деке, + общие
+            // Only for cards that are in the deck, plus general ones
             if (!deckCardTypes.Contains(upg.targetCardType)) continue;
 
             int currentStack = session.GetStack(upg.upgradeId);
-            if (currentStack >= 3) continue; // максимум достигнут
+            if (currentStack >= 3) continue; // max reached
 
             int nextTier = currentStack + 1;
             pool.Add((upg, nextTier));
         }
 
-        // Перемешать и взять 3 уникальных upgradeId
+        // Shuffle and take 3 unique upgradeIds
         pool = pool.OrderBy(_ => Random.value).ToList();
 
         var result = new List<(RunUpgradeDefinition, int)>();
@@ -512,7 +512,7 @@ public class UpgradeManager : MonoBehaviour
         return result;
     }
 
-    /// <summary>Применить выбранный апгрейд.</summary>
+    /// <summary>Apply the chosen upgrade.</summary>
     public void ApplyUpgrade(RunUpgradeDefinition upgrade)
     {
         RunSessionData.Instance.ApplyUpgrade(upgrade);
@@ -522,9 +522,9 @@ public class UpgradeManager : MonoBehaviour
 
 ---
 
-## ШАГ 4: Создать `Assets/Scripts/Roguelite/XPManager.cs`
+## STEP 4: Create `Assets/Scripts/Roguelite/XPManager.cs`
 
-Централизованный класс начисления XP. Читает модификатор `general_xp_mult`.
+A centralized XP-awarding class. Reads the `general_xp_mult` modifier.
 
 ```csharp
 using UnityEngine;
@@ -533,7 +533,7 @@ public class XPManager : MonoBehaviour
 {
     public static XPManager Instance { get; private set; }
 
-    [Header("XP за события")]
+    [Header("XP per event")]
     public int xpPerZombieKill     = 5;
     public int xpPerBossKill       = 50;
     public int xpPerCivilian       = 20;
@@ -572,54 +572,54 @@ public class XPManager : MonoBehaviour
 
 ---
 
-## ШАГ 5: Модификации в GameManager.cs
+## STEP 5: Changes to GameManager.cs
 
-Найди метод `AddRescuedFromTransport` и добавь вызов XPManager.
-Найди или создай точку вызова при смерти зомби.
+Find the `AddRescuedFromTransport` method and add a call to XPManager.
+Find or create a call site at zombie death.
 
 ```csharp
-// В AddRescuedFromTransport — ДОБАВИТЬ в конце перед/после начисления очков:
+// In AddRescuedFromTransport — ADD at the end, before/after the existing score award:
 public void AddRescuedFromTransport(int humanCount, int scientistCount, Vector3 pos)
 {
-    // ... существующий код начисления очков ...
+    // ... existing score-awarding code ...
 
-    // НОВОЕ: начисление XP
-    bool wasFull = (humanCount + scientistCount) >= /* maxCapacity транспорта */;
+    // NEW: award XP
+    bool wasFull = (humanCount + scientistCount) >= /* transport's maxCapacity */;
     XPManager.Instance?.OnCivilianEvacuated(humanCount, scientistCount, wasFull);
 }
 
-// В AddRescuedHumans (используется CombatHelicopter) — ДОБАВИТЬ:
+// In AddRescuedHumans (used by CombatHelicopter) — ADD:
 public void AddRescuedHumans(int count, Vector3 pos)
 {
-    // ... существующий код ...
+    // ... existing code ...
     XPManager.Instance?.OnCivilianEvacuated(count, 0);
 }
 ```
 
-Также найди в `Zombie.cs` метод смерти зомби (скорее всего `Die()` или `TakeDamage` когда HP <= 0) и добавь:
+Also find the zombie-death method in `Zombie.cs` (most likely `Die()` or `TakeDamage` when HP <= 0) and add:
 ```csharp
-XPManager.Instance?.OnZombieKilled(false); // true для босса
+XPManager.Instance?.OnZombieKilled(false); // true for a boss
 ```
 
 ---
 
-## ШАГ 6: Модификации в HelicopterController.cs
+## STEP 6: Changes to HelicopterController.cs
 
-В методе `Start()`, ПОСЛЕ существующего кода чтения из CardData, добавить:
+In `Start()`, AFTER the existing CardData-reading code, add:
 
 ```csharp
-// ── Run-модификаторы (roguelite) ──────────────────────────────────────
+// ── Run modifiers (roguelite) ──────────────────────────────────────
 var run = RunSessionData.Instance;
 if (run != null)
 {
-    // Числовые модификаторы
+    // Numeric modifiers
     maxCapacity += (int)run.GetModifier("heli_capacity_add");
     verticalSpeed *= (1f + run.GetModifier("heli_speed_mult"));
     attractRadius *= (1f + run.GetModifier("heli_radius_mult"));
     loadTime += run.GetModifier("heli_loadtime_add");
     boardingCooldown *= Mathf.Max(0.05f, 1f - run.GetModifier("heli_boarding_reduction"));
 
-    // Флаги Ultimate
+    // Ultimate flags
     if (run.HasFlag("heli_no_panic"))
         panicRadius = 0f;
 
@@ -629,14 +629,14 @@ if (run != null)
     if (run.HasFlag("heli_unlimited_capacity"))
         maxCapacity = 999;
 }
-// ── конец run-модификаторов ───────────────────────────────────────────
+// ── end of run modifiers ───────────────────────────────────────────
 ```
 
-Флаг `heli_global_attract` (Ultimate мегафона — все гражданские бегут к вертолёту):
-В методе `StartLoading()`, после существующего цикла по Human.AllHumans, добавить:
+The `heli_global_attract` flag (Megaphone Ultimate — every civilian runs to the helicopter):
+In the `StartLoading()` method, after the existing loop over Human.AllHumans, add:
 
 ```csharp
-// Ultimate: Городская Тревога — привлекаем ВСЕХ гражданских независимо от радиуса
+// Ultimate: City-Wide Alert — attract EVERY civilian regardless of radius
 if (RunSessionData.Instance != null && RunSessionData.Instance.HasFlag("heli_global_attract"))
 {
     foreach (var h in Human.AllHumans)
@@ -654,9 +654,9 @@ if (RunSessionData.Instance != null && RunSessionData.Instance.HasFlag("heli_glo
 
 ---
 
-## ШАГ 7: Модификации в Sniper.cs
+## STEP 7: Changes to Sniper.cs
 
-В `Start()`, ПОСЛЕ существующего блока чтения CardData:
+In `Start()`, AFTER the existing CardData-reading block:
 
 ```csharp
 var run = RunSessionData.Instance;
@@ -676,22 +676,22 @@ if (run != null)
 }
 ```
 
-Флаг `sniper_instakill` — в методе `ApplyPiercingDamage`:
+The `sniper_instakill` flag — in the `ApplyPiercingDamage` method:
 ```csharp
-// Перед z.TakeDamage(damage):
+// Before z.TakeDamage(damage):
 int actualDamage = (RunSessionData.Instance != null && RunSessionData.Instance.HasFlag("sniper_instakill"))
     ? 99999
     : Mathf.RoundToInt(currentDamage);
 z.TakeDamage(actualDamage);
 ```
 
-Флаг `sniper_triple_target` — в `SniperRoutine()`, вместо одной цели ищем 3 и стреляем по каждой (только если флаг установлен). Реализуй упрощённо: если флаг есть — найди TopN=3 ближайших зомби и вызови `ApplyPiercingDamage` для каждого в цикле.
+The `sniper_triple_target` flag — in `SniperRoutine()`, instead of one target, look for 3 and fire on each (only if the flag is set). Keep the implementation simple: if the flag is set, find the top 3 nearest zombies and call `ApplyPiercingDamage` for each in a loop.
 
 ---
 
-## ШАГ 8: Модификации в Bomb.cs
+## STEP 8: Changes to Bomb.cs
 
-В `Start()`, ПОСЛЕ существующего блока:
+In `Start()`, AFTER the existing block:
 
 ```csharp
 var run = RunSessionData.Instance;
@@ -701,11 +701,11 @@ if (run != null)
     damage = Mathf.RoundToInt(damage * (1f + run.GetModifier("bomb_damage_mult")));
 
     if (run.HasFlag("bomb_mega_radius"))
-        damageRadius = 150f; // покрывает половину карты
+        damageRadius = 150f; // covers half the map
 }
 ```
 
-В методе `Explode()`, ПОСЛЕ основного урона по зомби:
+In the `Explode()` method, AFTER the main damage pass against zombies:
 
 ```csharp
 var run = RunSessionData.Instance;
@@ -729,7 +729,7 @@ if (run != null)
         {
             Zombie z = h?.GetComponent<Zombie>();
             if (z != null && !z.IsDead)
-                z.Stun(5f); // метод Stun нужно реализовать в Zombie.cs если отсутствует
+                z.Stun(5f); // the Stun method needs implementing in Zombie.cs if it doesn't exist
         }
     }
 
@@ -741,7 +741,7 @@ if (run != null)
         {
             Vector2 rndOffset = Random.insideUnitCircle * damageRadius * 0.7f;
             Vector3 miniPos = targetPos + new Vector3(rndOffset.x, 0, rndOffset.y);
-            // Нанести урон 150 в радиусе damageRadius * 0.3f в точке miniPos
+            // Deal 150 damage within a damageRadius * 0.3f radius at miniPos
             Collider[] miniHits = Physics.OverlapSphere(miniPos, damageRadius * 0.3f);
             foreach (var mh in miniHits)
             {
@@ -754,9 +754,9 @@ if (run != null)
 
 ---
 
-## ШАГ 9: Модификации в Barricade.cs
+## STEP 9: Changes to Barricade.cs
 
-В `Start()`, ПОСЛЕ блока чтения из CardData:
+In `Start()`, AFTER the CardData-reading block:
 
 ```csharp
 var run = RunSessionData.Instance;
@@ -768,7 +768,7 @@ if (run != null)
     if (run.HasFlag("barricade_indestructible"))
         maxHealth = 999999;
 
-    // Масштаб NavMeshObstacle
+    // NavMeshObstacle scale
     float widthMult = run.GetModifier("barricade_width_mult");
     if (widthMult > 0f)
     {
@@ -778,7 +778,7 @@ if (run != null)
 currentHealth = maxHealth;
 ```
 
-В `TakeDamage(int damage)`, перед `currentHealth -= damage`:
+In `TakeDamage(int damage)`, before `currentHealth -= damage`:
 
 ```csharp
 // Reflect damage
@@ -788,7 +788,7 @@ if (run != null)
     float reflectPct = run.GetModifier("barricade_reflect_pct");
     if (reflectPct > 0f)
     {
-        // Ищем ближайшего атакующего зомби и наносим ему урон
+        // Find the nearest attacking zombie and deal it damage
         Collider[] nearby = Physics.OverlapSphere(transform.position, 3f);
         foreach (var c in nearby)
         {
@@ -801,7 +801,7 @@ if (run != null)
         }
     }
 
-    // Death zone: убиваем всех зомби в 1.5м немедленно при атаке
+    // Death zone: kill every zombie within 1.5m immediately on attack
     if (run.HasFlag("barricade_death_zone"))
     {
         Collider[] deathZone = Physics.OverlapSphere(transform.position, 1.5f);
@@ -811,16 +811,16 @@ if (run != null)
 }
 ```
 
-Флаг `barricade_stun_dur` — найди место где зомби атакует баррикаду (в `Zombie.cs`, метод InfectTarget или аналогичный) и добавь оглушение после удара:
+The `barricade_stun_dur` flag — find where a zombie attacks a barricade (in `Zombie.cs`, the `InfectTarget` method or similar) and add a stun after the hit:
 ```csharp
-// Если зомби ударил баррикаду и barricade_stun_dur > 0:
+// If the zombie hit a barricade and barricade_stun_dur > 0:
 float stunDur = RunSessionData.Instance?.GetModifier("barricade_stun_dur") ?? 0f;
 if (stunDur > 0f) zombie.Stun(stunDur);
 ```
 
 ---
 
-## ШАГ 10: Создать UI — `Assets/Scripts/UI/LevelUpScreen.cs`
+## STEP 10: Create the UI — `Assets/Scripts/UI/LevelUpScreen.cs`
 
 ```csharp
 using UnityEngine;
@@ -829,18 +829,18 @@ using TMPro;
 using System.Collections.Generic;
 
 /// <summary>
-/// Экран выбора апгрейда при Level Up.
-/// Подписывается на RunSessionData.OnLevelUp.
-/// Паузит Time.timeScale = 0 пока открыт.
+/// The upgrade-choice screen shown on Level Up.
+/// Subscribes to RunSessionData.OnLevelUp.
+/// Pauses via Time.timeScale = 0 while open.
 /// </summary>
 public class LevelUpScreen : MonoBehaviour
 {
     [Header("UI References")]
-    public GameObject screenRoot;         // корневой объект экрана (включаем/выключаем)
-    public TextMeshProUGUI levelUpTitle;  // "LEVEL UP!" или "Уровень 3"
-    public UpgradeCardUI[] upgradeCards; // ровно 3 карточки
+    public GameObject screenRoot;         // the screen's root object (toggled on/off)
+    public TextMeshProUGUI levelUpTitle;  // "LEVEL UP!" or "Level 3"
+    public UpgradeCardUI[] upgradeCards; // exactly 3 cards
 
-    [Header("Настройки")]
+    [Header("Settings")]
     public CardManager.CardType heroType = CardManager.CardType.Helicopter;
 
     private List<(RunUpgradeDefinition, int)> _currentOptions;
@@ -869,7 +869,7 @@ public class LevelUpScreen : MonoBehaviour
 
         if (_currentOptions.Count == 0)
         {
-            // Нет доступных апгрейдов — пропускаем
+            // No upgrades available — skip
             return;
         }
 
@@ -877,7 +877,7 @@ public class LevelUpScreen : MonoBehaviour
         screenRoot.SetActive(true);
 
         if (levelUpTitle != null)
-            levelUpTitle.text = $"УРОВЕНЬ {RunSessionData.Instance.CurrentRunLevel}";
+            levelUpTitle.text = $"LEVEL {RunSessionData.Instance.CurrentRunLevel}";
 
         for (int i = 0; i < upgradeCards.Length; i++)
         {
@@ -905,7 +905,7 @@ public class LevelUpScreen : MonoBehaviour
 
 ---
 
-## ШАГ 11: Создать `Assets/Scripts/UI/UpgradeCardUI.cs`
+## STEP 11: Create `Assets/Scripts/UI/UpgradeCardUI.cs`
 
 ```csharp
 using UnityEngine;
@@ -921,7 +921,7 @@ public class UpgradeCardUI : MonoBehaviour
     public TextMeshProUGUI titleText;
     public TextMeshProUGUI descriptionText;
     public TextMeshProUGUI tierBadgeText;    // "★" / "★★" / "★★★"
-    public Image tierGlow;                   // подсветка для Ultimate
+    public Image tierGlow;                   // highlight for Ultimate
     public Button selectButton;
 
     private RunUpgradeDefinition _upgrade;
@@ -954,7 +954,7 @@ public class UpgradeCardUI : MonoBehaviour
 
 ---
 
-## ШАГ 12: Создать `Assets/Scripts/UI/XPBarUI.cs`
+## STEP 12: Create `Assets/Scripts/UI/XPBarUI.cs`
 
 ```csharp
 using UnityEngine;
@@ -965,7 +965,7 @@ public class XPBarUI : MonoBehaviour
 {
     [Header("UI References")]
     public Slider xpSlider;
-    public TextMeshProUGUI levelText;    // "Ур. 3"
+    public TextMeshProUGUI levelText;    // "Lvl 3"
     public TextMeshProUGUI xpText;      // "150 / 200"
 
     private void Update()
@@ -984,7 +984,7 @@ public class XPBarUI : MonoBehaviour
         }
 
         if (levelText != null)
-            levelText.text = $"Ур. {session.CurrentRunLevel}";
+            levelText.text = $"Lvl {session.CurrentRunLevel}";
 
         if (xpText != null)
             xpText.text = $"{current} / {max}";
@@ -994,178 +994,176 @@ public class XPBarUI : MonoBehaviour
 
 ---
 
-## ШАГ 13: Создать ScriptableObjects для MVP-апгрейдов
+## STEP 13: Create ScriptableObjects for the MVP upgrades
 
-Создай папку `Assets/Resources/Upgrades/`.
-Создай следующие ScriptableObject'ы через меню `ZombieGame/Run Upgrade`:
+Create the folder `Assets/Resources/Upgrades/`.
+Create the following ScriptableObjects via the `ZombieGame/Run Upgrade` menu:
 
-### ВЕРТОЛЁТ
+### HELICOPTER
 
 **`upgrade_heli_speed.asset`**
 - upgradeId: `helicopter_quicklanding`
 - targetCardType: `Helicopter`
 - effectType: `Helicopter_SpeedMult`
-- displayName: "Быстрая Посадка"
-- displayNameEnhanced: "Форсаж"
-- displayNameUltimate: "VTOL-Протокол"
-- descriptionTier1: "+35% скорость снижения"
-- descriptionTier2: "Скорость x2.5, первые 3 сек. после посадки — зомби не вызывают панику"
-- descriptionTier3: "Вертолёт телепортируется к цели мгновенно"
+- displayName: "Quick Landing"
+- displayNameEnhanced: "Afterburner"
+- displayNameUltimate: "VTOL Protocol"
+- descriptionTier1: "+35% descent speed"
+- descriptionTier2: "Speed x2.5, no zombie panic for the first 3 sec. after landing"
+- descriptionTier3: "The helicopter teleports to the target instantly"
 - valueT1: 0.35 | valueT2: 1.5 | valueT3: 9999
-- (T3 использует флаг — измени effectType на `Helicopter_InstantLand` для T3, или обрабатывай в ApplyEffect по значению tier)
+- (T3 uses a flag — change effectType to `Helicopter_InstantLand` for T3, or handle it in ApplyEffect based on the tier value)
 
-> **Важно:** для улучшений где T1/T2 = числовой бонус, а T3 = флаг — используй отдельный `case` по tier внутри `ApplyEffect`, или создай два отдельных asset'а и объедини в один через override-логику. Рекомендую: в `ApplyEffect` проверять `if (tier == 3)` и ставить флаг вместо числового модификатора.
+> **Important:** for upgrades where T1/T2 are a numeric bonus and T3 is a flag — use a separate `case` on tier inside `ApplyEffect`, or create two separate assets and merge them via override logic. Recommended: in `ApplyEffect`, check `if (tier == 3)` and set a flag instead of a numeric modifier.
 
 **`upgrade_heli_capacity.asset`**
 - upgradeId: `helicopter_capacity`
 - effectType: `Helicopter_CapacityAdd`
-- displayName: "Доп. Места" | Enhanced: "Тяжёлый Транспорт" | Ultimate: "Массовая Эвакуация"
-- descriptionTier1: "+2 места" | T2: "+6 мест суммарно" | T3: "Вместимость — все гражданские в зоне"
-- valueT1: 2 | valueT2: 4 | (T3 → флаг `heli_unlimited_capacity`)
+- displayName: "Extra Seats" | Enhanced: "Heavy Transport" | Ultimate: "Mass Evacuation"
+- descriptionTier1: "+2 seats" | T2: "+6 seats total" | T3: "Capacity — every civilian in the zone"
+- valueT1: 2 | valueT2: 4 | (T3 → flag `heli_unlimited_capacity`)
 
 **`upgrade_heli_attract.asset`**
 - upgradeId: `helicopter_megaphone`
 - effectType: `Helicopter_RadiusMult`
-- displayName: "Мегафон" | Enhanced: "Экстренное вещание" | Ultimate: "Городская Тревога"
-- descriptionTier1: "+40% радиус привлечения" | T2: "Радиус x2, гражданские бегут" | T3: "ВСЕ гражданские на карте идут к вертолёту"
-- valueT1: 0.40 | valueT2: 1.0 | (T3 → флаг `heli_global_attract`)
+- displayName: "Megaphone" | Enhanced: "Emergency Broadcast" | Ultimate: "City-Wide Alert"
+- descriptionTier1: "+40% attract radius" | T2: "Radius x2, civilians run" | T3: "EVERY civilian on the map heads to the helicopter"
+- valueT1: 0.40 | valueT2: 1.0 | (T3 → flag `heli_global_attract`)
 
-### СНАЙПЕР
+### SNIPER
 
 **`upgrade_sniper_range.asset`**
 - upgradeId: `sniper_range`
 - effectType: `Sniper_RangeMult`
-- displayName: "Удлинённый Ствол" | Enhanced: "Дальнобойная Платформа" | Ultimate: "Всевидящее Око"
+- displayName: "Extended Barrel" | Enhanced: "Long-Range Platform" | Ultimate: "All-Seeing Eye"
 - valueT1: 0.35 | valueT2: 0.65 | (T3 → `sniper_global_range`)
 
 **`upgrade_sniper_damage.asset`**
 - upgradeId: `sniper_damage`
 - effectType: `Sniper_DamageMult`
-- displayName: "Бронебойные Патроны" | Enhanced: "Экзекутор" | Ultimate: "Шторм Свинца"
+- displayName: "Armor-Piercing Rounds" | Enhanced: "Executioner" | Ultimate: "Storm of Lead"
 - valueT1: 0.5 | valueT2: 1.0 | (T3 → `sniper_instakill`)
 
 **`upgrade_sniper_duration.asset`**
 - upgradeId: `sniper_duration`
 - effectType: `Sniper_DurationAdd`
-- displayName: "Долгая Вахта" | Enhanced: "Оверватч" | Ultimate: "Вечный Страж"
-- valueT1: 8 | valueT2: 9999 (флаг `sniper_permanent`) | T3: флаг `sniper_permanent` + respawn
+- displayName: "Long Watch" | Enhanced: "Overwatch" | Ultimate: "Eternal Guardian"
+- valueT1: 8 | valueT2: 9999 (flag `sniper_permanent`) | T3: flag `sniper_permanent` + respawn
 
-### БОМБА
+### BOMB
 
 **`upgrade_bomb_radius.asset`**
 - upgradeId: `bomb_radius`
 - effectType: `Bomb_RadiusMult`
-- displayName: "Увеличенная Боеголовка" | Enhanced: "Тактическое Ядро" | Ultimate: "Термобарика"
+- displayName: "Bigger Warhead" | Enhanced: "Tactical Core" | Ultimate: "Thermobaric"
 - valueT1: 0.4 | valueT2: 2.0 | (T3 → `bomb_mega_radius`)
 
 **`upgrade_bomb_damage.asset`**
 - upgradeId: `bomb_damage`
 - effectType: `Bomb_DamageMult`
-- displayName: "Ударная Волна" | Enhanced: "Избыточная Сила" | Ultimate: "ЭМИ-Взрыв"
+- displayName: "Shockwave" | Enhanced: "Overkill" | Ultimate: "EMP Blast"
 - valueT1: 1.0 | valueT2: 9.0 | (T3 → `bomb_stun`)
 
 **`upgrade_bomb_cluster.asset`**
 - upgradeId: `bomb_cluster`
 - effectType: `Bomb_ClusterCount`
-- displayName: "Кассетная Начинка" | Enhanced: "Ковровая Бомбардировка" | Ultimate: "Роевой Удар"
+- displayName: "Cluster Payload" | Enhanced: "Carpet Bombing" | Ultimate: "Swarm Strike"
 - valueT1: 3 | valueT2: 5 | valueT3: 12
 
-### БАРРИКАДА
+### BARRICADE
 
 **`upgrade_barricade_hp.asset`**
 - upgradeId: `barricade_hp`
 - effectType: `Barricade_HPMult`
-- displayName: "Армированный Бетон" | Enhanced: "Крепостная Стена" | Ultimate: "Несокрушимый Бункер"
+- displayName: "Reinforced Concrete" | Enhanced: "Fortress Wall" | Ultimate: "Unbreakable Bunker"
 - valueT1: 0.5 | valueT2: 3.0 | (T3 → `barricade_indestructible`)
 
 **`upgrade_barricade_spike.asset`**
 - upgradeId: `barricade_spike`
 - effectType: `Barricade_ReflectDamage`
-- displayName: "Колючая Проволока" | Enhanced: "Бритвенный Провод" | Ultimate: "Зона Смерти"
+- displayName: "Barbed Wire" | Enhanced: "Razor Wire" | Ultimate: "Death Zone"
 - valueT1: 0.25 | valueT2: 0.75 | (T3 → `barricade_death_zone`)
 
 **`upgrade_barricade_count.asset`**
 - upgradeId: `barricade_count`
 - effectType: `Barricade_CountAdd`
-- displayName: "Быстрое Развёртывание" | Enhanced: "Минное Поле" | Ultimate: "Периметр"
-- valueT1: 1 | valueT2: 1 | (T3 → логика авто-кольца из 6 баррикад — реализуй в отдельном месте)
+- displayName: "Rapid Deployment" | Enhanced: "Minefield" | Ultimate: "Perimeter"
+- valueT1: 1 | valueT2: 1 | (T3 → auto-ring-of-6-barricades logic — implement separately)
 
-### ОБЩИЕ (2 штуки для MVP)
+### GENERAL (2 for the MVP)
 
 **`upgrade_general_xp.asset`**
 - upgradeId: `general_xp`
 - targetCardType: `None`
 - effectType: `General_XPMult`
-- displayName: "Ускоренное Обучение"
-- descriptionTier1: "+25% к получаемому XP"
-- descriptionTier2: "+60% к получаемому XP"
-- descriptionTier3: "+100% к получаемому XP"
+- displayName: "Accelerated Learning"
+- descriptionTier1: "+25% XP gained"
+- descriptionTier2: "+60% XP gained"
+- descriptionTier3: "+100% XP gained"
 - valueT1: 0.25 | valueT2: 0.35 | valueT3: 0.40
 
 **`upgrade_general_nopanic.asset`**
 - upgradeId: `general_nopanic`
 - targetCardType: `None`
 - effectType: `General_NoPanic`
-- displayName: "Ветеранский Инстинкт"
-- descriptionTier1-3: "Герой не уходит из-за паники от зомби"
-- valueT1/T2/T3: 0 (только флаг)
+- displayName: "Veteran Instinct"
+- descriptionTier1-3: "The hero doesn't leave due to zombie-triggered panic"
+- valueT1/T2/T3: 0 (flag only)
 
 ---
 
-## ШАГ 14: Инициализация и сцена
+## STEP 14: Initialization and scene setup
 
-### GameManager или LevelManager — добавить в старте уровня:
+### GameManager or LevelManager — add at the start of a level:
 
 ```csharp
-// Сброс сессии при каждом старте уровня
+// Reset the session at the start of every level
 private void Start()
 {
     RunSessionData.Instance?.ResetForNewLevel();
-    // ... остальная инициализация ...
+    // ... the rest of initialization ...
 }
 ```
 
-### В сцене уровня добавить объекты:
+### Add these objects to the level scene:
 
-1. **RunSessionData** — пустой GameObject с компонентом `RunSessionData`
-2. **XPManager** — пустой GameObject с компонентом `XPManager`
-3. **UpgradeManager** — пустой GameObject с компонентом `UpgradeManager` (список апгрейдов — через Resources/Upgrades/ или вручную)
-4. **LevelUpScreen** — Canvas-объект с компонентом `LevelUpScreen`, дочерние `UpgradeCardUI` x3
-5. **XPBarUI** — HUD-элемент с компонентом `XPBarUI`, Slider + TextMeshPro
+1. **RunSessionData** — an empty GameObject with the `RunSessionData` component
+2. **XPManager** — an empty GameObject with the `XPManager` component
+3. **UpgradeManager** — an empty GameObject with the `UpgradeManager` component (the upgrade list — via Resources/Upgrades/ or manually)
+4. **LevelUpScreen** — a Canvas object with the `LevelUpScreen` component, with 3 child `UpgradeCardUI`
+5. **XPBarUI** — a HUD element with the `XPBarUI` component, Slider + TextMeshPro
 
-### Порядок Awake/Start не должен создавать проблем — все через `Instance?.` (null-safe).
-
----
-
-## ОГРАНИЧЕНИЯ И ПРАВИЛА
-
-1. **НЕ менять** `CardData.cs`, `CardManager.cs`, `PlayerProfile.cs` — только читать.
-2. **НЕ менять** существующую логику начисления очков в `GameManager` — только добавлять вызовы XPManager.
-3. **НЕ использовать** `DontDestroyOnLoad` для `RunSessionData` — он живёт только в сцене уровня.
-4. Все вызовы к синглтонам через null-safe `?.` — сцены без roguelite должны работать без ошибок.
-5. **Не добавлять** визуальные эффекты для Ultimate в MVP — только функциональность.
-6. Класс `Zombie` — если нет метода `Stun(float duration)` — реализуй минимальную версию: установи флаг `isStunned`, в Update() пока флаг — не двигаться/атаковать, через `duration` секунд — снять флаг.
+### Awake/Start ordering shouldn't cause problems — everything goes through `Instance?.` (null-safe).
 
 ---
 
-## ФИНАЛЬНЫЙ ЧЕКЛИСТ
+## CONSTRAINTS AND RULES
 
-- [ ] `RunSessionData.cs` создан и работает как синглтон
-- [ ] `RunUpgradeDefinition.cs` создан, ScriptableObject
-- [ ] `UpgradeManager.cs` создан, формирует пул из 3 вариантов
-- [ ] `XPManager.cs` создан, вызывается из GameManager
-- [ ] `GameManager.cs` — добавлены вызовы XPManager
-- [ ] `Zombie.cs` — добавлен вызов `XPManager.OnZombieKilled()` при смерти
-- [ ] `HelicopterController.cs` — добавлено чтение run-модификаторов
-- [ ] `Sniper.cs` — добавлено чтение run-модификаторов
-- [ ] `Bomb.cs` — добавлено чтение run-модификаторов + cluster + stun
-- [ ] `Barricade.cs` — добавлено чтение run-модификаторов + reflect damage
-- [ ] `LevelUpScreen.cs` + `UpgradeCardUI.cs` созданы
-- [ ] `XPBarUI.cs` создан
-- [ ] ScriptableObjects созданы в `Assets/Resources/Upgrades/` (минимум 11 штук)
-- [ ] `RunSessionData.ResetForNewLevel()` вызывается при старте уровня
-- [ ] Всё работает без ошибок если RunSessionData == null (старые сцены)
+1. **DO NOT change** `CardData.cs`, `CardManager.cs`, `PlayerProfile.cs` — read-only.
+2. **DO NOT change** the existing score-awarding logic in `GameManager` — only add XPManager calls.
+3. **DO NOT use** `DontDestroyOnLoad` for `RunSessionData` — it only lives for the level's scene.
+4. Every call to a singleton goes through null-safe `?.` — scenes without roguelite must work without errors.
+5. **Do not add** visual effects for Ultimate in the MVP — functionality only.
+6. The `Zombie` class — if there's no `Stun(float duration)` method, implement a minimal version: set an `isStunned` flag, in Update() don't move/attack while the flag is set, and clear the flag after `duration` seconds.
 
 ---
 
-*GDD с полным дизайном: `Docs/GDD_Heroes_Roguelite_System.md`*
+## FINAL CHECKLIST
+
+- [ ] `RunSessionData.cs` created and works as a singleton
+- [ ] `RunUpgradeDefinition.cs` created, a ScriptableObject
+- [ ] `UpgradeManager.cs` created, builds a pool of 3 options
+- [ ] `XPManager.cs` created, called from GameManager
+- [ ] `GameManager.cs` — XPManager calls added
+- [ ] `Zombie.cs` — `XPManager.OnZombieKilled()` call added on death
+- [ ] `HelicopterController.cs` — run-modifier reading added
+- [ ] `Sniper.cs` — run-modifier reading added
+- [ ] `Bomb.cs` — run-modifier reading added + cluster + stun
+- [ ] `Barricade.cs` — run-modifier reading added + reflect damage
+- [ ] `LevelUpScreen.cs` + `UpgradeCardUI.cs` created
+- [ ] `XPBarUI.cs` created
+- [ ] ScriptableObjects created in `Assets/Resources/Upgrades/` (at least 11 of them)
+- [ ] `RunSessionData.ResetForNewLevel()` called at the start of a level
+- [ ] Everything works without errors if RunSessionData == null (old scenes)
+
+---

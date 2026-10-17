@@ -20,235 +20,235 @@ public class CrowdTuning : ScriptableObject
 	// ───────────────────────────── Zombie ─────────────────────────────
 	[Header("Zombie")]
 	[Range(0.2f, 4f)]
-	[Tooltip("Базовая скорость зомби, м/с (абсолютное значение, не множитель).")]
+	[Tooltip("Zombie base speed, m/s (absolute value, not a multiplier).")]
 	public float zombieSpeed = 1.0f;
 
 	[Range(0.5f, 4f)]
-	[Tooltip("Дистанция укуса/атаки зомби, метры. (Было по умолчанию 1.4 в коде, но на префабе обычного зомби фактически стояло 1.0 — у ZombieBoss было 1.4. При объединении в общий конфиг один из них неизбежно теряет свою отличную настройку; взято значение обычного зомби как более массовое.)")]
+	[Tooltip("Zombie bite/attack distance, meters. (Code defaulted to 1.4, but the regular zombie prefab actually had 1.0 -- ZombieBoss had 1.4. Merging into one shared config inevitably loses one of those distinct settings; kept the regular zombie's value since it's the more numerous one.)")]
 	public float attackDistance = 1.0f;
 
 	[Range(1f, 8f)]
-	[Tooltip("Радиус, в котором зомби переключается на атаку барикады вместо обхода.")]
+	[Tooltip("Radius within which a zombie switches to attacking a barricade instead of going around it.")]
 	public float barricadeCheckRadius = 3.5f;
 
 	[Range(1, 999)]
-	[Tooltip("Урон по барикаде за один удар.")]
+	[Tooltip("Damage dealt to a barricade per hit.")]
 	public int barricadeDamage = 25;
 
 	[Range(0.1f, 5f)]
-	[Tooltip("Кулдаун между ударами по барикаде, секунды.")]
+	[Tooltip("Cooldown between barricade hits, seconds.")]
 	public float attackCooldown = 1.0f;
 
 	[Range(0f, 2f)]
-	[Tooltip("Радиус, в котором зомби расходятся вокруг приманки (Bait).")]
+	[Tooltip("Radius within which zombies spread out around a Bait.")]
 	public float crowdRadius = 0.8f;
 
 	[Range(0f, 1f)]
-	[Tooltip("Доля зомби обычной волны, которые становятся Hunter (остальные — Wanderer).")]
+	[Tooltip("Share of a normal wave's zombies that become Hunters (the rest are Wanderers).")]
 	public float hunterShare = 0.7f;
 
 	[Range(0f, 1f)]
-	[Tooltip("hunterShare ночью (во время SuddenDeath) — обычно все зомби становятся Hunter.")]
+	[Tooltip("hunterShare at night (during SuddenDeath) -- normally all zombies become Hunters.")]
 	public float nightHunterShare = 1.0f;
 
 	[Range(0f, 1f)]
-	[Tooltip("Если доля живых гражданских падает ниже этого значения — все зомби становятся Hunter.")]
+	[Tooltip("If the share of living civilians drops below this value -- all zombies become Hunters.")]
 	public float lateWaveHunterThreshold = 0.2f;
 
 	[Range(0.2f, 5f)]
-	[Tooltip("Минимальный интервал между решениями навигации (зомби и гражданских), секунды.")]
+	[Tooltip("Minimum interval between navigation decisions (zombies and civilians), seconds.")]
 	public float retargetCooldown = 1.5f;
 
 	[Range(1, 10)]
-	[Tooltip("Сколько ближайших (по прямой) гражданских рассматривает Hunter перед случайным выбором цели.")]
+	[Tooltip("How many nearest (straight-line) civilians a Hunter considers before randomly picking a target.")]
 	public int hunterCandidateCount = 4;
 
 	[Range(1, 5)]
-	[Tooltip("Максимум зомби, которые могут одновременно преследовать одного и того же гражданского.")]
+	[Tooltip("Maximum number of zombies that can chase the same civilian at once.")]
 	public int maxZombiesPerTarget = 2;
 
 	[Range(0f, 0.5f)]
-	[Tooltip("Случайный разброс скорости зомби при спавне, доля от базовой скорости (например 0.15 = ±15%).")]
+	[Tooltip("Random spread of zombie speed on spawn, as a fraction of base speed (e.g. 0.15 = ±15%).")]
 	public float speedVariance = 0.15f;
 
-	[Tooltip("A/B переключатель: ставит всем зомби ObstacleAvoidanceType.LowQuality вместо значения из префаба.")]
+	[Tooltip("A/B toggle: forces ObstacleAvoidanceType.LowQuality on every zombie instead of the prefab's value.")]
 	public bool zombieAvoidanceLow = false;
 
 	// ───────────────────────────── Opportunity & Bait (fix/bite-and-bait) ─────────────────────────────
 	[Header("Opportunity & Bait")]
 	[Range(0, 10)]
-	[Tooltip("fix/bite-and-bait: сколько шагов поля F_civ на своей клетке допускается, прежде чем зомби тратится на дорогую проверку \"укусить любого гражданского в упор\" (дёшево отбрасывает тики, когда рядом точно никого нет).")]
+	[Tooltip("fix/bite-and-bait: how many steps of the F_civ field at the zombie's own cell are allowed before it bothers with the expensive \"bite any civilian in melee range\" check (cheaply skips ticks when nobody is anywhere close).")]
 	public int biteFieldGateSteps = 2;
 
 	[Range(1, 15)]
-	[Tooltip("fix/bite-and-bait: клетки сетки. Гражданский, досягаемый по дорогам (NavMesh-путь, не по прямой) в этом радиусе, становится \"целью по случаю\" — приоритет выше дальней охоты (Hunt), без ограничения maxZombiesPerTarget.")]
+	[Tooltip("fix/bite-and-bait: grid cells. A civilian reachable by road (NavMesh path, not a straight line) within this radius becomes an \"opportunity target\" -- higher priority than far Hunt, with no maxZombiesPerTarget cap.")]
 	public int opportunityRadiusCells = 4;
 
 	[Range(1f, 5f)]
-	[Tooltip("fix/bite-and-bait: сменить текущую \"цель по случаю\" на новую можно только если новая ближе по пути хотя бы в это число раз — иначе зомби держится прежней цели (без этого два близких гражданских заставляли бы зомби дёргаться между ними каждый тик).")]
+	[Tooltip("fix/bite-and-bait: switching the current \"opportunity target\" to a new one requires the new one to be at least this many times closer by path -- otherwise the zombie keeps its current target (without this, two nearby civilians would make a zombie flip between them every tick).")]
 	public float opportunitySwitchRatio = 1.5f;
 
-	[Tooltip("fix/bite-and-bait: если включено, приманка (Bait) перетягивает приоритет даже при наличии доступной \"цели по случаю\" (обычно наоборот — приманка ждёт, пока рядом не останется гражданских).")]
+	[Tooltip("fix/bite-and-bait: if enabled, Bait outranks an available \"opportunity target\" (normally the other way around -- Bait waits until no civilians are nearby).")]
 	public bool baitOverridesOpportunity = false;
 
-	[Tooltip("fix/bite-and-bait: показывать маленький значок над зомби, который сейчас прицеплен (latched) к приманке — не только когда приманка реально выбрана целью в этот тик, а всё время, пока привязка жива.")]
+	[Tooltip("fix/bite-and-bait: show a small marker above a zombie currently latched onto a Bait -- not only while Bait is actually the active target this tick, but the whole time the latch is alive.")]
 	public bool showBaitedMarker = true;
 
 	// ───────────────────────────── Civilian ─────────────────────────────
 	[Header("Civilian")]
 	[Range(0.1f, 3f)]
-	[Tooltip("Скорость гражданского в спокойном состоянии, м/с (абсолютное значение).")]
+	[Tooltip("Civilian speed while calm, m/s (absolute value).")]
 	public float civCalmSpeed = 0.45f;
 
 	[Range(0.2f, 6f)]
-	[Tooltip("Скорость гражданского в панике, м/с (абсолютное значение). Должна быть больше zombieSpeed.")]
+	[Tooltip("Civilian speed while panicking, m/s (absolute value). Must be greater than zombieSpeed.")]
 	public float civPanicSpeed = 1.4f;
 
 	[Range(1f, 10f)]
-	[Tooltip("Клетки сетки. Зомби в этом радиусе (по прямой) запускает панику у гражданского.")]
+	[Tooltip("Grid cells. A zombie within this radius (straight-line) triggers panic in a civilian.")]
 	public float fearRadiusCells = 4f;
 
 	[Range(1, 10)]
-	[Tooltip("Паника: цель убегания выбирается шагами вперёд по полю F_zed (от зомби) за один SetDestination, а не по одной клетке.")]
+	[Tooltip("Panic: the flee target is chosen several steps ahead along the F_zed field (away from the zombie) per SetDestination, rather than one cell at a time.")]
 	public int panicLookaheadCells = 6;
 
 	[Range(0.5f, 5f)]
-	[Tooltip("Секунды, на которые фиксируется направление паники (бежать от зомби или к эвакуации), прежде чем пересчитать угрозу.")]
+	[Tooltip("Seconds for which the panic direction (flee the zombie, or head to evacuation) is locked in before re-evaluating the threat.")]
 	public float panicDuration = 2.5f;
 
 	[Range(0f, 8f)]
-	[Tooltip("Клетки сетки. Спокойный гражданский в этом радиусе от уже паникующего — тоже начинает паниковать (цепная реакция).")]
+	[Tooltip("Grid cells. A calm civilian within this radius of one already panicking also starts panicking (chain reaction).")]
 	public float panicContagionCells = 2f;
 
 	[Range(1f, 15f)]
-	[Tooltip("Клетки сетки. Спокойный гражданский бродит только между перекрёстками, где поле F_zed не меньше этого значения (безопасное расстояние от зомби).")]
+	[Tooltip("Grid cells. A calm civilian only wanders between intersections where the F_zed field is at least this value (a safe distance from zombies).")]
 	public float calmSafeDistanceCells = 6f;
 
 	[Range(1f, 15f)]
-	[Tooltip("Клетки сетки (шаги поля F_evac, а не метры). В этом радиусе от активной точки эвакуации гражданский идёт к ней вместо того, чтобы бродить.")]
+	[Tooltip("Grid cells (F_evac field steps, not meters). Within this radius of an active evacuation point, a civilian heads to it instead of wandering.")]
 	public float evacRadiusCells = 8f;
 
 	// ───────────────────────────── Siege ─────────────────────────────
 	[Header("Siege")]
 	[Range(1, 10)]
-	[Tooltip("В режиме Siege зомби идёт по полю F_civ вперёд на столько клеток (или до перекрёстка) за один SetDestination.")]
+	[Tooltip("In Siege mode, a zombie follows the F_civ field forward this many cells (or until an intersection) per SetDestination.")]
 	public int lookaheadCells = 6;
 
 	[Range(1f, 4f)]
-	[Tooltip("Hunter преследует гражданского напрямую, только если путь по NavMesh не длиннее, чем (расстояние по полю F_civ у зомби, в метрах) × этот коэффициент. Иначе — Siege.")]
+	[Tooltip("A Hunter chases a civilian directly only if the NavMesh path is no longer than (the zombie's F_civ field distance, in meters) × this factor. Otherwise -- Siege.")]
 	public float maxDetourRatio = 1.5f;
 
 	[Range(0f, 10f)]
-	[Tooltip("Клетки сетки. В этом радиусе от барикады в режиме Siege стоять на месте — нормально (очередь к пролому); защита от зависания не срабатывает.")]
+	[Tooltip("Grid cells. Standing still within this radius of a barricade in Siege mode is normal (queueing at the breach) -- the stall guard doesn't trigger.")]
 	public float siegeQueueRadiusCells = 3f;
 
 	[Range(0.1f, 5f)]
-	[Tooltip("Секунды, которые Hunter может стоять почти без движения (не атакуя), прежде чем бросить цель и перейти в Siege.")]
+	[Tooltip("Seconds a Hunter can stand nearly motionless (not attacking) before dropping its target and switching to Siege.")]
 	public float stallTime = 1f;
 
 	[Range(1f, 30f)]
-	[Tooltip("fix/barricade-jerk-wave1 (Bug 1). Клетки сетки. Когда барикада ставится или разрушается, все зомби в этом радиусе от неё немедленно пересчитывают решение в тот же кадр (не ждут обычный тик/кулдаун) — иначе был рывок назад на ~0.3с, пока NavMesh/поле не успевали отреагировать.")]
+	[Tooltip("fix/barricade-jerk-wave1 (Bug 1). Grid cells. When a barricade is placed or destroyed, every zombie within this radius of it immediately recomputes its decision the same frame (instead of waiting for the usual tick/cooldown) -- otherwise there was a ~0.3s jerk backward while the NavMesh/field hadn't caught up yet.")]
 	public float barricadeReactRadiusCells = 12f;
 
 	[Range(3f, 20f)]
-	[Tooltip("fix/barricade-jerk-wave1 (Bug 2). Радиус (метры) для NavMesh.SamplePosition при постановке зомби на NavMesh после спавна. Точка спавна дальше 3м от NavMesh (старый радиус) оставляла агента вне меша — зомби вообще не двигался.")]
+	[Tooltip("fix/barricade-jerk-wave1 (Bug 2). Radius (meters) for NavMesh.SamplePosition when placing a zombie on the NavMesh after spawning. A spawn point farther than 3m from the NavMesh (the old radius) left the agent off-mesh -- the zombie never moved at all.")]
 	public float spawnSnapRadius = 10f;
 
 	// ───────────────────────────── Infection ─────────────────────────────
 	[Header("Infection")]
 	[Range(0f, 2f)]
-	[Tooltip("Задержка перед укусом/ударом после сближения с целью, секунды.")]
+	[Tooltip("Delay before the bite/hit lands after closing in on the target, seconds.")]
 	public float infectDelay = 0.15f;
 
 	[Range(0f, 5f)]
-	[Tooltip("Секунды между укусом и превращением гражданского в зомби. Убить заражённого раньше — превращение не произойдёт.")]
+	[Tooltip("Seconds between the bite and the civilian turning into a zombie. Killing the infected civilian before then prevents the turn.")]
 	public float turnDelay = 0.7f;
 
 	// ───────────────────────────── Grid ─────────────────────────────
 	[Header("Grid")]
 	[Range(0.05f, 2f)]
-	[Tooltip("Как часто (секунды) пересчитываются общие поля F_civ/F_zed/F_evac.")]
+	[Tooltip("How often (seconds) the shared F_civ/F_zed/F_evac fields are recomputed.")]
 	public float fieldRefresh = 0.3f;
 
 	[Range(0.5f, 10f)]
-	[Tooltip("Минимальный размер клетки сетки дорог, метры.")]
+	[Tooltip("Minimum size of a road-grid cell, meters.")]
 	public float roadGridMinCellSize = 2f;
 
 	[Range(8, 256)]
-	[Tooltip("Целевое число клеток сетки на ось — на больших уровнях клетка увеличивается, чтобы держаться около этого числа. Игнорируется, если включён cellSizeFromRoadWidth.")]
+	[Tooltip("Target number of grid cells per axis -- on larger levels the cell grows to stay around this number. Ignored if cellSizeFromRoadWidth is enabled.")]
 	public int roadGridTargetCellsPerAxis = 48;
 
-	[Tooltip("feature/sandbox-big-city: вместо деления span'а уровня на roadGridTargetCellsPerAxis, размер клетки = roadWidth * 0.5 — гарантирует, что клетка не шире самой узкой улицы/переулка в процедурном городе (иначе проходимая полоса дороги схлопывается в сетке).")]
+	[Tooltip("feature/sandbox-big-city: instead of dividing the level's span by roadGridTargetCellsPerAxis, cell size = roadWidth * 0.5 -- guarantees a cell is never wider than the narrowest street/alley in the procedural city (otherwise a walkable road strip would collapse in the grid).")]
 	public bool cellSizeFromRoadWidth = false;
 
 	[Range(0.5f, 20f)]
-	[Tooltip("feature/sandbox-big-city: ширина улицы процедурного города, метры — используется для расчёта размера клетки, только когда cellSizeFromRoadWidth включён. Должна совпадать с CityGenConfig.roadWidth, которым был сгенерирован текущий уровень.")]
+	[Tooltip("feature/sandbox-big-city: procedural city street width, meters -- used to compute cell size, only when cellSizeFromRoadWidth is enabled. Should match the CityGenConfig.roadWidth the current level was generated with.")]
 	public float roadWidth = 6f;
 
 	[Range(0.05f, 1f)]
-	[Tooltip("Клетка проходима, только если NavMesh найден в пределах этой доли от размера клетки вокруг её центра.")]
+	[Tooltip("A cell is walkable only if the NavMesh is found within this fraction of the cell size around its center.")]
 	public float roadGridSnapTolerance = 0.35f;
 
 	[Range(1f, 50f)]
-	[Tooltip("Стоимость прохода зомби через клетку с активной барикадой (вместо 1 для открытой дороги). Конечная — зомби всё равно пройдёт/атакует, если это лучший вариант.")]
+	[Tooltip("Cost for a zombie to pass through a cell with an active barricade (instead of 1 for open road). Finite -- the zombie will still pass through/attack if it's the best option.")]
 	public float barricadePathCost = 15f;
 
 	// ───────────────────────────── Debug ─────────────────────────────
 	[Header("Debug")]
-	[Tooltip("Показывать отладочную сетку дорог и направление поля F_civ в Scene View (только редактор).")]
+	[Tooltip("Show the debug road grid and F_civ field direction in the Scene View (Editor only).")]
 	public bool drawGridGizmos = false;
 
-	[Tooltip("Цвет проходимых клеток в отладочной сетке.")]
+	[Tooltip("Color of walkable cells in the debug grid.")]
 	public Color gizmoWalkableColor = new Color(0f, 1f, 0f, 0.15f);
 
-	[Tooltip("Цвет стрелок направления поля F_civ в отладочной сетке.")]
+	[Tooltip("Color of F_civ field direction arrows in the debug grid.")]
 	public Color gizmoDescentArrowColor = new Color(1f, 0.5f, 0f, 0.85f);
 
-	[Tooltip("Показывать режим зомби (Hunt/Wander/Siege), линию до текущей цели и счётчик застрявших зомби (редактор и development build).")]
+	[Tooltip("Show each zombie's mode (Hunt/Wander/Siege), a line to its current target, and a stuck-zombie counter (Editor and development builds).")]
 	public bool showZombieSiegeOverlay = false;
 
 	// ───────────────────────────── Legacy ─────────────────────────────
 	[Header("Legacy")]
-	[Tooltip("Включает старую случайную \"химию\" поведения зомби (случайная потеря цели). По умолчанию выключено — пути из fix/zombie-siege-mode достаточно для текущего поведения.")]
+	[Tooltip("Enables the old random \"chaos\" zombie behavior (randomly losing the current target). Off by default -- the fix/zombie-siege-mode paths are enough for current behavior.")]
 	public bool legacyChaosEnabled = false;
 
 	[Range(0f, 1f)]
-	[Tooltip("(legacyChaosEnabled) Шанс, что зомби в случайный момент теряет текущую цель.")]
+	[Tooltip("(legacyChaosEnabled) Chance that a zombie randomly loses its current target.")]
 	public float zombieLoseTargetChance = 0.03f;
 
 	[Range(0.1f, 5f)]
-	[Tooltip("(legacyChaosEnabled) Как часто (секунды) проверяется шанс потери цели.")]
+	[Tooltip("(legacyChaosEnabled) How often (seconds) the chance to lose the target is checked.")]
 	public float zombieLoseTargetCheckInterval = 0.75f;
 
 	[Range(0.1f, 5f)]
-	[Tooltip("(legacyChaosEnabled) Сколько секунд зомби бродит бесцельно после потери цели.")]
+	[Tooltip("(legacyChaosEnabled) How many seconds a zombie wanders aimlessly after losing its target.")]
 	public float zombieLoseTargetDuration = 0.6f;
 
 	[Range(0f, 1f)]
-	[Tooltip("УСТАРЕЛО, нигде не читается — старый шанс паники человека до перехода на детерминированную систему (fearRadiusCells).")]
+	[Tooltip("DEPRECATED, read nowhere -- old chance of human panic, from before the switch to the deterministic system (fearRadiusCells).")]
 	public float humanPanicChance = 0.05f;
 
 	[Range(0.1f, 5f)]
-	[Tooltip("УСТАРЕЛО, нигде не читается — старый интервал проверки паники.")]
+	[Tooltip("DEPRECATED, read nowhere -- old panic-check interval.")]
 	public float humanPanicCheckInterval = 1.0f;
 
 	[Range(0.1f, 5f)]
-	[Tooltip("УСТАРЕЛО, нигде не читается — длительность старого спринта паники.")]
+	[Tooltip("DEPRECATED, read nowhere -- duration of the old panic sprint.")]
 	public float humanPanicDuration = 0.4f;
 
 	[Range(0f, 10f)]
-	[Tooltip("УСТАРЕЛО, нигде не читается — дистанция старого спринта паники.")]
+	[Tooltip("DEPRECATED, read nowhere -- distance of the old panic sprint.")]
 	public float humanPanicMoveDistance = 3.0f;
 
 	[Range(0f, 10f)]
-	[Tooltip("УСТАРЕЛО, нигде не читается — старый радиус срабатывания паники.")]
+	[Tooltip("DEPRECATED, read nowhere -- old panic trigger radius.")]
 	public float humanPanicTriggerRadius = 4.5f;
 
 	private void OnValidate()
 	{
 		if (civPanicSpeed <= zombieSpeed)
 		{
-			Debug.LogWarning($"[CrowdTuning] civPanicSpeed ({civPanicSpeed}) <= zombieSpeed ({zombieSpeed}) — гражданские в панике не смогут убежать от зомби.", this);
+			Debug.LogWarning($"[CrowdTuning] civPanicSpeed ({civPanicSpeed}) <= zombieSpeed ({zombieSpeed}) -- panicking civilians won't be able to outrun zombies.", this);
 		}
 	}
 }
