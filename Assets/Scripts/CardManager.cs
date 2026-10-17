@@ -81,6 +81,11 @@ public class CardManager : MonoBehaviour
 				if (card != null && card.uiButtonPrefab != null)
 					Instantiate(card.uiButtonPrefab, cardsPanel);
 			}
+
+			// fix/sandbox-city-visuals: 8 cards overflow/overlap the hand panel's fixed width on a
+			// normal level's layout -- sandbox-only, gated by this same SandboxAllCardsActive check,
+			// so a real level's cardsPanel is never touched.
+			SandboxCardHandScroll.EnsureWrapped(cardsPanel);
 			return;
 		}
 

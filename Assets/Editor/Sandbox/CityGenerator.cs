@@ -21,9 +21,14 @@ public static class CityGenerator
 {
 	private const string DefaultConfigPath = "Assets/Resources/CityGenConfig.asset";
 	private const string BuildingPoolFolder = "Assets/ExternalAssets/SimpleTown/Prefabs/Buildings";
-	private const string DefaultRoadMaterialPath = "Assets/ExternalAssets/SimpleTown/Materials/Road.mat";
 	private const string DefaultParkPropPath = "Assets/ExternalAssets/SimpleTown/Prefabs/Props/grass_square_mesh.prefab";
+	private const string AsphaltMaterialPath = "Assets/Materials/SandboxCity_Asphalt.mat";
+	private const string BlockBaseMaterialPath = "Assets/Materials/SandboxCity_BlockBase.mat";
+	private const string ParkMaterialPath = "Assets/Materials/SandboxCity_Park.mat";
 	private const float GroundThickness = 0.2f;
+	private const float RoadThickness = 0.06f;
+	private const float RoadTopY = 0.02f; // fix/sandbox-city-visuals: roads float slightly above the base plane
+	private const float ParkTopY = 0.01f; // ...and park ground sits between the base plane and roads
 
 	private enum SegmentKind { Normal, Merged, AlleyThrough, AlleyDeadEndNear, AlleyDeadEndFar }
 
@@ -112,6 +117,10 @@ public static class CityGenerator
 		while (parkBlocks.Count < parkCount)
 			parkBlocks.Add((UnityEngine.Random.Range(0, blocksX), UnityEngine.Random.Range(0, blocksY)));
 
+		Material asphaltMat = CreateOrUpdateFlatMaterial(AsphaltMaterialPath, config.asphaltColor);
+		Material blockBaseMat = CreateOrUpdateFlatMaterial(BlockBaseMaterialPath, config.blockBaseColor);
+		Material parkMat = CreateOrUpdateFlatMaterial(ParkMaterialPath, config.parkColor);
+
 		GameObject root = new GameObject("Level_Sandbox_Environment");
 		Transform groundParent = NewChild(root.transform, "Ground").transform;
 		Transform buildingsParent = NewChild(root.transform, "Buildings").transform;
@@ -121,13 +130,20 @@ public static class CityGenerator
 
 		int groundLayer = LayerMask.NameToLayer("Ground");
 
+		// ── Single base plane for the whole city (sidewalks/block ground), y=0. Everything else
+		// (roads, parks) floats a hair above this one continuous mesh instead of being hundreds of
+		// separate coplanar cubes touching edge-to-edge -- the latter z-fights under floating-point
+		// seam error; a single mesh has no seams to fight.
+		CreateGroundCube(groundParent, "BaseGround", new Vector3(cityWidth * 0.5f + offsetX, 0f, cityDepth * 0.5f + offsetZ),
+			new Vector3(cityWidth, GroundThickness, cityDepth), groundLayer, blockBaseMat);
+
 		// ── Intersections: always present, keeps the network connected regardless of merges ──
 		for (int bx = 0; bx <= blocksX; bx++)
 		{
 			for (int by = 0; by <= blocksY; by++)
 			{
-				Vector3 center = new Vector3(offsetX + streetCenterX[bx], 0f, offsetZ + streetCenterZ[by]);
-				CreateGroundCube(groundParent, $"Intersection_{bx}_{by}", center, new Vector3(roadWidth, GroundThickness, roadWidth), groundLayer, config.roadMaterial);
+				Vector3 center = new Vector3(offsetX + streetCenterX[bx], RoadTopY, offsetZ + streetCenterZ[by]);
+				CreateGroundCube(groundParent, $"Intersection_{bx}_{by}", center, new Vector3(roadWidth, RoadThickness, roadWidth), groundLayer, asphaltMat);
 			}
 		}
 
@@ -136,15 +152,15 @@ public static class CityGenerator
 		{
 			float z = offsetZ + (blockBottom[by] + blockTop[by]) * 0.5f;
 			float len = blockTop[by] - blockBottom[by];
-			CreateGroundCube(groundParent, $"Ring_W_{by}", new Vector3(offsetX + streetCenterX[0], 0f, z), new Vector3(roadWidth, GroundThickness, len), groundLayer, config.roadMaterial);
-			CreateGroundCube(groundParent, $"Ring_E_{by}", new Vector3(offsetX + streetCenterX[blocksX], 0f, z), new Vector3(roadWidth, GroundThickness, len), groundLayer, config.roadMaterial);
+			CreateGroundCube(groundParent, $"Ring_W_{by}", new Vector3(offsetX + streetCenterX[0], RoadTopY, z), new Vector3(roadWidth, RoadThickness, len), groundLayer, asphaltMat);
+			CreateGroundCube(groundParent, $"Ring_E_{by}", new Vector3(offsetX + streetCenterX[blocksX], RoadTopY, z), new Vector3(roadWidth, RoadThickness, len), groundLayer, asphaltMat);
 		}
 		for (int bx = 0; bx < blocksX; bx++)
 		{
 			float x = offsetX + (blockLeft[bx] + blockRight[bx]) * 0.5f;
 			float len = blockRight[bx] - blockLeft[bx];
-			CreateGroundCube(groundParent, $"Ring_S_{bx}", new Vector3(x, 0f, offsetZ + streetCenterZ[0]), new Vector3(len, GroundThickness, roadWidth), groundLayer, config.roadMaterial);
-			CreateGroundCube(groundParent, $"Ring_N_{bx}", new Vector3(x, 0f, offsetZ + streetCenterZ[blocksY]), new Vector3(len, GroundThickness, roadWidth), groundLayer, config.roadMaterial);
+			CreateGroundCube(groundParent, $"Ring_S_{bx}", new Vector3(x, RoadTopY, offsetZ + streetCenterZ[0]), new Vector3(len, RoadThickness, roadWidth), groundLayer, asphaltMat);
+			CreateGroundCube(groundParent, $"Ring_N_{bx}", new Vector3(x, RoadTopY, offsetZ + streetCenterZ[blocksY]), new Vector3(len, RoadThickness, roadWidth), groundLayer, asphaltMat);
 		}
 
 		// ── Internal vertical street segments (between column bx-1 and bx, at row by) ──
@@ -164,7 +180,7 @@ public static class CityGenerator
 
 				float zCenter = offsetZ + (zBottom + zTop) * 0.5f;
 				float len = zTop - zBottom;
-				CreateGroundCube(groundParent, $"Street_V_{bx}_{by}", new Vector3(offsetX + streetCenterX[bx], 0f, zCenter), new Vector3(width, GroundThickness, len), groundLayer, config.roadMaterial);
+				CreateGroundCube(groundParent, $"Street_V_{bx}_{by}", new Vector3(offsetX + streetCenterX[bx], RoadTopY, zCenter), new Vector3(width, RoadThickness, len), groundLayer, asphaltMat);
 			}
 		}
 
@@ -185,7 +201,7 @@ public static class CityGenerator
 
 				float xCenter = offsetX + (xLeft + xRight) * 0.5f;
 				float len = xRight - xLeft;
-				CreateGroundCube(groundParent, $"Street_H_{bx}_{by}", new Vector3(xCenter, 0f, offsetZ + streetCenterZ[by]), new Vector3(len, GroundThickness, width), groundLayer, config.roadMaterial);
+				CreateGroundCube(groundParent, $"Street_H_{bx}_{by}", new Vector3(xCenter, RoadTopY, offsetZ + streetCenterZ[by]), new Vector3(len, RoadThickness, width), groundLayer, asphaltMat);
 			}
 		}
 
@@ -202,8 +218,8 @@ public static class CityGenerator
 
 				if (parkBlocks.Contains((bx, by)))
 				{
-					Vector3 center = new Vector3((left + right) * 0.5f, 0f, (bottom + top) * 0.5f);
-					CreateGroundCube(parksParent, $"Park_{bx}_{by}", center, new Vector3(right - left, GroundThickness, top - bottom), groundLayer, config.roadMaterial);
+					Vector3 center = new Vector3((left + right) * 0.5f, ParkTopY, (bottom + top) * 0.5f);
+					CreateGroundCube(parksParent, $"Park_{bx}_{by}", center, new Vector3(right - left, RoadThickness, top - bottom), groundLayer, parkMat);
 
 					if (parkProp != null)
 					{
@@ -229,7 +245,7 @@ public static class CityGenerator
 						float centerZ = bottom + (cz + 0.5f) * cellSize;
 						GameObject prefab = config.buildingPrefabs[UnityEngine.Random.Range(0, config.buildingPrefabs.Count)];
 						if (prefab == null) continue;
-						CreateBuilding(buildingsParent, prefab, new Vector3(centerX, 0f, centerZ), cellSize * 0.85f);
+						CreateBuilding(buildingsParent, prefab, new Vector3(centerX, 0f, centerZ), cellSize * 0.85f, config.buildingHeightScale);
 					}
 				}
 			}
@@ -280,7 +296,7 @@ public static class CityGenerator
 
 		Debug.Log($"[CityGenerator] Generated {blocksX}x{blocksY} block city, {cityWidth:F1}x{cityDepth:F1}m, seed={config.seed}. North/South markers={north.Count} each, West/East markers={west.Count} each.");
 
-		RetuneSandboxCamera(cityWidth, cityDepth);
+		RetuneSandboxCamera(config, cityWidth, cityDepth);
 
 		AssetDatabase.SaveAssets();
 		AssetDatabase.Refresh();
@@ -320,7 +336,24 @@ public static class CityGenerator
 		}
 	}
 
-	private static void CreateBuilding(Transform parent, GameObject prefab, Vector3 centerLocal, float targetFootprint)
+	// fix/sandbox-city-visuals: SimpleTown's Road.mat is an atlas texture authored for its own
+	// fixed-size road meshes -- stretching its UVs across an arbitrarily large/small generated cube
+	// reads as rainbow stripes. A flat, untextured color has no UVs to stretch.
+	private static Material CreateOrUpdateFlatMaterial(string path, Color color)
+	{
+		Material mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+		if (mat == null)
+		{
+			Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+			mat = new Material(shader);
+			AssetDatabase.CreateAsset(mat, path);
+		}
+		mat.color = color;
+		EditorUtility.SetDirty(mat);
+		return mat;
+	}
+
+	private static void CreateBuilding(Transform parent, GameObject prefab, Vector3 centerLocal, float targetFootprint, float heightScale)
 	{
 		GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
 		instance.transform.SetParent(parent, false);
@@ -356,7 +389,11 @@ public static class CityGenerator
 			mc.convex = false;
 		}
 
-		instance.transform.localScale = Vector3.one * scale;
+		// fix/sandbox-city-visuals: Y-only on top of the uniform footprint-fit scale -- the
+		// NavMeshObstacle's size/center above were set from the unscaled mesh bounds and are scaled
+		// by the transform like any NavMesh carving, so squashing only Y here shortens the building
+		// visually without touching the X/Z footprint it carves out of the NavMesh.
+		instance.transform.localScale = new Vector3(scale, scale * heightScale, scale);
 		instance.transform.localRotation = Quaternion.Euler(0f, 90f * UnityEngine.Random.Range(0, 4), 0f);
 		instance.transform.localPosition = centerLocal;
 	}
@@ -388,12 +425,22 @@ public static class CityGenerator
 		go.transform.localPosition = pos;
 	}
 
-	// Retunes Level_Sandbox's authored camera (the CameraController.SetupCamera fit-to-width max
-	// zoom-out limit, see CameraFraming.cs / Docs/CAMERA_READABILITY.md) so the new, much bigger
-	// city still fits when fully zoomed out. Keeps the authored rotation/FOV -- only dollies the
-	// position back along the same forward axis, the same way ComputePerspectivePullback already
-	// treats "more area needed" (never re-aims the shot, just moves it back).
-	private static void RetuneSandboxCamera(float cityWidth, float cityDepth)
+	// fix/sandbox-city-visuals: Level_Sandbox now matches Level_1's top-down convention (Perspective,
+	// rotation (90,0,0) -- straight down, so ground distance == camera height exactly, no
+	// perspective skew the way the old 60-degree pitch had). CameraController.SetupCamera applies
+	// data.cameraPosition directly, then CameraZoomPanController.OnLevelCameraSetup treats the
+	// result as the max zoom-OUT ceiling (CameraReadabilityConfig.defaultZoomFraction, shared/
+	// global, is the OTHER end -- the resting zoom level after the level-intro shot).
+	//
+	// initialViewFraction asks for two things that are normally in tension against a single
+	// authored value (the ceiling): the *resting* view should show roughly initialViewFraction of
+	// the city, AND pinching/scrolling all the way out (ceiling) should always still reach the
+	// *whole* city. Solved properly instead of picked by feel: back-solve the ceiling from
+	// Lerp(ceiling, zoomInDistance, defaultZoomFraction) == target-rest-distance (duplicating
+	// CameraZoomPanController.ComputeMaxZoomInGroundDistance's math read-only, since that method is
+	// private and this must not edit that shared file), then clamp up to a tight full-city fit so
+	// the second requirement always holds even if the solve would otherwise undershoot.
+	private static void RetuneSandboxCamera(CityGenConfig config, float cityWidth, float cityDepth)
 	{
 		LevelData data = AssetDatabase.LoadAssetAtPath<LevelData>("Assets/Data/Level_Sandbox.asset");
 		if (data == null)
@@ -402,28 +449,46 @@ public static class CityGenerator
 			return;
 		}
 
-		const float referenceAspect = 1080f / 1920f; // CameraFraming.ReferenceAspect
-		const float margin = 1.2f; // extra breathing room on top of a tight fit (HUD reservations, pan padding)
+		data.cameraType = LevelData.CameraType.Perspective; // matches Level_1
+		data.cameraRotation = new Vector3(90f, 0f, 0f); // straight down, matches Level_1
 
-		Vector3 forward = Quaternion.Euler(data.cameraRotation) * Vector3.forward;
-		if (Mathf.Abs(forward.y) < 0.0001f)
-		{
-			Debug.LogWarning("[CityGenerator] Sandbox camera rotation is not pitched downward -- skipped camera retune.");
-			return;
-		}
+		const float referenceAspect = 1080f / 1920f; // CameraFraming.ReferenceAspect
+		const float margin = 1.15f; // breathing room on top of a tight fit (HUD reservations, pan padding)
 
 		float fovRad = Mathf.Max(1f, data.cameraFieldOfView) * Mathf.Deg2Rad;
 		float tanHalfFov = Mathf.Tan(fovRad * 0.5f);
 
-		float depthForHeight = cityDepth / (2f * tanHalfFov);
-		float depthForWidth = cityWidth / (2f * tanHalfFov * referenceAspect);
-		float dolly = Mathf.Max(depthForHeight, depthForWidth) * margin;
+		float cityDimForHeight = cityDepth;
+		float cityDimForWidth = cityWidth / referenceAspect;
+		float fullCityDim = Mathf.Max(cityDimForHeight, cityDimForWidth);
+		float fullCityDistance = (fullCityDim / (2f * tanHalfFov)) * margin;
 
-		Vector3 groundHit = Vector3.zero; // city is generated centered on local (0,0,0)
-		data.cameraPosition = groundHit - forward * dolly;
+		CameraReadabilityConfig readability = CameraReadabilityConfig.Active;
+		float zoomInDistance;
+		float defaultZoomFraction;
+		if (readability != null)
+		{
+			float targetFraction = readability.targetHumanScreenHeightMm / Mathf.Max(1f, readability.referenceScreenHeightMm);
+			float requiredVisibleWorldHeight = readability.humanReferenceHeightWorldUnits / Mathf.Max(0.0001f, targetFraction);
+			zoomInDistance = requiredVisibleWorldHeight / (2f * tanHalfFov);
+			defaultZoomFraction = readability.defaultZoomFraction;
+		}
+		else
+		{
+			zoomInDistance = 4f;
+			defaultZoomFraction = 0.475f;
+		}
+
+		float initialViewFraction = Mathf.Clamp(config.initialViewFraction, 0.1f, 1f);
+		float targetRestDistance = (initialViewFraction * fullCityDim) / (2f * tanHalfFov);
+		float solvedCeiling = (targetRestDistance - zoomInDistance * defaultZoomFraction) / Mathf.Max(0.01f, 1f - defaultZoomFraction);
+
+		float ceiling = Mathf.Max(solvedCeiling, fullCityDistance);
+		data.cameraPosition = new Vector3(0f, ceiling, 0f); // city is generated centered on local (0,0,0)
+
 		EditorUtility.SetDirty(data);
 
-		Debug.Log($"[CityGenerator] Retuned Level_Sandbox camera: position={data.cameraPosition}, dolly={dolly:F1}m.");
+		Debug.Log($"[CityGenerator] Retuned Level_Sandbox camera: top-down, height={ceiling:F1}m (full-city fit={fullCityDistance:F1}m, solved-for-{initialViewFraction:F2}-rest={solvedCeiling:F1}m, zoomInDistance={zoomInDistance:F1}m).");
 	}
 
 	private static CityGenConfig LoadOrCreateDefaultConfig()
@@ -447,11 +512,6 @@ public static class CityGenerator
 				GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
 				if (prefab != null) config.buildingPrefabs.Add(prefab);
 			}
-			dirty = true;
-		}
-		if (config.roadMaterial == null)
-		{
-			config.roadMaterial = AssetDatabase.LoadAssetAtPath<Material>(DefaultRoadMaterialPath);
 			dirty = true;
 		}
 		if (config.parkPropPrefab == null)
