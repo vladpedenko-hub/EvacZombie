@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Level_Sandbox
   m_EditorClassIdentifier: Assembly-CSharp::LevelData
   levelPrefab: {fileID: 4058927015439930953, guid: d3b33cbf6ce2c0b4c83e4033ada3ced4, type: 3}
-  humanCount: 300
+  humanCount: 100
   levelTimer: 600
   suddenDeathSpawnRate: 0.2
   zombieSpeedMultiplier: 1
@@ -27,28 +27,29 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 82514a0131f74f24bba6f3ec16fe4745, type: 2}
   - {fileID: 11400000, guid: 125dee9105538514b97fd4d4907b8859, type: 2}
   - {fileID: 11400000, guid: f89d23ee0aa959746842e4265300d8f6, type: 2}
-  requiredRescuedHumans: 0
-  star1RequiredHumans: 0
-  star2RequiredHumans: 0
+  - {fileID: 11400000, guid: 69dfaf58de374eb5bd75c6838106f255, type: 2}
+  requiredRescuedHumans: 40
+  star1RequiredHumans: 40
+  star2RequiredHumans: 70
   star3Description: 
   missionTitleOverride: SANDBOX
   missionIcon: {fileID: 0}
   missionDescription: 
   cameraType: 0
-  cameraPosition: {x: 0, y: 329.3206, z: 0}
+  cameraPosition: {x: 0, y: 145.18434, z: 0}
   cameraRotation: {x: 90, y: 0, z: 0}
   cameraFieldOfView: 60
   orthographicSize: 10
   currencyReward: 0
   levelRewardLootbox: {fileID: 0}
   clearGrants: []
-  scientistCount: 40
+  scientistCount: 10
   scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
   abilityEnabled: 1
   onStartTutorial: {fileID: 0}
   onNightTutorial: {fileID: 0}
   useCoreLoopV2: 1
-  startingSupply: 999
+  startingSupply: 0
   v2PlanningEnabled: 1
   v2ShowSupplyHud: 1
   v2ShowWaveIndicator: 1

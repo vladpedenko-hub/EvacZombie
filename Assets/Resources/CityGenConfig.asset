@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: CityGenConfig
   m_EditorClassIdentifier: Assembly-CSharp::CityGenConfig
   seed: 12345
-  blocksX: 10
-  blocksY: 14
+  blocksX: 4
+  blocksY: 5
   roadWidth: 6
   alleyWidthFactor: 0.5
   buildingCellSize: 4
