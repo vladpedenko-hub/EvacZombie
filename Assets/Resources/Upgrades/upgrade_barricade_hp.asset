@@ -14,18 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   upgradeId: barricade_hp
   targetCardType: 8
-  displayName: "\u0410\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439
-    \u0411\u0435\u0442\u043E\u043D"
-  descriptionTier1: "+50% HP \u0431\u0430\u0440\u0440\u0438\u043A\u0430\u0434\u044B"
+  displayName: "Reinforced Concrete"
+  descriptionTier1: "+50% barricade HP"
   iconTier1: {fileID: 0}
   accentColor: {r: 0.6, g: 0.4, b: 0.2, a: 1}
-  displayNameEnhanced: "\u041A\u0440\u0435\u043F\u043E\u0441\u0442\u043D\u0430\u044F
-    \u0421\u0442\u0435\u043D\u0430"
-  descriptionTier2: "+300% HP \u0431\u0430\u0440\u0440\u0438\u043A\u0430\u0434\u044B"
+  displayNameEnhanced: "Fortress Wall"
+  descriptionTier2: "+300% barricade HP"
   iconTier2: {fileID: 0}
-  displayNameUltimate: "\u041D\u0435\u0441\u043E\u043A\u0440\u0443\u0448\u0438\u043C\u044B\u0439
-    \u0411\u0443\u043D\u043A\u0435\u0440"
-  descriptionTier3: "\u0411\u0430\u0440\u0440\u0438\u043A\u0430\u0434\u0430 \u043D\u0435\u0440\u0430\u0437\u0440\u0443\u0448\u0438\u043C\u0430"
+  displayNameUltimate: "Indestructible Bunker"
+  descriptionTier3: "The barricade cannot be destroyed"
   iconTier3: {fileID: 0}
   ultimateColor: {r: 1, g: 0.8, b: 0.2, a: 1}
   effectType: 25

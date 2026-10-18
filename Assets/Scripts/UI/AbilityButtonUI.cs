@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
@@ -18,6 +19,12 @@ public class AbilityButtonUI : MonoBehaviour
     private bool gameEventsSubscribed = false;
     private bool levelUpEventsSubscribed = false;
 
+    // feature/hud-sandbox-ui (step 2): the ability widget shrank to a plain icon + charge ring,
+    // so the remaining-civilians count that used to be implicit in its (larger) on-screen size
+    // now needs an explicit label. Built in code (RuntimeUiKit, same pattern as the rest of this
+    // project's newer HUD) -- no scene/prefab edit needed.
+    private TextMeshProUGUI remainingText;
+
     private void Start()
     {
         if (AbilityManager.Instance == null)
@@ -25,6 +32,8 @@ public class AbilityButtonUI : MonoBehaviour
             gameObject.SetActive(false);
             return;
         }
+
+        EnsureRemainingLabel();
 
         // Subscribe to initialization event
         AbilityManager.Instance.OnInitialized += HandleInitialized;
@@ -98,6 +107,7 @@ public class AbilityButtonUI : MonoBehaviour
     {
         fillImage.fillOrigin = 0;
         fillImage.fillAmount = current / max;
+        SetRemainingText(Mathf.Max(0, Mathf.CeilToInt(max - current)));
     }
 
     private void HandleAbilityReady()
@@ -106,6 +116,7 @@ public class AbilityButtonUI : MonoBehaviour
         fillImage.fillOrigin = 0;
         fillImage.fillAmount = 1f;
         fillImage.DOColor(readyColor, 0.3f).SetUpdate(true);
+        SetRemainingText(0);
 
         if (pulseGlow != null)
         {
@@ -161,5 +172,30 @@ public class AbilityButtonUI : MonoBehaviour
 
         glowTween?.Kill();
         if (pulseGlow != null) pulseGlow.SetActive(false);
+
+        int max = AbilityManager.Instance != null ? AbilityManager.Instance.maxCharge : 0;
+        SetRemainingText(Mathf.Max(0, Mathf.RoundToInt(max * (1f - fillAmount))));
+    }
+
+    // feature/hud-sandbox-ui (step 2): lazily builds the small "remaining civilians needed" label
+    // -- a child of this button's own rect, so it scales with whatever size the button is given
+    // (BottomZoneV2.RepositionAbilityButton currently sets 96px at the 1080 reference).
+    private void EnsureRemainingLabel()
+    {
+        if (remainingText != null) return;
+
+        remainingText = RuntimeUiKit.CreateText("RemainingLabel", transform, "", 30f, Color.white,
+            TextAlignmentOptions.Center, FontStyles.Bold);
+        RectTransform rt = remainingText.rectTransform;
+        rt.anchorMin = new Vector2(0.1f, 0.05f);
+        rt.anchorMax = new Vector2(0.9f, 0.4f);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+    }
+
+    private void SetRemainingText(int remaining)
+    {
+        if (remainingText == null) return;
+        remainingText.text = remaining.ToString();
     }
 }

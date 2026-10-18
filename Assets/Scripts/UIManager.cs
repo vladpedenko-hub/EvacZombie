@@ -23,6 +23,10 @@ public class UIManager : MonoBehaviour
 
 	[Header("Lose Popup")]
 	[SerializeField] private GameObject losePopup;
+	[SerializeField] private TextMeshProUGUI loseText;
+
+	// feature/hud-sandbox-ui (step 5): lazily built, sandbox-only -- see ShowLosePopup.
+	private UnityEngine.UI.Button sandboxKeepPlayingButton;
 
 	[Header("Night Popup")]
 	public TextMeshProUGUI centerNightText;
@@ -151,10 +155,52 @@ public class UIManager : MonoBehaviour
 		centerNightText.gameObject.SetActive(false);
 	}
 
-	public void ShowLosePopup()
+	// feature/hud-sandbox-ui (step 5): reason-specific English title (was a single static,
+	// untranslated Cyrillic string baked into the scene's LoseText). Sandbox levels additionally
+	// get a "Keep Playing" button (built once at runtime, same no-scene-edit pattern as
+	// SandboxButtonInjector) alongside the pre-existing Restart/Menu buttons -- non-sandbox levels
+	// are untouched, same two buttons as before.
+	public void ShowLosePopup(GameManager.LoseReason reason)
 	{
 		Feedback.Play(FeedbackEvent.Lose);
+
+		if (loseText != null) loseText.text = GetLoseTitle(reason);
+
+		bool isSandbox = LevelManager.Instance != null && LevelManager.Instance.currentData != null
+			&& LevelManager.Instance.currentData.isSandboxLevel;
+		if (isSandbox) EnsureSandboxKeepPlayingButton();
+		if (sandboxKeepPlayingButton != null) sandboxKeepPlayingButton.gameObject.SetActive(isSandbox);
+
 		if (losePopup != null) losePopup.SetActive(true);
+	}
+
+	private static string GetLoseTitle(GameManager.LoseReason reason)
+	{
+		switch (reason)
+		{
+			case GameManager.LoseReason.AllCiviliansLost: return "ALL CIVILIANS LOST";
+			case GameManager.LoseReason.TimeIsUp: return "TIME IS UP";
+			default: return "GOAL UNREACHABLE";
+		}
+	}
+
+	private void EnsureSandboxKeepPlayingButton()
+	{
+		if (sandboxKeepPlayingButton != null || losePopup == null) return;
+
+		sandboxKeepPlayingButton = RuntimeUiKit.CreateButton("SandboxKeepPlayingButton", losePopup.transform,
+			"KEEP PLAYING", 28f, new Color(0.2f, 0.6f, 0.3f, 0.9f), Color.white);
+
+		RectTransform rt = sandboxKeepPlayingButton.GetComponent<RectTransform>();
+		rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+		rt.sizeDelta = new Vector2(240f, 64f);
+		rt.anchoredPosition = new Vector2(0f, -90f); // below the existing Restart/Menu row
+
+		sandboxKeepPlayingButton.onClick.AddListener(() =>
+		{
+			GameManager.Instance?.ContinuePlayingAfterSandboxLose();
+			if (losePopup != null) losePopup.SetActive(false);
+		});
 	}
 
 	public void ShowResultPopup(

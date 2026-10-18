@@ -14,17 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   upgradeId: sniper_damage
   targetCardType: 6
-  displayName: "\u0411\u0440\u043E\u043D\u0435\u0431\u043E\u0439\u043D\u044B\u0435
-    \u041F\u0430\u0442\u0440\u043E\u043D\u044B"
-  descriptionTier1: "+50% \u0443\u0440\u043E\u043D"
+  displayName: "Armor-Piercing Rounds"
+  descriptionTier1: "+50% damage"
   iconTier1: {fileID: 0}
   accentColor: {r: 0.9, g: 0.3, b: 0.2, a: 1}
-  displayNameEnhanced: "\u042D\u043A\u0437\u0435\u043A\u0443\u0442\u043E\u0440"
-  descriptionTier2: "+100% \u0443\u0440\u043E\u043D"
+  displayNameEnhanced: "Executioner"
+  descriptionTier2: "+100% damage"
   iconTier2: {fileID: 0}
-  displayNameUltimate: "\u0428\u0442\u043E\u0440\u043C \u0421\u0432\u0438\u043D\u0446\u0430"
-  descriptionTier3: "\u041C\u0433\u043D\u043E\u0432\u0435\u043D\u043D\u043E \u0443\u0431\u0438\u0432\u0430\u0435\u0442
-    \u043D\u0435-\u0431\u043E\u0441\u0441\u043E\u0432"
+  displayNameUltimate: "Storm of Lead"
+  descriptionTier3: "Instantly kills non-boss zombies"
   iconTier3: {fileID: 0}
   ultimateColor: {r: 1, g: 0.8, b: 0.2, a: 1}
   effectType: 10

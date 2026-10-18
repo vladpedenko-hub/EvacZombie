@@ -37,7 +37,7 @@ MonoBehaviour:
     valuePerLevel: 2
     unitSuffix: ' hum.'
   - statType: 2
-    statName: "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C \u043F\u043E\u043B\u0435\u0442\u0430"
+    statName: Flight Speed
     baseValue: 15
     valuePerLevel: 2
     unitSuffix: m/s.

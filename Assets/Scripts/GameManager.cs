@@ -10,6 +10,19 @@ public class GameManager : MonoBehaviour
 	public enum GameState { Planning, Playing, SuddenDeath, GameOver, Lose }
 	public GameState State = GameState.Planning;
 
+	// feature/hud-sandbox-ui (step 5): why ShowLosePopup fired -- lets UIManager show a specific
+	// English title instead of one generic string. AllCiviliansLost/GoalUnreachable both come from
+	// CheckWinLoseCondition's math (possibleToRescue == 0 vs merely < requiredHumans); TimeIsUp is
+	// the V2 Last Transport departing without enough rescued.
+	public enum LoseReason { AllCiviliansLost, GoalUnreachable, TimeIsUp }
+
+	// feature/hud-sandbox-ui (step 5): sandbox-only -- set by the lose popup's "Keep Playing"
+	// button, permanently skipping future lose checks for the rest of this attempt so a dev can
+	// keep watching the sim instead of being kicked back to the popup every frame. Never set
+	// outside that sandbox-only path, and resets to false on any level (re)load since GameManager
+	// isn't DontDestroyOnLoad -- non-sandbox lose/win rules are unaffected.
+	private bool sandboxLoseContinue = false;
+
 	[Header("Human Counters")]
 	public int totalHumans;
 	public int rescuedHumans;
@@ -227,7 +240,7 @@ public class GameManager : MonoBehaviour
 		else
 		{
 			State = GameState.Lose;
-			UIManager.Instance.ShowLosePopup();
+			UIManager.Instance.ShowLosePopup(LoseReason.TimeIsUp);
 		}
 	}
 
@@ -326,14 +339,17 @@ public class GameManager : MonoBehaviour
 
 	private void CheckWinLoseCondition(bool isLevelEmpty = false)
 	{
-		if (State == GameState.GameOver || State == GameState.Lose) return;
+		if (State == GameState.GameOver || State == GameState.Lose || sandboxLoseContinue) return;
 
 		int possibleToRescue = GetTotalRescued() + GetPendingTotal() + GetAliveResidentsCount();
 
 		if (possibleToRescue < requiredHumans)
 		{
 			State = GameState.Lose;
-			UIManager.Instance.ShowLosePopup();
+			// possibleToRescue already includes GetTotalRescued() -- 0 means nobody was ever
+			// rescued and nobody is left alive/pending, i.e. a total wipe. Anything above 0 but
+			// still short of the goal means some were saved, just not enough.
+			UIManager.Instance.ShowLosePopup(possibleToRescue <= 0 ? LoseReason.AllCiviliansLost : LoseReason.GoalUnreachable);
 		}
 		else if (isLevelEmpty && GetTotalRescued() >= requiredHumans)
 		{
@@ -412,6 +428,16 @@ public class GameManager : MonoBehaviour
 	public void RestartLevel()
 	{
 		SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+	}
+
+	// feature/hud-sandbox-ui (step 5): "Keep Playing" on the sandbox-only lose popup -- resumes
+	// simulation instead of restarting/quitting, and permanently stops this attempt's lose checks
+	// so the popup doesn't just reappear next frame (the underlying math that triggered it hasn't
+	// changed). UIManager only offers this button when LevelData.isSandboxLevel is true.
+	public void ContinuePlayingAfterSandboxLose()
+	{
+		sandboxLoseContinue = true;
+		if (State == GameState.Lose) State = GameState.Playing;
 	}
 
 	public void GoToMainMenu()

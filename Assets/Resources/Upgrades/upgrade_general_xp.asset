@@ -14,20 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   upgradeId: general_xp
   targetCardType: 0
-  displayName: "\u0423\u0441\u043A\u043E\u0440\u0435\u043D\u043D\u043E\u0435 \u041E\u0431\u0443\u0447\u0435\u043D\u0438\u0435"
-  descriptionTier1: "+25% \u043A \u043F\u043E\u043B\u0443\u0447\u0430\u0435\u043C\u043E\u043C\u0443
-    XP"
+  displayName: "Accelerated Training"
+  descriptionTier1: "+25% to XP gained"
   iconTier1: {fileID: 0}
   accentColor: {r: 0.4, g: 0.8, b: 1, a: 1}
-  displayNameEnhanced: "\u0423\u0441\u043A\u043E\u0440\u0435\u043D\u043D\u043E\u0435
-    \u041E\u0431\u0443\u0447\u0435\u043D\u0438\u0435 II"
-  descriptionTier2: "+60% \u043A \u043F\u043E\u043B\u0443\u0447\u0430\u0435\u043C\u043E\u043C\u0443
-    XP"
+  displayNameEnhanced: "Accelerated Training II"
+  descriptionTier2: "+60% to XP gained"
   iconTier2: {fileID: 0}
-  displayNameUltimate: "\u0423\u0441\u043A\u043E\u0440\u0435\u043D\u043D\u043E\u0435
-    \u041E\u0431\u0443\u0447\u0435\u043D\u0438\u0435 III"
-  descriptionTier3: "+100% \u043A \u043F\u043E\u043B\u0443\u0447\u0430\u0435\u043C\u043E\u043C\u0443
-    XP"
+  displayNameUltimate: "Accelerated Training III"
+  descriptionTier3: "+100% to XP gained"
   iconTier3: {fileID: 0}
   ultimateColor: {r: 1, g: 0.8, b: 0.2, a: 1}
   effectType: 33

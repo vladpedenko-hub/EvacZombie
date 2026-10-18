@@ -43,6 +43,16 @@ public class TopHudV2 : MonoBehaviour
 	private bool star1BannerShown;
 	private bool wasNight;
 
+	// feature/hud-sandbox-ui: lets SupplyHud (and anything else that needs to sit below this HUD)
+	// anchor into the same parent/space without duplicating this class's own layout math. Null/
+	// the fallback Y until this HUD has actually built itself (i.e. the first CoreLoopV2 level of
+	// the session) -- callers must null-check HudParent before using BelowHudY.
+	public static Transform HudParent => instance != null && instance.builtUi ? instance.mainRow.parent : null;
+
+	public static float BelowHudY => instance != null && instance.builtUi
+		? instance.planningStrip.anchoredPosition.y - instance.planningStrip.sizeDelta.y - 10f
+		: -250f;
+
 	// Called from LevelManager.LoadLevel() -- the sole initialization entry point.
 	public static void OnLevelLoaded(LevelData data)
 	{

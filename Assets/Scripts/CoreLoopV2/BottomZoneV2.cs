@@ -10,17 +10,15 @@ using UnityEngine;
 public static class BottomZoneV2
 {
 	private static RectTransform controlRow;
-	private static RectTransform supplySlot;
 	private static RectTransform adSlot;
 	private static RectTransform goSlot;
 
 	public static RectTransform ControlRow => controlRow;
-	public static RectTransform SupplySlot => supplySlot;
 	public static RectTransform AdSlot => adSlot;
 	public static RectTransform GoSlot => goSlot;
 
 	[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-	private static void ResetStatics() { controlRow = null; supplySlot = null; adSlot = null; goSlot = null; }
+	private static void ResetStatics() { controlRow = null; adSlot = null; goSlot = null; }
 
 	// Called from LevelManager.LoadLevel(), before SupplyHud/PlanningControllerV2's own hooks.
 	public static void EnsureBuilt()
@@ -38,12 +36,12 @@ public static class BottomZoneV2
 		controlRow.offsetMin = Vector2.zero;
 		controlRow.offsetMax = Vector2.zero;
 
-		// Left: Supply pill. Center-right: ad (smaller) + GO. Far right: ultimate (repositions the
-		// existing scene AbilityButton rather than building a new one).
-		supplySlot = BuildSlot("SupplySlot", 0f, 0.34f);
+		// Ad (smaller) + GO. The ultimate button is positioned separately, above this row on the
+		// right edge (feature/hud-sandbox-ui) -- Supply moved out entirely (now in TopHudV2's zone,
+		// see SupplyHud.cs), freeing the rest of this row for ad/GO alone.
 		adSlot = BuildSlot("AdSlot", 0.37f, 0.57f);
 		goSlot = BuildSlot("GoSlot", 0.59f, 0.86f);
-		RepositionAbilityButton(0.88f, 1f);
+		RepositionAbilityButton();
 
 		if (LevelManager.Instance != null) LevelManager.Instance.RegisterBottomReservedUI(controlRow);
 	}
@@ -61,17 +59,22 @@ public static class BottomZoneV2
 	// The ultimate button is a pre-existing scene object (SafeAreaContainer/AbilityButton, with its
 	// own BackgroundImage/FillImage/PulseGlow children and AbilityButtonUI wiring) -- repositioned
 	// in place each level load rather than rebuilt, so none of that wiring is disturbed.
-	private static void RepositionAbilityButton(float minX, float maxX)
+	//
+	// feature/hud-sandbox-ui: fixed-size (96px at the 1080 reference) touch target on the right
+	// screen edge, ~25-30% up from the bottom -- clear of both the card row below and this
+	// control row's own slots (it no longer shares a rect with either).
+	private static void RepositionAbilityButton()
 	{
 		GameObject go = GameObject.Find("AbilityButton");
 		if (go == null) return;
 		RectTransform rt = go.GetComponent<RectTransform>();
-		if (rt == null || controlRow == null) return;
+		if (rt == null) return;
 
-		rt.anchorMin = new Vector2(minX, controlRow.anchorMin.y);
-		rt.anchorMax = new Vector2(maxX, controlRow.anchorMax.y);
-		rt.offsetMin = Vector2.zero;
-		rt.offsetMax = Vector2.zero;
+		const float size = 96f;
+		rt.anchorMin = rt.anchorMax = new Vector2(1f, 0.28f);
+		rt.pivot = new Vector2(1f, 0.5f);
+		rt.sizeDelta = new Vector2(size, size);
+		rt.anchoredPosition = new Vector2(-16f, 0f);
 	}
 
 	// Section 3.5: card placement must be blocked under every bottom-zone UI, not only CardsPanel

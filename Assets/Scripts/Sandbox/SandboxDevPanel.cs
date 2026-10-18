@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,6 +13,11 @@ using UnityEngine.UI;
 // StartTutorialNextFrame) and quietly self-destructs if this isn't the sandbox level. Every effect
 // here (deck override, noCooldowns, infiniteSupply, wave pause) is gated behind that same check, so
 // a normal level is never touched by any of this.
+//
+// feature/hud-sandbox-ui: rebuilt for a phone screen -- closed by default behind one big "DEV"
+// button, a big two-column button grid inside a per-tab ScrollRect (General | Cards | AI / Tuning
+// | Visual), everything >=96px tall / font >=30 at the 1080 reference. Every control that existed
+// before this pass is still here, just moved into a tab's grid instead of a flat row.
 public class SandboxDevPanel : MonoBehaviour
 {
 	[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -88,7 +94,23 @@ public class SandboxDevPanel : MonoBehaviour
 	private bool civAiOldFeel;
 	private TextMeshProUGUI civAiFeelLabel;
 
-	private RectTransform bodyRoot;
+	// feature/hud-sandbox-ui (step 4): every CardData the Cards tab knows about, and which of them
+	// are currently enabled -- persisted in PlayerPrefs (sandbox only), applied through the
+	// existing CardManager.SandboxAllCards + RefreshDeck path.
+	private const string EnabledCardsPrefKey = "Sandbox_EnabledCards_v1";
+	private List<CardData> allKnownCards;
+	private readonly HashSet<string> enabledCardNames = new HashSet<string>();
+	private readonly Dictionary<string, Button> cardToggleButtons = new Dictionary<string, Button>();
+	private static readonly Color CardOnColor = new Color(0.22f, 0.55f, 0.28f, 0.95f);
+	private static readonly Color CardOffColor = new Color(0.25f, 0.25f, 0.3f, 0.9f);
+
+	// feature/hud-sandbox-ui (step 3): closed by default behind one big DEV button; the panel
+	// itself is a two-column grid per tab inside a ScrollRect, stopping well above the card row.
+	private RectTransform panelRoot;
+	private bool panelOpen;
+	private RectTransform[] tabPages;
+	private int activeTab;
+
 	private TextMeshProUGUI countersText;
 	private TextMeshProUGUI presetLabel;
 	private TextMeshProUGUI paletteLabel;
@@ -128,23 +150,79 @@ public class SandboxDevPanel : MonoBehaviour
 
 		active = true;
 
-		ApplySandboxDeck();
+		LoadAllKnownCards();
+		LoadEnabledCardsFromPrefs();
+		EnsureAllCardsMaxLevel();
+		ApplyEnabledDeck();
 		LoadTuningPresets();
 		LoadPalettePresets();
 		BuildPanel();
 	}
 
-	// ── Part 3: all 8 cards at max level, sandbox only ──────────────────────────────────────
+	// ── Cards (Part 3 + feature/hud-sandbox-ui step 4) ──────────────────────────────────────
 
-	private void ApplySandboxDeck()
+	// feature/hud-sandbox-ui (step 4): every CardData asset in the project, not just
+	// SandboxConfig.allCards -- that list is curated by hand and can silently miss a card (which
+	// is exactly why Helicopter *looked* missing before: it IS in allCards, the card hand just
+	// scrolls off-screen with no visual hint once SandboxCardHandScroll kicks in for 8+ cards).
+	// AssetDatabase enumeration only exists in the Editor (where all iteration on this project
+	// actually happens); a device/non-Editor build falls back to the curated list, which still
+	// covers every regular card, just not LastTransport (deliberately excluded -- a free one-shot
+	// Core Loop v2 card, not a sandbox deck toggle).
+	private void LoadAllKnownCards()
+	{
+		var found = new List<CardData>();
+
+#if UNITY_EDITOR
+		string[] guids = UnityEditor.AssetDatabase.FindAssets("t:CardData");
+		foreach (string guid in guids)
+		{
+			string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+			CardData card = UnityEditor.AssetDatabase.LoadAssetAtPath<CardData>(path);
+			if (card != null) found.Add(card);
+		}
+#endif
+
+		if (found.Count == 0 && config != null && config.allCards != null)
+			found.AddRange(config.allCards.Where(c => c != null));
+
+		found.Sort((a, b) => string.Compare(a.cardName, b.cardName, System.StringComparison.OrdinalIgnoreCase));
+		allKnownCards = found;
+	}
+
+	private void LoadEnabledCardsFromPrefs()
+	{
+		enabledCardNames.Clear();
+		string saved = PlayerPrefs.GetString(EnabledCardsPrefKey, "");
+
+		if (string.IsNullOrEmpty(saved))
+		{
+			// First run ever: default to everything enabled (matches the old fixed "all cards
+			// active" sandbox behavior).
+			foreach (CardData c in allKnownCards)
+				if (c != null) enabledCardNames.Add(c.name);
+			return;
+		}
+
+		foreach (string n in saved.Split(','))
+			if (!string.IsNullOrEmpty(n)) enabledCardNames.Add(n);
+	}
+
+	private void SaveEnabledCardsToPrefs()
+	{
+		PlayerPrefs.SetString(EnabledCardsPrefKey, string.Join(",", enabledCardNames));
+	}
+
+	// feature/hud-sandbox-ui (step 4) -- was ApplySandboxDeck's progress-bookkeeping half: every
+	// KNOWN card gets bumped to max level (so a later toggle-on shows it fully upgraded), whether
+	// or not it's currently enabled.
+	private void EnsureAllCardsMaxLevel()
 	{
 		CardManager.SandboxAllCardsActive = true;
-		CardManager.SandboxAllCards = config.allCards;
-		CardManager.Instance?.RefreshDeck();
 
 		if (PlayerProfile.Instance == null) return;
 
-		foreach (CardData card in config.allCards)
+		foreach (CardData card in allKnownCards)
 		{
 			if (card == null) continue;
 
@@ -161,6 +239,43 @@ public class SandboxDevPanel : MonoBehaviour
 				progress.currentLevel = card.maxLevel;
 			}
 		}
+	}
+
+	// feature/hud-sandbox-ui (step 4) -- was ApplySandboxDeck's deck-swap half, now repeatable
+	// (called again every time a Cards-tab toggle changes), through the existing
+	// CardManager.SandboxAllCards + RefreshDeck path.
+	private void ApplyEnabledDeck()
+	{
+		CardManager.SandboxAllCards = allKnownCards.Where(c => c != null && enabledCardNames.Contains(c.name)).ToList();
+		CardManager.Instance?.RefreshDeck();
+	}
+
+	private void ToggleCard(string cardKey)
+	{
+		if (enabledCardNames.Contains(cardKey)) enabledCardNames.Remove(cardKey);
+		else enabledCardNames.Add(cardKey);
+
+		if (cardToggleButtons.TryGetValue(cardKey, out Button b)) RefreshCardButtonVisual(cardKey, b);
+		SaveEnabledCardsToPrefs();
+		ApplyEnabledDeck();
+	}
+
+	private void SetAllCardsEnabled(bool enabled)
+	{
+		enabledCardNames.Clear();
+		if (enabled)
+			foreach (CardData c in allKnownCards)
+				if (c != null) enabledCardNames.Add(c.name);
+
+		foreach (var kv in cardToggleButtons) RefreshCardButtonVisual(kv.Key, kv.Value);
+		SaveEnabledCardsToPrefs();
+		ApplyEnabledDeck();
+	}
+
+	private void RefreshCardButtonVisual(string cardKey, Button b)
+	{
+		Image img = b.GetComponent<Image>();
+		if (img != null) img.color = enabledCardNames.Contains(cardKey) ? CardOnColor : CardOffColor;
 	}
 
 	private void RestoreRealDeck()
@@ -375,6 +490,10 @@ public class SandboxDevPanel : MonoBehaviour
 
 	// ── UI construction (RuntimeUiKit — no scene/prefab edits) ──────────────────────────────
 
+	// feature/hud-sandbox-ui (step 3): closed by default behind one big "DEV" button (top-right,
+	// clear of TopHudV2's 0.04-0.87 band); the expanded panel stops at anchor Y 0.13, well above
+	// the card row (CardManager.cardsPanel is a fixed 200px-tall, bottom-pivoted rect -- 0.13 of
+	// the 1920-tall reference canvas is ~250px, a safe margin above it).
 	private void BuildPanel()
 	{
 		Canvas canvas = RuntimeUiKit.CreateOverlayCanvas("[SandboxDevPanelCanvas]", 5000, transform);
@@ -383,137 +502,235 @@ public class SandboxDevPanel : MonoBehaviour
 		RuntimeUiKit.Stretch(safe);
 		safe.gameObject.AddComponent<SafeArea>();
 
-		Image panelBg = RuntimeUiKit.CreateImage("Panel", safe, new Color(0.06f, 0.06f, 0.08f, 0.88f));
-		RectTransform panelRt = panelBg.rectTransform;
-		panelRt.anchorMin = panelRt.anchorMax = panelRt.pivot = new Vector2(0f, 1f);
-		panelRt.sizeDelta = new Vector2(config.panelWidth, 36f); // header-only height; body adds its own
-		panelRt.anchoredPosition = new Vector2(config.panelAnchoredPosition.x, config.panelAnchoredPosition.y);
+		Button devButton = RuntimeUiKit.CreateButton("DevToggleButton", safe, "DEV", 32f,
+			new Color(0.85f, 0.25f, 0.2f, 0.95f), Color.white);
+		RectTransform devRt = devButton.GetComponent<RectTransform>();
+		devRt.anchorMin = devRt.anchorMax = devRt.pivot = new Vector2(1f, 1f);
+		devRt.sizeDelta = new Vector2(140f, 96f);
+		devRt.anchoredPosition = new Vector2(-16f, -16f);
 
-		VerticalLayoutGroup vlg = panelBg.gameObject.AddComponent<VerticalLayoutGroup>();
-		vlg.childControlHeight = true;
-		vlg.childControlWidth = true;
-		vlg.childForceExpandHeight = false;
-		vlg.childForceExpandWidth = true;
-		vlg.padding = new RectOffset(8, 8, 6, 8);
-		vlg.spacing = 4f;
-		ContentSizeFitter fitter = panelBg.gameObject.AddComponent<ContentSizeFitter>();
-		fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+		panelRoot = RuntimeUiKit.CreateRect("Panel", safe);
+		panelRoot.anchorMin = new Vector2(0.03f, 0.13f);
+		panelRoot.anchorMax = new Vector2(0.97f, 0.90f);
+		panelRoot.offsetMin = Vector2.zero;
+		panelRoot.offsetMax = Vector2.zero;
 
-		// Header: title + collapse toggle
-		RectTransform header = RuntimeUiKit.CreateRect("Header", panelRt);
-		LayoutElement headerLe = header.gameObject.AddComponent<LayoutElement>();
-		headerLe.preferredHeight = 28f;
-		Button collapseBtn = RuntimeUiKit.CreateButton("CollapseButton", header, "SANDBOX ▾", 22f,
-			new Color(0.85f, 0.25f, 0.2f, 0.9f), Color.white);
-		RuntimeUiKit.Stretch(collapseBtn.GetComponent<RectTransform>());
+		Image panelBg = panelRoot.gameObject.AddComponent<Image>();
+		panelBg.color = new Color(0.06f, 0.06f, 0.08f, 0.94f);
 
-		bodyRoot = RuntimeUiKit.CreateRect("Body", panelRt);
-		VerticalLayoutGroup bodyVlg = bodyRoot.gameObject.AddComponent<VerticalLayoutGroup>();
-		bodyVlg.childControlHeight = true;
-		bodyVlg.childControlWidth = true;
-		bodyVlg.childForceExpandHeight = false;
-		bodyVlg.childForceExpandWidth = true;
-		bodyVlg.spacing = 4f;
-		bodyRoot.gameObject.AddComponent<LayoutElement>();
+		VerticalLayoutGroup panelVlg = panelRoot.gameObject.AddComponent<VerticalLayoutGroup>();
+		panelVlg.childControlHeight = true;
+		panelVlg.childControlWidth = true;
+		panelVlg.childForceExpandHeight = false;
+		panelVlg.childForceExpandWidth = true;
+		panelVlg.padding = new RectOffset(10, 10, 10, 10);
+		panelVlg.spacing = 8f;
 
-		bool collapsed = false;
-		collapseBtn.onClick.AddListener(() =>
+		countersText = RuntimeUiKit.CreateText("Counters", panelRoot, "", 26f, Color.white, TextAlignmentOptions.Left);
+		LayoutElement countersLe = countersText.gameObject.AddComponent<LayoutElement>();
+		countersLe.preferredHeight = 170f;
+
+		RectTransform tabBar = RuntimeUiKit.CreateRect("TabBar", panelRoot);
+		HorizontalLayoutGroup tabHlg = tabBar.gameObject.AddComponent<HorizontalLayoutGroup>();
+		tabHlg.spacing = 6f;
+		tabHlg.childControlWidth = true;
+		tabHlg.childControlHeight = true;
+		tabHlg.childForceExpandWidth = true;
+		LayoutElement tabLe = tabBar.gameObject.AddComponent<LayoutElement>();
+		tabLe.preferredHeight = 96f;
+
+		string[] tabNames = { "General", "Cards", "AI / Tuning", "Visual" };
+		tabPages = new RectTransform[tabNames.Length];
+		var tabContents = new RectTransform[tabNames.Length];
+
+		for (int i = 0; i < tabNames.Length; i++)
 		{
-			collapsed = !collapsed;
-			bodyRoot.gameObject.SetActive(!collapsed);
-			TextMeshProUGUI label = collapseBtn.GetComponentInChildren<TextMeshProUGUI>();
-			if (label != null) label.text = collapsed ? "SANDBOX ▸" : "SANDBOX ▾";
+			int captured = i;
+			Button tb = RuntimeUiKit.CreateButton("Tab_" + i, tabBar, tabNames[i], 30f,
+				new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+			tb.onClick.AddListener(() => SetActiveTab(captured));
+		}
+
+		RectTransform tabPagesHost = RuntimeUiKit.CreateRect("TabPages", panelRoot);
+		LayoutElement pagesLe = tabPagesHost.gameObject.AddComponent<LayoutElement>();
+		pagesLe.flexibleHeight = 1f;
+
+		for (int i = 0; i < tabNames.Length; i++)
+			tabContents[i] = BuildTabScrollContent(tabPagesHost, "Page_" + i, out tabPages[i]);
+
+		BuildGeneralTab(tabContents[0]);
+		BuildCardsTab(tabContents[1]);
+		BuildAiTab(tabContents[2]);
+		BuildVisualTab(tabContents[3]);
+
+		panelRoot.gameObject.SetActive(false);
+		devButton.onClick.AddListener(() =>
+		{
+			panelOpen = !panelOpen;
+			panelRoot.gameObject.SetActive(panelOpen);
 		});
 
-		BuildTimescaleRow(bodyRoot);
-		BuildTogglesRow(bodyRoot);
-		BuildGizmoRow(bodyRoot);
-		BuildPresetRow(bodyRoot);
-		BuildPaletteRow(bodyRoot);
-		BuildHeliPresetRow(bodyRoot);
-		BuildBarricadeFeelPresetRow(bodyRoot);
-		BuildSniperFeelPresetRow(bodyRoot);
-		BuildBaitFeelPresetRow(bodyRoot);
-		BuildCardScalePresetRow(bodyRoot);
-		BuildBombFeelPresetRow(bodyRoot);
-		BuildCivAiPresetRow(bodyRoot);
-		BuildCountersLabel(bodyRoot);
+		SetActiveTab(0);
 	}
 
-	private RectTransform BuildRow(Transform parent, float height)
+	private void SetActiveTab(int index)
 	{
-		RectTransform row = RuntimeUiKit.CreateRect("Row", parent);
-		HorizontalLayoutGroup hlg = row.gameObject.AddComponent<HorizontalLayoutGroup>();
-		hlg.spacing = 4f;
-		hlg.childControlWidth = true;
-		hlg.childControlHeight = true;
-		hlg.childForceExpandWidth = true;
-		LayoutElement le = row.gameObject.AddComponent<LayoutElement>();
-		le.preferredHeight = height;
-		return row;
+		activeTab = index;
+		for (int i = 0; i < tabPages.Length; i++)
+			tabPages[i].gameObject.SetActive(i == index);
 	}
 
-	private void BuildTimescaleRow(Transform parent)
+	// feature/hud-sandbox-ui (step 3): a clipped viewport + ScrollRect wrapping a 2-column
+	// GridLayoutGroup content -- GridCellWidthFixer keeps the cell width matched to whatever this
+	// panel's actual on-screen width turns out to be (different phone aspects/CanvasScaler match
+	// modes give different UI-unit widths even at the same anchor fractions), cell HEIGHT stays
+	// fixed at >=96px per the brief.
+	private RectTransform BuildTabScrollContent(Transform parent, string name, out RectTransform pageRoot)
 	{
-		RectTransform row = BuildRow(parent, 44f);
+		pageRoot = RuntimeUiKit.CreateRect(name, parent);
+		RuntimeUiKit.Stretch(pageRoot);
+		pageRoot.gameObject.AddComponent<RectMask2D>();
+		Image clip = pageRoot.gameObject.AddComponent<Image>();
+		clip.color = new Color(0f, 0f, 0f, 0f); // invisible; only here so the viewport is raycastable for drag
 
-		foreach (float scale in config.timescalePresets)
+		RectTransform content = RuntimeUiKit.CreateRect("Content", pageRoot);
+		content.anchorMin = new Vector2(0f, 1f);
+		content.anchorMax = new Vector2(1f, 1f);
+		content.pivot = new Vector2(0.5f, 1f);
+		content.anchoredPosition = Vector2.zero;
+		content.sizeDelta = Vector2.zero;
+
+		GridLayoutGroup grid = content.gameObject.AddComponent<GridLayoutGroup>();
+		grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+		grid.constraintCount = 2;
+		grid.spacing = new Vector2(10f, 10f);
+		grid.padding = new RectOffset(6, 6, 6, 6);
+		grid.childAlignment = TextAnchor.UpperLeft;
+		content.gameObject.AddComponent<GridCellWidthFixer>().Init(grid, 2, 110f);
+
+		ContentSizeFitter fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+		fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+		fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+		ScrollRect scroll = pageRoot.gameObject.AddComponent<ScrollRect>();
+		scroll.horizontal = false;
+		scroll.vertical = true;
+		scroll.viewport = pageRoot;
+		scroll.content = content;
+		scroll.movementType = ScrollRect.MovementType.Clamped;
+
+		return content;
+	}
+
+	// feature/hud-sandbox-ui (steps 3/4): keeps a 2-column GridLayoutGroup's cell WIDTH matched to
+	// its own RectTransform's actual on-screen width every frame -- computed from real layout, not
+	// guessed from a reference-resolution pixel count that would be wrong on a different aspect or
+	// when AspectAwareCanvasScaler flips between Match Width/Height (see CLAUDE.md). Cell height is
+	// fixed (>=96px at the 1080 reference per the brief) and never recomputed.
+	private class GridCellWidthFixer : MonoBehaviour
+	{
+		private GridLayoutGroup grid;
+		private int columns;
+		private float cellHeight;
+		private RectTransform rt;
+
+		public void Init(GridLayoutGroup g, int cols, float height)
 		{
-			float captured = scale;
-			Button b = RuntimeUiKit.CreateButton("Timescale_" + scale, row, "x" + scale.ToString("0.#"), 20f,
-				new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-			b.onClick.AddListener(() => Time.timeScale = captured);
+			grid = g;
+			columns = cols;
+			cellHeight = height;
+			rt = GetComponent<RectTransform>();
+		}
+
+		private void LateUpdate()
+		{
+			if (grid == null || rt == null) return;
+
+			float totalSpacing = grid.spacing.x * (columns - 1) + grid.padding.left + grid.padding.right;
+			float width = Mathf.Max(60f, (rt.rect.width - totalSpacing) / columns);
+			grid.cellSize = new Vector2(width, cellHeight);
 		}
 	}
 
-	private void BuildTogglesRow(Transform parent)
+	private Button AddGridButton(Transform grid, string label, UnityEngine.Events.UnityAction onClick)
 	{
-		RectTransform row1 = BuildRow(parent, 44f);
-		pauseButton = RuntimeUiKit.CreateButton("PauseWaves", row1, "Pause Waves", 18f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		pauseButton.onClick.AddListener(() =>
+		Button b = RuntimeUiKit.CreateButton("Btn_" + label, grid, label, 30f,
+			new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+		if (onClick != null) b.onClick.AddListener(onClick);
+		return b;
+	}
+
+	// ── General tab: timescale, pause/restart, dev toggles ──────────────────────────────────
+
+	private void BuildGeneralTab(Transform grid)
+	{
+		foreach (float scale in config.timescalePresets)
+		{
+			float captured = scale;
+			AddGridButton(grid, "x" + scale.ToString("0.#"), () => Time.timeScale = captured);
+		}
+
+		pauseButton = AddGridButton(grid, "Pause Waves", () =>
 		{
 			wavesPausedUi = !wavesPausedUi;
 			if (LevelManager.Instance != null) LevelManager.Instance.wavesPaused = wavesPausedUi;
 			SetButtonLabel(pauseButton, wavesPausedUi ? "Resume Waves" : "Pause Waves");
 		});
 
-		Button restartButton = RuntimeUiKit.CreateButton("Restart", row1, "Restart", 18f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		restartButton.onClick.AddListener(() =>
+		AddGridButton(grid, "Restart", () =>
 		{
 			LevelManager.PendingSandboxLevel = config.sandboxLevel;
 			GameManager.Instance?.RestartLevel();
 		});
 
-		RectTransform row2 = BuildRow(parent, 44f);
-		noCooldownsButton = RuntimeUiKit.CreateButton("NoCooldowns", row2, "No Cooldowns: OFF", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		noCooldownsButton.onClick.AddListener(() =>
+		noCooldownsButton = AddGridButton(grid, "No Cooldowns: OFF", () =>
 		{
 			noCooldowns = !noCooldowns;
 			SetButtonLabel(noCooldownsButton, "No Cooldowns: " + (noCooldowns ? "ON" : "OFF"));
 		});
 
-		infiniteSupplyButton = RuntimeUiKit.CreateButton("InfiniteSupply", row2, "Infinite Supply: OFF", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		infiniteSupplyButton.onClick.AddListener(() =>
+		infiniteSupplyButton = AddGridButton(grid, "Infinite Supply: OFF", () =>
 		{
 			infiniteSupply = !infiniteSupply;
 			SetButtonLabel(infiniteSupplyButton, "Infinite Supply: " + (infiniteSupply ? "ON" : "OFF"));
 		});
 
-		RectTransform row3 = BuildRow(parent, 44f);
-		spawnOnTapButton = RuntimeUiKit.CreateButton("SpawnOnTap", row3, "Spawn On Tap: OFF", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		spawnOnTapButton.onClick.AddListener(() =>
+		spawnOnTapButton = AddGridButton(grid, "Spawn On Tap: OFF", () =>
 		{
 			spawnOnTapActive = !spawnOnTapActive;
 			SetButtonLabel(spawnOnTapButton, "Spawn On Tap: " + (spawnOnTapActive ? "ON" : "OFF"));
 		});
 	}
 
-	private void BuildGizmoRow(Transform parent)
-	{
-		RectTransform row = BuildRow(parent, 44f);
+	// ── Cards tab (feature/hud-sandbox-ui step 4) ────────────────────────────────────────────
 
-		gizmoButton = RuntimeUiKit.CreateButton("GridGizmos", row, "Grid Gizmos: OFF", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		gizmoButton.onClick.AddListener(() =>
+	private void BuildCardsTab(Transform grid)
+	{
+		AddGridButton(grid, "ALL ON", () => SetAllCardsEnabled(true));
+		AddGridButton(grid, "ALL OFF", () => SetAllCardsEnabled(false));
+
+		foreach (CardData card in allKnownCards)
+		{
+			if (card == null) continue;
+
+			string key = card.name;
+			string label = !string.IsNullOrEmpty(card.cardName) ? card.cardName : card.name;
+			Button b = AddGridButton(grid, label, null);
+			b.onClick.AddListener(() => ToggleCard(key));
+			cardToggleButtons[key] = b;
+			RefreshCardButtonVisual(key, b);
+		}
+	}
+
+	// ── AI / Tuning tab ──────────────────────────────────────────────────────────────────────
+
+	private void BuildAiTab(Transform grid)
+	{
+		string initialTuningName = tuningPresets != null && tuningPresets.Count > 0 ? tuningPresets[tuningPresetIndex].name : "(none in Resources)";
+		Button presetButton = AddGridButton(grid, "Tuning: " + initialTuningName, CycleTuningPreset);
+		presetLabel = presetButton.GetComponentInChildren<TextMeshProUGUI>();
+
+		gizmoButton = AddGridButton(grid, "Grid Gizmos: OFF", () =>
 		{
 			CrowdTuning t = CrowdFieldManager.Instance != null ? CrowdFieldManager.Instance.ActiveTuning : null;
 			if (t == null) return;
@@ -521,104 +738,43 @@ public class SandboxDevPanel : MonoBehaviour
 			SetButtonLabel(gizmoButton, "Grid Gizmos: " + (t.drawGridGizmos ? "ON" : "OFF"));
 		});
 
-		overlayButton = RuntimeUiKit.CreateButton("SiegeOverlay", row, "Siege Overlay: OFF", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		overlayButton.onClick.AddListener(() =>
+		overlayButton = AddGridButton(grid, "Siege Overlay: OFF", () =>
 		{
 			CrowdTuning t = CrowdFieldManager.Instance != null ? CrowdFieldManager.Instance.ActiveTuning : null;
 			if (t == null) return;
 			t.showZombieSiegeOverlay = !t.showZombieSiegeOverlay;
 			SetButtonLabel(overlayButton, "Siege Overlay: " + (t.showZombieSiegeOverlay ? "ON" : "OFF"));
 		});
-	}
 
-	private void BuildPresetRow(Transform parent)
-	{
-		RectTransform row = BuildRow(parent, 44f);
-
-		string initialName = tuningPresets != null && tuningPresets.Count > 0 ? tuningPresets[tuningPresetIndex].name : "(none in Resources)";
-		Button presetButton = RuntimeUiKit.CreateButton("TuningPreset", row, "Tuning: " + initialName, 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		presetLabel = presetButton.GetComponentInChildren<TextMeshProUGUI>();
-		presetButton.onClick.AddListener(CycleTuningPreset);
-	}
-
-	private void BuildPaletteRow(Transform parent)
-	{
-		RectTransform row = BuildRow(parent, 44f);
-
-		string initialName = palettePresets != null && palettePresets.Count > 0 ? palettePresets[palettePresetIndex].name : "(none in Resources)";
-		Button paletteButton = RuntimeUiKit.CreateButton("LevelPalette", row, "Palette: " + initialName, 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		paletteLabel = paletteButton.GetComponentInChildren<TextMeshProUGUI>();
-		paletteButton.onClick.AddListener(CyclePalette);
-	}
-
-	private void BuildHeliPresetRow(Transform parent)
-	{
-		RectTransform row = BuildRow(parent, 44f);
-
-		Button heliButton = RuntimeUiKit.CreateButton("HeliPreset", row, "Heli: New feel", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		heliPresetLabel = heliButton.GetComponentInChildren<TextMeshProUGUI>();
-		heliButton.onClick.AddListener(CycleHeliPreset);
-	}
-
-	private void BuildBarricadeFeelPresetRow(Transform parent)
-	{
-		RectTransform row = BuildRow(parent, 44f);
-
-		Button barricadeButton = RuntimeUiKit.CreateButton("BarricadeFeelPreset", row, "Barricade feel: New", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		barricadeFeelLabel = barricadeButton.GetComponentInChildren<TextMeshProUGUI>();
-		barricadeButton.onClick.AddListener(CycleBarricadeFeelPreset);
-	}
-
-	private void BuildSniperFeelPresetRow(Transform parent)
-	{
-		RectTransform row = BuildRow(parent, 44f);
-
-		Button sniperButton = RuntimeUiKit.CreateButton("SniperFeelPreset", row, "Sniper feel: New feel", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		sniperFeelLabel = sniperButton.GetComponentInChildren<TextMeshProUGUI>();
-		sniperButton.onClick.AddListener(CycleSniperFeelPreset);
-	}
-
-	private void BuildBaitFeelPresetRow(Transform parent)
-	{
-		RectTransform row = BuildRow(parent, 44f);
-
-		Button baitButton = RuntimeUiKit.CreateButton("BaitFeelPreset", row, "Bait: New", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		baitFeelLabel = baitButton.GetComponentInChildren<TextMeshProUGUI>();
-		baitButton.onClick.AddListener(CycleBaitFeelPreset);
-	}
-
-	private void BuildCardScalePresetRow(Transform parent)
-	{
-		RectTransform row = BuildRow(parent, 44f);
-
-		Button cardScaleButton = RuntimeUiKit.CreateButton("CardScalePreset", row, "Card scale: Auto", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		cardScaleLabel = cardScaleButton.GetComponentInChildren<TextMeshProUGUI>();
-		cardScaleButton.onClick.AddListener(CycleCardScalePreset);
-	}
-
-	private void BuildBombFeelPresetRow(Transform parent)
-	{
-		RectTransform row = BuildRow(parent, 44f);
-
-		Button bombButton = RuntimeUiKit.CreateButton("BombFeelPreset", row, "Bomb: New", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
-		bombFeelLabel = bombButton.GetComponentInChildren<TextMeshProUGUI>();
-		bombButton.onClick.AddListener(CycleBombFeelPreset);
-	}
-
-	private void BuildCivAiPresetRow(Transform parent)
-	{
-		RectTransform row = BuildRow(parent, 44f);
-
-		Button civAiButton = RuntimeUiKit.CreateButton("CivAiPreset", row, "Civ AI: New", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+		Button civAiButton = AddGridButton(grid, "Civ AI: New", CycleCivAiPreset);
 		civAiFeelLabel = civAiButton.GetComponentInChildren<TextMeshProUGUI>();
-		civAiButton.onClick.AddListener(CycleCivAiPreset);
 	}
 
-	private void BuildCountersLabel(Transform parent)
+	// ── Visual tab: palette + every card's feel preset ──────────────────────────────────────
+
+	private void BuildVisualTab(Transform grid)
 	{
-		countersText = RuntimeUiKit.CreateText("Counters", parent, "", 16f, Color.white, TextAlignmentOptions.Left);
-		LayoutElement le = countersText.gameObject.AddComponent<LayoutElement>();
-		le.preferredHeight = 90f;
+		string initialPaletteName = palettePresets != null && palettePresets.Count > 0 ? palettePresets[palettePresetIndex].name : "(none in Resources)";
+		Button paletteButton = AddGridButton(grid, "Palette: " + initialPaletteName, CyclePalette);
+		paletteLabel = paletteButton.GetComponentInChildren<TextMeshProUGUI>();
+
+		Button heliButton = AddGridButton(grid, "Heli: New feel", CycleHeliPreset);
+		heliPresetLabel = heliButton.GetComponentInChildren<TextMeshProUGUI>();
+
+		Button barricadeButton = AddGridButton(grid, "Barricade feel: New", CycleBarricadeFeelPreset);
+		barricadeFeelLabel = barricadeButton.GetComponentInChildren<TextMeshProUGUI>();
+
+		Button sniperButton = AddGridButton(grid, "Sniper feel: New feel", CycleSniperFeelPreset);
+		sniperFeelLabel = sniperButton.GetComponentInChildren<TextMeshProUGUI>();
+
+		Button baitButton = AddGridButton(grid, "Bait: New", CycleBaitFeelPreset);
+		baitFeelLabel = baitButton.GetComponentInChildren<TextMeshProUGUI>();
+
+		Button cardScaleButton = AddGridButton(grid, "Card scale: Auto", CycleCardScalePreset);
+		cardScaleLabel = cardScaleButton.GetComponentInChildren<TextMeshProUGUI>();
+
+		Button bombButton = AddGridButton(grid, "Bomb: New", CycleBombFeelPreset);
+		bombFeelLabel = bombButton.GetComponentInChildren<TextMeshProUGUI>();
 	}
 
 	private static void SetButtonLabel(Button b, string text)

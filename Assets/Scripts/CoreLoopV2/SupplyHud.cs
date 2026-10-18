@@ -3,10 +3,14 @@ using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 
-// Core Loop v2 Supply pill (Docs/CORE_LOOP_V2.md HUD rebuild, BOTTOM zone, left slot). Built
-// inside BottomZoneV2.SupplySlot. Gated by LevelData.v2ShowSupplyHud -- Supply still exists in
-// SupplyManager's logic even when this is hidden (CardUI's cost badge/afford-dim follow the same
-// flag, see CardUI.cs).
+// Core Loop v2 Supply pill (Docs/CORE_LOOP_V2.md HUD rebuild). Gated by LevelData.v2ShowSupplyHud
+// -- Supply still exists in SupplyManager's logic even when this is hidden (CardUI's cost badge/
+// afford-dim follow the same flag, see CardUI.cs).
+//
+// feature/hud-sandbox-ui: moved from the bottom control row (crowding the card row) to a compact
+// pill top-left, directly below TopHudV2's wave/goal bar -- same parent/safe-area space as that
+// HUD (TopHudV2.HudParent), anchored just under it (TopHudV2.BelowHudY) so it can never overlap
+// either that bar or the planning strip beneath it.
 public class SupplyHud : MonoBehaviour
 {
 	private static SupplyHud instance;
@@ -57,11 +61,18 @@ public class SupplyHud : MonoBehaviour
 	{
 		if (builtUi) return;
 
-		BottomZoneV2.EnsureBuilt();
-		if (BottomZoneV2.SupplySlot == null) return;
+		Transform parent = TopHudV2.HudParent;
+		if (parent == null) return; // TopHudV2 hasn't built itself (not a CoreLoopV2 level yet this session)
 
-		root = RuntimeUiKit.CreateRect("SupplyHudV2", BottomZoneV2.SupplySlot);
-		RuntimeUiKit.SetAnchors(root, 0.04f, 0.12f, 0.96f, 0.88f);
+		// feature/hud-sandbox-ui: a small fixed-size (not stretched) pill, point-anchored top-left
+		// of the same safe-area space TopHudV2 uses, directly under its wave/goal bar -- same left
+		// margin (0.04) as that bar so the two line up.
+		root = RuntimeUiKit.CreateRect("SupplyHudV2", parent);
+		root.anchorMin = new Vector2(0.04f, 1f);
+		root.anchorMax = new Vector2(0.04f, 1f);
+		root.pivot = new Vector2(0f, 1f);
+		root.sizeDelta = new Vector2(190f, 64f);
+		root.anchoredPosition = new Vector2(0f, TopHudV2.BelowHudY);
 
 		bg = RuntimeUiKit.CreateImage("Bg", root, V2Theme.PanelBg);
 		RuntimeUiKit.Stretch(bg.rectTransform);

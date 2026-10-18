@@ -152,9 +152,11 @@ public class LevelManager : MonoBehaviour
 		AbilityManager.Instance?.Initialize(data);
 		SupplyManager.Instance?.OnLevelLoaded(data);
 		BottomZoneV2.EnsureBuilt();
+		// feature/hud-sandbox-ui: TopHudV2 must build first -- SupplyHud's pill now anchors into
+		// TopHudV2.HudParent (below the wave/goal bar), not the bottom control row.
+		TopHudV2.OnLevelLoaded(data);
 		SupplyHud.OnLevelLoaded(data);
 		PlanningControllerV2.OnLevelLoaded(data);
-		TopHudV2.OnLevelLoaded(data);
 		NightLastCallController.OnLevelLoaded(data);
 
 		if (currentLevelEnvironment != null)
