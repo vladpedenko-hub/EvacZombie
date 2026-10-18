@@ -273,5 +273,6 @@ public static class LevelPaletteApplier
 		foreach (Human h in Human.AllHumans) if (h != null) h.ApplyPaletteTint(palette.civilianColor);
 		foreach (Scientist s in Scientist.AllScientists) if (s != null) s.ApplyPaletteTint(palette.scientistColor);
 		foreach (Barricade b in Barricade.AllBarricades) if (b != null) b.ApplyPaletteTint(palette.barricadeColor);
+		foreach (Bait bt in Bait.AllBaits) if (bt != null) bt.ApplyPaletteTint(palette.baitColor);
 	}
 }

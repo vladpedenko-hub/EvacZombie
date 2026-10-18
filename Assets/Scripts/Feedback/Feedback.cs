@@ -19,7 +19,7 @@ public enum FeedbackEvent
 	// Weapons
 	SniperShot, SoldierShot, HeliGun, BombExplosion, BarricadeHit, BarricadeBreak,
 	BarricadePlace, BarricadeRepair, BarricadeStageBreak,
-	SniperLock, SniperKill,
+	SniperLock, SniperKill, BaitCrowd,
 
 	// Transport / rescue
 	HeliArrive, HeliTakeoff, HeliFull, CarArrive, RescueDeparted, RescueTick, GoalReached,
@@ -121,6 +121,10 @@ public static class Feedback
 		// killCameraKick is applied directly via CameraShake.Shake at the Sniper.cs call site (same
 		// reasoning as BarricadePlace's shake -- keeps the knob in SniperFeelTuning), not here.
 		{ FeedbackEvent.SniperKill,       E(SfxId.None, vfx: VfxId.DeathPuff) },
+		// feature/bait-rework: fires once when LatchedCount first reaches BaitTuning.heatZombiesForMax
+		// -- the ring's own width/color scaling is the continuous feedback, this is just the one-shot
+		// "crowd's at capacity" beat.
+		{ FeedbackEvent.BaitCrowd,        E(SfxId.BaitCrowd, HapticType.Light, hapticCd: 1f, vol: 0.7f) },
 
 		// ---- Transport / rescue
 		{ FeedbackEvent.HeliArrive,       E(SfxId.HeliArrive, vol: 0.8f) },

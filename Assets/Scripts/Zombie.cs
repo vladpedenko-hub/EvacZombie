@@ -52,6 +52,9 @@ public class Zombie : MonoBehaviour
 	private float nextChaosCheckTime = 0f;
 
 	private Bait currentBait = null;
+	// feature/bait-rework (step 6): data-only combo hook, no behavior change -- read-only mirror of
+	// the same currentBait != null check TryUpdateBaitLatch already uses.
+	public bool IsLatchedToBait => currentBait != null;
 	private Vector3 currentBaitDestination;
 
 	// fix/bite-and-bait (1): rolled once in LatchOntoBait(), kept until currentBait itself goes away
@@ -354,6 +357,9 @@ public class Zombie : MonoBehaviour
 		currentHealth = Mathf.RoundToInt(maxHealth * HealthMultiplier);
 		nextChaosCheckTime = 0f;
 
+		// feature/bait-rework (step 3): release the slot on whichever bait this pooled instance was
+		// latched to in its PREVIOUS life, so crowd-heat counts never leak across pool reuse.
+		if (currentBait != null) currentBait.ReportUnlatch();
 		currentBait = null;
 		currentBaitDestination = Vector3.zero;
 		currentBaitOffset = Vector3.zero;
@@ -430,6 +436,9 @@ public class Zombie : MonoBehaviour
 
 		RestoreOriginalColors();
 
+		// feature/bait-rework (step 3): dying/despawning while latched must release the slot too, or
+		// the bait's crowd-heat count stays inflated for the rest of its lifetime.
+		if (currentBait != null) currentBait.ReportUnlatch();
 		currentBait = null;
 		currentBaitDestination = Vector3.zero;
 		currentBaitOffset = Vector3.zero;
@@ -777,6 +786,13 @@ public class Zombie : MonoBehaviour
 
 	private void LatchOntoBait(Bait bait)
 	{
+		// feature/bait-rework (step 3): report latch/unlatch for Bait's crowd-heat counter. Guarded
+		// so this is idempotent/safe even though TryUpdateBaitLatch only ever calls this when
+		// currentBait was null -- SetBaitTarget (a public API, currently unused by any caller) can
+		// re-latch onto a different bait directly without going through that guard.
+		if (currentBait != null && currentBait != bait) currentBait.ReportUnlatch();
+		if (currentBait != bait) bait.ReportLatch();
+
 		currentBait = bait;
 		Vector2 offset2D = Random.insideUnitCircle * CrowdRadius;
 		currentBaitOffset = new Vector3(offset2D.x, 0f, offset2D.y);

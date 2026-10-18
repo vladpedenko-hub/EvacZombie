@@ -64,6 +64,11 @@ public class SandboxDevPanel : MonoBehaviour
 	private bool sniperOldFeel;
 	private TextMeshProUGUI sniperFeelLabel;
 
+	// feature/bait-rework: "Old"/"New" flips BaitTuning.legacyFeelEnabled in place (same spirit as
+	// barricadeOldFeel -- one bool on the shared asset, not separate presets).
+	private bool baitOldFeel;
+	private TextMeshProUGUI baitFeelLabel;
+
 	private RectTransform bodyRoot;
 	private TextMeshProUGUI countersText;
 	private TextMeshProUGUI presetLabel;
@@ -280,6 +285,18 @@ public class SandboxDevPanel : MonoBehaviour
 		if (sniperFeelLabel != null) sniperFeelLabel.text = "Sniper feel: " + (sniperOldFeel ? "Old feel" : "New feel");
 	}
 
+	// ── Bait feel preset (feature/bait-rework) ──────────────────────────────────────────────
+
+	private void CycleBaitFeelPreset()
+	{
+		baitOldFeel = !baitOldFeel;
+
+		BaitTuning tuning = BaitTuning.Active;
+		if (tuning != null) tuning.legacyFeelEnabled = baitOldFeel;
+
+		if (baitFeelLabel != null) baitFeelLabel.text = "Bait: " + (baitOldFeel ? "Old" : "New");
+	}
+
 	// ── UI construction (RuntimeUiKit — no scene/prefab edits) ──────────────────────────────
 
 	private void BuildPanel()
@@ -340,6 +357,7 @@ public class SandboxDevPanel : MonoBehaviour
 		BuildHeliPresetRow(bodyRoot);
 		BuildBarricadeFeelPresetRow(bodyRoot);
 		BuildSniperFeelPresetRow(bodyRoot);
+		BuildBaitFeelPresetRow(bodyRoot);
 		BuildCountersLabel(bodyRoot);
 	}
 
@@ -479,6 +497,15 @@ public class SandboxDevPanel : MonoBehaviour
 		Button sniperButton = RuntimeUiKit.CreateButton("SniperFeelPreset", row, "Sniper feel: New feel", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
 		sniperFeelLabel = sniperButton.GetComponentInChildren<TextMeshProUGUI>();
 		sniperButton.onClick.AddListener(CycleSniperFeelPreset);
+	}
+
+	private void BuildBaitFeelPresetRow(Transform parent)
+	{
+		RectTransform row = BuildRow(parent, 44f);
+
+		Button baitButton = RuntimeUiKit.CreateButton("BaitFeelPreset", row, "Bait: New", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+		baitFeelLabel = baitButton.GetComponentInChildren<TextMeshProUGUI>();
+		baitButton.onClick.AddListener(CycleBaitFeelPreset);
 	}
 
 	private void BuildCountersLabel(Transform parent)

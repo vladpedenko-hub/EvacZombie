@@ -43,6 +43,7 @@ public enum SfxId
 	BarricadePlace,
 	BarricadeStageBreak,
 	SniperLock,
+	BaitCrowd,
 
 	// --- Transport / rescue ---
 	HeliArrive,

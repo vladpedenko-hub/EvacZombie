@@ -34,6 +34,7 @@ public class LevelPalette : ScriptableObject
 	public Color civilianColor = new Color(0.949020f, 0.964706f, 0.972549f);
 	public Color scientistColor = new Color(1.000000f, 0.823529f, 0.247059f);
 	public Color barricadeColor = new Color(1.000000f, 0.541176f, 0.121569f);
+	public Color baitColor = new Color(0.607843f, 0.898039f, 0.392157f); // #9BE564
 	public Color spawnMarkerColor = new Color(0.878431f, 0.141176f, 0.231373f);
 	public Color evacMarkerColor = new Color(0.239216f, 0.862745f, 1.000000f);
 

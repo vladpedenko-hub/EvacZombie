@@ -109,6 +109,10 @@ public class InputManager : MonoBehaviour
 			Vector3 ringCenter = hit.point;
 			if (draggingCard.cardType == CardManager.CardType.Helicopter)
 				TryResolveHelicopterLandingPoint(hit.point, out ringCenter);
+			// feature/bait-rework (step 2): preview ring must use the snapped point + the final
+			// (CardData + radiusMult + run modifiers) radius GetCardRadius already applies below.
+			else if (draggingCard.cardType == CardManager.CardType.Bait)
+				TryResolveBaitSnapPoint(hit.point, out ringCenter);
 
 			DrawRadiusCircle(ringCenter, radius);
 
@@ -308,7 +312,10 @@ public class InputManager : MonoBehaviour
 				return true;
 
 			case CardManager.CardType.Bait:
-				return true;
+				// feature/bait-rework (step 2): rejects exactly like any other invalid placement
+				// (no Supply spent) when BaitTuning.requireNavMeshPoint is on and no street-grid
+				// point is found within navSnapMaxDistance.
+				return TryResolveBaitSnapPoint(hit.point, out _);
 
 			case CardManager.CardType.Barricade:
 			{
@@ -354,6 +361,27 @@ public class InputManager : MonoBehaviour
 		}
 
 		return false;
+	}
+
+	// feature/bait-rework (step 2): same snap-helper shape as TryResolveHelicopterLandingPoint above,
+	// reused for Bait -- BaitTuning.navSnapMaxDistance replaces the old hardcoded 6m search radius
+	// (far too large for 1.2-1.6m streets). requireNavMeshPoint off keeps the pre-feature fallback
+	// (place at the raw point even off-mesh).
+	private bool TryResolveBaitSnapPoint(Vector3 rawPoint, out Vector3 resolved)
+	{
+		resolved = rawPoint;
+
+		BaitTuning tuning = BaitTuning.Active;
+		float snapDistance = tuning != null ? (tuning.legacyFeelEnabled ? 6f : tuning.navSnapMaxDistance) : 6f;
+		bool require = tuning != null && !tuning.legacyFeelEnabled && tuning.requireNavMeshPoint;
+
+		if (UnityEngine.AI.NavMesh.SamplePosition(rawPoint, out UnityEngine.AI.NavMeshHit navHit, snapDistance, UnityEngine.AI.NavMesh.AllAreas))
+		{
+			resolved = navHit.position;
+			return true;
+		}
+
+		return !require;
 	}
 
 	// feature/city-gen-v2: resolves which StreetSegment a barricade placement should snap to.
@@ -474,6 +502,16 @@ public class InputManager : MonoBehaviour
 		{
 			var run = RunSessionData.Instance;
 			if (run != null) radius *= (1f + run.GetModifier("heli_radius_mult"));
+		}
+
+		// feature/bait-rework (step 2): Bait.InitStatsFromCardData multiplies the CardData radius by
+		// BaitTuning.radiusMult (unless the "Old feel" toggle is on) -- the drag-preview ring must
+		// reflect that same final radius. No bait_range_mult roguelite modifier exists yet; add it
+		// here alongside radiusMult if one ever does, same as heli_radius_mult above.
+		if (card.cardType == CardManager.CardType.Bait)
+		{
+			BaitTuning tuning = BaitTuning.Active;
+			if (tuning != null && !tuning.legacyFeelEnabled) radius *= tuning.radiusMult;
 		}
 
 		return radius;
