@@ -308,7 +308,16 @@ public class InputManager : MonoBehaviour
 			{
 				StreetSegment segment = ResolveBarricadeSegment(hit, out bool legacy);
 				if (legacy) return !isBuilding; // no StreetSegment data at all here -- old behavior, unchanged
-				return segment != null; // valid only if a usable (non-intersection) segment is within the snap radius
+				if (segment == null) return false; // no usable (non-intersection) segment within the snap radius
+
+				// feature/barricade-feel (step 7): repairOnPlace off, or the dev "Old feel" toggle,
+				// is byte-for-byte the pre-feature behavior -- any segment hit is valid, no same-street
+				// overlap check (placing twice just stacks, as it always has).
+				if (!RepairOnPlaceEnabled()) return true;
+
+				Barricade existing = FindBarricadeOnSegment(segment);
+				if (existing != null && existing.IsFullHealth) return false; // full HP on this street -- reject, no Supply spent
+				return true;
 			}
 
 			case CardManager.CardType.Helicopter:
@@ -387,6 +396,28 @@ public class InputManager : MonoBehaviour
 		}
 
 		return best;
+	}
+
+	// feature/barricade-feel (step 7): true unless the dev "Old feel" toggle or repairOnPlace is off
+	// -- gates the whole same-street overlap check so disabling it restores byte-for-byte old behavior.
+	private bool RepairOnPlaceEnabled()
+	{
+		BarricadeFeelTuning tuning = BarricadeFeelTuning.Active;
+		return tuning != null && !tuning.legacyFeelEnabled && tuning.repairOnPlace;
+	}
+
+	// feature/barricade-feel (step 7): reuses the existing AllBarricades roster (no new spatial
+	// system) -- "the same street" means the same StreetSegment reference, stamped onto each
+	// Barricade at spawn via SetSegment.
+	private Barricade FindBarricadeOnSegment(StreetSegment segment)
+	{
+		if (segment == null) return null;
+
+		foreach (Barricade b in Barricade.AllBarricades)
+			if (b != null && !b.IsDead && b.Segment == segment)
+				return b;
+
+		return null;
 	}
 
 	private void DrawRadiusCircle(Vector3 center, float radius)
@@ -528,6 +559,22 @@ public class InputManager : MonoBehaviour
 			case CardManager.CardType.Barricade:
 			{
 				StreetSegment segment = ResolveBarricadeSegment(hit, out bool legacy);
+
+				// feature/barricade-feel (step 7): CanPlaceCardAtScreenPoint already guaranteed this
+				// path is valid (either no same-street Barricade, or one below max HP) -- repair it
+				// in place instead of spawning a duplicate on top of it.
+				if (!legacy && segment != null && RepairOnPlaceEnabled())
+				{
+					Barricade existingBarricade = FindBarricadeOnSegment(segment);
+					if (existingBarricade != null && !existingBarricade.IsFullHealth)
+					{
+						BarricadeFeelTuning tuning = BarricadeFeelTuning.Active;
+						existingBarricade.Repair(Mathf.RoundToInt(tuning.repairFraction * existingBarricade.MaxHealth));
+						Feedback.Play(FeedbackEvent.BarricadeRepair, existingBarricade.transform.position + Vector3.up * 0.5f);
+						break;
+					}
+				}
+
 				Quaternion barricadeRotation = Quaternion.identity;
 				bool snapped = false;
 
@@ -570,6 +617,9 @@ public class InputManager : MonoBehaviour
 				}
 
 				GameObject spawnedBarricade = Instantiate(card.cardPrefab, spawnPos, barricadeRotation);
+
+				if (segment != null)
+					spawnedBarricade.GetComponent<Barricade>()?.SetSegment(segment);
 
 				if (snapped)
 				{

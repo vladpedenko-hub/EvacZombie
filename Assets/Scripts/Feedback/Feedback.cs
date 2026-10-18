@@ -18,6 +18,7 @@ public enum FeedbackEvent
 
 	// Weapons
 	SniperShot, SoldierShot, HeliGun, BombExplosion, BarricadeHit, BarricadeBreak,
+	BarricadePlace, BarricadeRepair, BarricadeStageBreak,
 
 	// Transport / rescue
 	HeliArrive, HeliTakeoff, HeliFull, CarArrive, RescueDeparted, RescueTick, GoalReached,
@@ -106,6 +107,13 @@ public static class Feedback
 		{ FeedbackEvent.BombExplosion,    E(SfxId.BombExplosion, HapticType.Heavy, shake: 0.5f, shakeTime: 0.45f) },
 		{ FeedbackEvent.BarricadeHit,     E(SfxId.BarricadeHit, vfx: VfxId.BarricadeDust, vol: 0.8f) },
 		{ FeedbackEvent.BarricadeBreak,   E(SfxId.BarricadeBreak, HapticType.Light, VfxId.BarricadeDebris, hapticCd: 0.3f) },
+		// feature/barricade-feel: shake is handled separately via BarricadeFeelTuning.placeShake +
+		// a direct CameraShake.Shake call at the Barricade.cs call site (keeps that knob next to the
+		// rest of the placement tuning instead of split across two files).
+		{ FeedbackEvent.BarricadePlace,      E(SfxId.BarricadePlace, HapticType.Light, VfxId.BarricadeDust, vol: 0.8f) },
+		// Reuses BarricadePlace's SFX at lower volume/scale -- a "lighter variant", no new sound.
+		{ FeedbackEvent.BarricadeRepair,     E(SfxId.BarricadePlace, HapticType.Light, VfxId.BarricadeDust, vol: 0.5f, vfxScale: 0.6f) },
+		{ FeedbackEvent.BarricadeStageBreak, E(SfxId.BarricadeStageBreak, HapticType.Light, VfxId.BarricadeDebris, hapticCd: 0.2f) },
 
 		// ---- Transport / rescue
 		{ FeedbackEvent.HeliArrive,       E(SfxId.HeliArrive, vol: 0.8f) },

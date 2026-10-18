@@ -60,6 +60,8 @@ public static class PlaceholderSfx
 		{ SfxId.BombExplosion,    new Recipe(Wave.Sine,   120,   30, 0.90f, 0.90f, 1.00f, 2.0f) },
 		{ SfxId.BarricadeHit,     new Recipe(Wave.Sine,   220,  120, 0.10f, 0.60f, 0.45f, 2.5f) },
 		{ SfxId.BarricadeBreak,   new Recipe(Wave.Sine,   150,   60, 0.30f, 0.80f, 0.60f, 2.0f) },
+		{ SfxId.BarricadePlace,     new Recipe(Wave.Sine, 180,   90, 0.12f, 0.35f, 0.55f, 2.2f) },
+		{ SfxId.BarricadeStageBreak, new Recipe(Wave.Saw, 140,   50, 0.22f, 0.70f, 0.65f, 1.8f) },
 
 		// Transport / rescue
 		{ SfxId.HeliArrive,       new Recipe(Wave.Saw,     80,  120, 0.50f, 0.50f, 0.45f, 1.0f) },

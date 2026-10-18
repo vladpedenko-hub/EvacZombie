@@ -54,6 +54,11 @@ public class SandboxDevPanel : MonoBehaviour
 	private bool heliOldFeel;
 	private TextMeshProUGUI heliPresetLabel;
 
+	// feature/barricade-feel: "Old feel"/"New feel" flips BarricadeFeelTuning.legacyFeelEnabled in
+	// place (same spirit as heliOldFeel above -- one bool on the shared asset, not separate presets).
+	private bool barricadeOldFeel;
+	private TextMeshProUGUI barricadeFeelLabel;
+
 	private RectTransform bodyRoot;
 	private TextMeshProUGUI countersText;
 	private TextMeshProUGUI presetLabel;
@@ -228,6 +233,18 @@ public class SandboxDevPanel : MonoBehaviour
 		if (heliPresetLabel != null) heliPresetLabel.text = "Heli: " + (heliOldFeel ? "Old feel" : "New feel");
 	}
 
+	// ── Barricade feel preset (feature/barricade-feel) ──────────────────────────────────────
+
+	private void CycleBarricadeFeelPreset()
+	{
+		barricadeOldFeel = !barricadeOldFeel;
+
+		BarricadeFeelTuning tuning = BarricadeFeelTuning.Active;
+		if (tuning != null) tuning.legacyFeelEnabled = barricadeOldFeel;
+
+		if (barricadeFeelLabel != null) barricadeFeelLabel.text = "Barricade feel: " + (barricadeOldFeel ? "Old" : "New");
+	}
+
 	// ── UI construction (RuntimeUiKit — no scene/prefab edits) ──────────────────────────────
 
 	private void BuildPanel()
@@ -286,6 +303,7 @@ public class SandboxDevPanel : MonoBehaviour
 		BuildPresetRow(bodyRoot);
 		BuildPaletteRow(bodyRoot);
 		BuildHeliPresetRow(bodyRoot);
+		BuildBarricadeFeelPresetRow(bodyRoot);
 		BuildCountersLabel(bodyRoot);
 	}
 
@@ -407,6 +425,15 @@ public class SandboxDevPanel : MonoBehaviour
 		Button heliButton = RuntimeUiKit.CreateButton("HeliPreset", row, "Heli: New feel", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
 		heliPresetLabel = heliButton.GetComponentInChildren<TextMeshProUGUI>();
 		heliButton.onClick.AddListener(CycleHeliPreset);
+	}
+
+	private void BuildBarricadeFeelPresetRow(Transform parent)
+	{
+		RectTransform row = BuildRow(parent, 44f);
+
+		Button barricadeButton = RuntimeUiKit.CreateButton("BarricadeFeelPreset", row, "Barricade feel: New", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+		barricadeFeelLabel = barricadeButton.GetComponentInChildren<TextMeshProUGUI>();
+		barricadeButton.onClick.AddListener(CycleBarricadeFeelPreset);
 	}
 
 	private void BuildCountersLabel(Transform parent)

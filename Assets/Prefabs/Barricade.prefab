@@ -88,7 +88,7 @@ MonoBehaviour:
   maxHealth: 200
   hitFlashColor: {r: 1, g: 0.2, b: 0.2, a: 1}
   hitFlashDuration: 0.1
-  deathShrinkDuration: 0.2
+  deathShrinkDuration: 0.12
 --- !u!1 &8296063215950117981
 GameObject:
   m_ObjectHideFlags: 0

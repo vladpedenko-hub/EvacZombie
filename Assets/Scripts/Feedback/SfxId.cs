@@ -40,6 +40,8 @@ public enum SfxId
 	BombExplosion,
 	BarricadeHit,
 	BarricadeBreak,
+	BarricadePlace,
+	BarricadeStageBreak,
 
 	// --- Transport / rescue ---
 	HeliArrive,

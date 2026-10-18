@@ -42,6 +42,7 @@ public class AudioManager : MonoBehaviour
 		{ SfxId.SoldierShot, 0.05f },
 		{ SfxId.HeliGun, 0.09f },
 		{ SfxId.BarricadeHit, 0.12f },
+		{ SfxId.BarricadeStageBreak, 0.2f },
 		{ SfxId.RescueTick, 0.06f },
 		{ SfxId.RescueDeparted, 0.10f },
 		{ SfxId.WaveWarning, 0.50f },
