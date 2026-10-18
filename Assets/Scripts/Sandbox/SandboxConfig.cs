@@ -9,8 +9,11 @@ using System.Collections.Generic;
 public class SandboxConfig : ScriptableObject
 {
 	[Header("Level")]
-	[Tooltip("The dev-only sandbox LevelData. Must have isSandboxLevel = true and must not be in any RegionConfig.levels list.")]
+	[Tooltip("The LARGE dev-only sandbox LevelData (the original stress-test city). Must have isSandboxLevel = true and must not be in any RegionConfig.levels list.")]
 	public LevelData sandboxLevel;
+
+	[Tooltip("feature/sandbox-two-levels: the SMALL dev-only sandbox LevelData (fast daily testing, one screen, no pan). Same isSandboxLevel/RegionConfig rules as sandboxLevel above.")]
+	public LevelData sandboxLevelSmall;
 
 	[Header("Cards — all unlocked at max level, sandbox only")]
 	public List<CardData> allCards = new List<CardData>();

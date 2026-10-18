@@ -120,6 +120,7 @@ public class SandboxDevPanel : MonoBehaviour
 	private Button spawnOnTapButton;
 	private Button gizmoButton;
 	private Button overlayButton;
+	private Button switchLevelButton;
 
 	private float fps;
 	private float counterRefreshTimer;
@@ -679,9 +680,13 @@ public class SandboxDevPanel : MonoBehaviour
 
 		AddGridButton(grid, "Restart", () =>
 		{
-			LevelManager.PendingSandboxLevel = config.sandboxLevel;
+			LevelManager.PendingSandboxLevel = LevelManager.Instance != null ? LevelManager.Instance.currentData : config.sandboxLevel;
 			GameManager.Instance?.RestartLevel();
 		});
+
+		// feature/sandbox-two-levels (step 4): label reflects which level this will switch TO, so
+		// it never says "Switch to Small" while already on Small.
+		switchLevelButton = AddGridButton(grid, GetSwitchLevelLabel(), SwitchSandboxLevel);
 
 		noCooldownsButton = AddGridButton(grid, "No Cooldowns: OFF", () =>
 		{
@@ -775,6 +780,28 @@ public class SandboxDevPanel : MonoBehaviour
 
 		Button bombButton = AddGridButton(grid, "Bomb: New", CycleBombFeelPreset);
 		bombFeelLabel = bombButton.GetComponentInChildren<TextMeshProUGUI>();
+	}
+
+	// feature/sandbox-two-levels (step 4): "Switch to Small / Large" -- reloads the Gameplay scene
+	// with the OTHER sandbox LevelData pending, same mechanism as Restart. A fresh SandboxDevPanel
+	// is built after the reload (this instance dies with the scene), so its label is recomputed
+	// correctly next time BuildGeneralTab runs -- no live-refresh needed here.
+	private bool IsCurrentlySmall() =>
+		LevelManager.Instance != null && LevelManager.Instance.currentData == config.sandboxLevelSmall;
+
+	private string GetSwitchLevelLabel() => IsCurrentlySmall() ? "Switch to Large" : "Switch to Small";
+
+	private void SwitchSandboxLevel()
+	{
+		LevelData target = IsCurrentlySmall() ? config.sandboxLevel : config.sandboxLevelSmall;
+		if (target == null)
+		{
+			Debug.LogError($"[Sandbox] SandboxConfig.{(IsCurrentlySmall() ? "sandboxLevel" : "sandboxLevelSmall")} isn't assigned.");
+			return;
+		}
+
+		LevelManager.PendingSandboxLevel = target;
+		GameManager.Instance?.RestartLevel();
 	}
 
 	private static void SetButtonLabel(Button b, string text)

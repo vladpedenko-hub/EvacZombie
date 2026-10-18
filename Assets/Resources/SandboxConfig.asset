@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: SandboxConfig
   m_EditorClassIdentifier: Assembly-CSharp::SandboxConfig
   sandboxLevel: {fileID: 11400000, guid: 2edf147be82f85b499625b09dd72030d, type: 2}
+  sandboxLevelSmall: {fileID: 11400000, guid: c640cc5fc5cb4699adddbe8589345e99, type: 2}
   allCards:
   - {fileID: 11400000, guid: 8398faed1ac8c014d9c4a3551736cc5d, type: 2}
   - {fileID: 11400000, guid: 94f258fab33029c468d2ae15efc6fe84, type: 2}

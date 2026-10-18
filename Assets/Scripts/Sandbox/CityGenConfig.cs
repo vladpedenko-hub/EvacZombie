@@ -72,4 +72,11 @@ public class CityGenConfig : ScriptableObject
 	[Header("Output")]
 	[Tooltip("Prefab asset path CityGenerator overwrites.")]
 	public string outputPrefabPath = "Assets/Prefabs/Levels/Level_Sandbox_Environment.prefab";
+
+	[Tooltip("feature/sandbox-two-levels: LevelData asset whose camera this run retunes (RetuneSandboxCamera). Lets Small/Large share one generator while each only ever writes to its own LevelData -- never the other's.")]
+	public string targetLevelDataPath = "Assets/Data/Level_Sandbox.asset";
+
+	[Header("Spawn Markers")]
+	[Tooltip("feature/sandbox-two-levels: when on, only North/South edge markers + one Special_1 marker are created (no West/East, no Special_2) -- a smaller spawn set for a one-screen sandbox that doesn't need every direction.")]
+	public bool minimalSpawnMarkers = false;
 }

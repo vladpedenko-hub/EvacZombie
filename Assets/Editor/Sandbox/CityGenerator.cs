@@ -29,7 +29,8 @@ using Unity.AI.Navigation;
 // and makes walkable area = streets + parks + intersections only, by construction.
 public static class CityGenerator
 {
-	private const string DefaultConfigPath = "Assets/Resources/CityGenConfig.asset";
+	private const string DefaultConfigPath = "Assets/Resources/CityGenConfig.asset"; // Large
+	private const string SmallConfigPath = "Assets/Resources/CityGenConfig_Small.asset";
 	private const string BuildingPoolFolder = "Assets/ExternalAssets/SimpleTown/Prefabs/Buildings";
 	private const string DefaultParkPropPath = "Assets/ExternalAssets/SimpleTown/Prefabs/Props/grass_square_mesh.prefab";
 	private const string AsphaltMaterialPath = "Assets/Materials/SandboxCity_Asphalt.mat";
@@ -61,10 +62,25 @@ public static class CityGenerator
 
 	private enum SegmentKind { Normal, Merged, AlleyThrough, AlleyDeadEndNear, AlleyDeadEndFar }
 
-	[MenuItem("Tools/EvacZombie/Generate Sandbox City")]
-	public static void Generate()
+	// feature/sandbox-two-levels: three entry points sharing one generator -- each config asset
+	// owns its own outputPrefabPath/targetLevelDataPath (see CityGenConfig.cs), so generating one
+	// city can never touch the other's prefab or LevelData, regardless of which menu item ran.
+	[MenuItem("Tools/EvacZombie/Generate Sandbox City (Large)")]
+	public static void GenerateLarge() => Generate(DefaultConfigPath);
+
+	[MenuItem("Tools/EvacZombie/Generate Sandbox City (Small)")]
+	public static void GenerateSmall() => Generate(SmallConfigPath);
+
+	[MenuItem("Tools/EvacZombie/Generate Sandbox City (Both)")]
+	public static void GenerateBoth()
 	{
-		CityGenConfig config = LoadOrCreateDefaultConfig();
+		Generate(DefaultConfigPath);
+		Generate(SmallConfigPath);
+	}
+
+	public static void Generate(string configPath)
+	{
+		CityGenConfig config = LoadOrCreateConfig(configPath);
 		if (config.buildingPrefabs == null || config.buildingPrefabs.Count == 0)
 		{
 			Debug.LogError("[CityGenerator] CityGenConfig has no buildingPrefabs and none could be auto-discovered under " + BuildingPoolFolder + ". Aborting.");
@@ -424,19 +440,36 @@ public static class CityGenerator
 
 		CreateEdgeMarkers(spawnersParent, "North", north, SpawnGroup.North);
 		CreateEdgeMarkers(spawnersParent, "South", south, SpawnGroup.South);
-		CreateEdgeMarkers(spawnersParent, "West", west, SpawnGroup.West);
-		CreateEdgeMarkers(spawnersParent, "East", east, SpawnGroup.East);
+
+		// feature/sandbox-two-levels: the Small sandbox only wants North/South + one Special marker
+		// (faster to clear, one-screen-sized) -- West/East and Special_2 are skipped entirely rather
+		// than created and left unused, so the generated prefab matches what it's actually used for.
+		if (!config.minimalSpawnMarkers)
+		{
+			CreateEdgeMarkers(spawnersParent, "West", west, SpawnGroup.West);
+			CreateEdgeMarkers(spawnersParent, "East", east, SpawnGroup.East);
+		}
 
 		// Special_1/Special_2: duplicate markers at two already-placed edge points (own groups
 		// are independent of the cardinal-direction marker already sitting there).
 		if (south.Count > 1) CreateMarker(spawnersParent, "SpawnPoint_Special_1", south[1], SpawnGroup.Special_1, false);
-		if (east.Count > 1) CreateMarker(spawnersParent, "SpawnPoint_Special_2", east[1], SpawnGroup.Special_2, false);
+		if (!config.minimalSpawnMarkers && east.Count > 1) CreateMarker(spawnersParent, "SpawnPoint_Special_2", east[1], SpawnGroup.Special_2, false);
 
 		// CarWaypoints: two reachable points on opposite sides of the city, for the Car card's
 		// entry/exit (CarController.cs picks the two tagged "CarWaypoint" farthest/nearest from the
 		// tap position -- see CarController.LoadPassengers).
 		CreateCarWaypoint(waypointsParent, "CarWaypoint_West", new Vector3(offsetX + streetCenterX[0] + roadWidth, 0f, offsetZ + cityDepth * 0.5f));
 		CreateCarWaypoint(waypointsParent, "CarWaypoint_East", new Vector3(offsetX + streetCenterX[blocksX] - roadWidth, 0f, offsetZ + cityDepth * 0.5f));
+
+		// feature/sandbox-two-levels (step 6): Editor-time-only validation (no Play Mode) -- bake a
+		// throwaway NavMesh for `root` (still a live scene instance at this point, before the save/
+		// destroy below) with the same layerMask=Ground convention the real game's NavMeshSurface
+		// uses, then check: every non-park block CENTER is unwalkable (inside a building
+		// footprint), every STREET CENTERLINE point is walkable, and every spawn marker resolves
+		// onto the SAME connected NavMesh component as the others (no marker stranded on an
+		// unreachable island). Purely diagnostic -- never blocks the save below.
+		ValidateGeneratedCity(root, blocksX, blocksY, blockLeft, blockRight, blockBottom, blockTop,
+			streetCenterX, streetCenterZ, parkBlocks, offsetX, offsetZ);
 
 		// ── Save prefab ──
 		string path = string.IsNullOrEmpty(config.outputPrefabPath) ? "Assets/Prefabs/Levels/Level_Sandbox_Environment.prefab" : config.outputPrefabPath;
@@ -657,7 +690,31 @@ public static class CityGenerator
 		}
 
 		instance.transform.localScale = new Vector3(scaleX, Mathf.Max(0.05f, scaleY), scaleZ);
-		instance.transform.localPosition = new Vector3((left + right) * 0.5f, 0f, (bottom + top) * 0.5f);
+
+		// feature/sandbox-two-levels (step 5): abutting buildings often land on the exact same
+		// scaleY (same leaf footprint -> same height), and since they touch edge-to-edge by design
+		// their roofs then sit on the identical world Y plane and z-fight at the shared edge. A
+		// tiny (<=0.01m), DETERMINISTIC-from-position offset (not UnityEngine.Random, which would
+		// vary with call order/seed reuse across configs/regenerations) separates them by a hair --
+		// invisible from the top-down camera, but enough to break the coplanar tie.
+		float centerX = (left + right) * 0.5f;
+		float centerZ = (bottom + top) * 0.5f;
+		instance.transform.localPosition = new Vector3(centerX, PositionHashHeightOffset(centerX, centerZ), centerZ);
+	}
+
+	// feature/sandbox-two-levels (step 5): maps a world XZ position to a value in [0, 0.01) meters,
+	// stable across runs/seeds (pure function of position, no RNG state involved).
+	private static float PositionHashHeightOffset(float worldX, float worldZ)
+	{
+		int hx = Mathf.RoundToInt(worldX * 100f);
+		int hz = Mathf.RoundToInt(worldZ * 100f);
+		unchecked
+		{
+			int hash = hx * 73856093 ^ hz * 19349663;
+			uint u = (uint)hash;
+			float frac = (u % 10000u) / 10000f;
+			return frac * 0.01f;
+		}
 	}
 
 	private static void CreateEdgeMarkers(Transform parent, string groupName, List<Vector3> positions, SpawnGroup group)
@@ -707,15 +764,26 @@ public static class CityGenerator
 	// (including the perimeter wall) always fits at max zoom-out, not just the street/block area.
 	private static void RetuneSandboxCamera(CityGenConfig config, float cityWidth, float cityDepth)
 	{
-		LevelData data = AssetDatabase.LoadAssetAtPath<LevelData>("Assets/Data/Level_Sandbox.asset");
+		// feature/sandbox-two-levels: the target LevelData is config-driven now (Small/Large each
+		// retune their own asset) instead of hardcoded to Level_Sandbox.asset.
+		string targetPath = string.IsNullOrEmpty(config.targetLevelDataPath) ? "Assets/Data/Level_Sandbox.asset" : config.targetLevelDataPath;
+		LevelData data = AssetDatabase.LoadAssetAtPath<LevelData>(targetPath);
 		if (data == null)
 		{
-			Debug.LogWarning("[CityGenerator] Level_Sandbox.asset not found -- skipped camera retune.");
+			Debug.LogWarning($"[CityGenerator] {targetPath} not found -- skipped camera retune.");
 			return;
 		}
 
 		data.cameraType = LevelData.CameraType.Perspective; // matches Level_1
 		data.cameraRotation = new Vector3(90f, 0f, 0f); // straight down, matches Level_1
+
+		// feature/sandbox-two-levels: keep levelPrefab in sync with whatever this run just saved --
+		// otherwise a freshly-created LevelData (Small's first generation) would have no environment
+		// to instantiate, and a later regeneration could silently go stale if the prefab reference
+		// was ever reassigned by hand.
+		string prefabPath = string.IsNullOrEmpty(config.outputPrefabPath) ? "Assets/Prefabs/Levels/Level_Sandbox_Environment.prefab" : config.outputPrefabPath;
+		GameObject generatedPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+		if (generatedPrefab != null) data.levelPrefab = generatedPrefab;
 
 		const float referenceAspect = 1080f / 1920f; // CameraFraming.ReferenceAspect
 		const float margin = 1.15f; // breathing room on top of a tight fit (HUD reservations, pan padding)
@@ -753,16 +821,92 @@ public static class CityGenerator
 
 		EditorUtility.SetDirty(data);
 
-		Debug.Log($"[CityGenerator] Retuned Level_Sandbox camera: top-down, height={ceiling:F1}m (full-city fit={fullCityDistance:F1}m, solved-for-{initialViewFraction:F2}-rest={solvedCeiling:F1}m, zoomInDistance={zoomInDistance:F1}m).");
+		Debug.Log($"[CityGenerator] Retuned {targetPath} camera: top-down, height={ceiling:F1}m (full-city fit={fullCityDistance:F1}m, solved-for-{initialViewFraction:F2}-rest={solvedCeiling:F1}m, zoomInDistance={zoomInDistance:F1}m).");
 	}
 
-	private static CityGenConfig LoadOrCreateDefaultConfig()
+	// feature/sandbox-two-levels (step 6): see the call site above for what this checks. Adds a
+	// temporary NavMeshSurface to `root`, bakes synchronously (Editor-time, no Play Mode), queries
+	// it, then removes both the baked data and the temporary component -- leaves no trace on the
+	// prefab that gets saved right after this returns.
+	private static void ValidateGeneratedCity(GameObject root, int blocksX, int blocksY,
+		float[] blockLeft, float[] blockRight, float[] blockBottom, float[] blockTop,
+		float[] streetCenterX, float[] streetCenterZ, HashSet<(int, int)> parkBlocks,
+		float offsetX, float offsetZ)
 	{
-		CityGenConfig config = AssetDatabase.LoadAssetAtPath<CityGenConfig>(DefaultConfigPath);
+		NavMeshSurface tempSurface = root.AddComponent<NavMeshSurface>();
+		tempSurface.layerMask = LayerMask.GetMask("Ground"); // matches the real NavMeshSurface's bake convention
+		tempSurface.useGeometry = NavMeshCollectGeometry.RenderMeshes;
+		tempSurface.collectObjects = CollectObjects.Children;
+		tempSurface.BuildNavMesh();
+
+		int blockCentersChecked = 0, blockCentersWronglyWalkable = 0;
+		for (int bx = 0; bx < blocksX; bx++)
+		{
+			for (int by = 0; by < blocksY; by++)
+			{
+				if (parkBlocks.Contains((bx, by))) continue; // parks ARE walkable by design -- skip
+				float cx = offsetX + (blockLeft[bx] + blockRight[bx]) * 0.5f;
+				float cz = offsetZ + (blockBottom[by] + blockTop[by]) * 0.5f;
+				blockCentersChecked++;
+				if (NavMesh.SamplePosition(new Vector3(cx, 0f, cz), out NavMeshHit hit, 0.3f, NavMesh.AllAreas))
+					blockCentersWronglyWalkable++;
+			}
+		}
+
+		int streetPointsChecked = 0, streetPointsUnreachable = 0;
+		for (int bx = 0; bx <= blocksX; bx++)
+		{
+			for (int by = 0; by <= blocksY; by++)
+			{
+				float sx = offsetX + streetCenterX[bx];
+				float sz = offsetZ + streetCenterZ[by];
+				streetPointsChecked++;
+				if (!NavMesh.SamplePosition(new Vector3(sx, 0f, sz), out NavMeshHit hit, 1f, NavMesh.AllAreas))
+					streetPointsUnreachable++;
+			}
+		}
+
+		SpawnPointMarker[] markers = root.GetComponentsInChildren<SpawnPointMarker>();
+		int markersChecked = markers.Length;
+		int markersDisconnected = 0;
+		Vector3 firstMarkerNavPos = Vector3.zero;
+		bool haveFirst = false;
+		foreach (SpawnPointMarker m in markers)
+		{
+			if (!NavMesh.SamplePosition(m.transform.position, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+			{
+				markersDisconnected++;
+				continue;
+			}
+
+			if (!haveFirst)
+			{
+				firstMarkerNavPos = hit.position;
+				haveFirst = true;
+				continue;
+			}
+
+			NavMeshPath testPath = new NavMeshPath();
+			bool connected = NavMesh.CalculatePath(firstMarkerNavPos, hit.position, NavMesh.AllAreas, testPath)
+				&& testPath.status == NavMeshPathStatus.PathComplete;
+			if (!connected) markersDisconnected++;
+		}
+
+		tempSurface.RemoveData();
+		UnityEngine.Object.DestroyImmediate(tempSurface);
+
+		Debug.Log($"[CityGenerator] Validation -- block centers unwalkable: {blockCentersChecked - blockCentersWronglyWalkable}/{blockCentersChecked} (want all). "
+			+ $"Street centerlines walkable: {streetPointsChecked - streetPointsUnreachable}/{streetPointsChecked} (want all). "
+			+ $"Spawn markers in one connected component: {markersChecked - markersDisconnected}/{markersChecked} (want all).");
+	}
+
+	private static CityGenConfig LoadOrCreateConfig(string configPath)
+	{
+		CityGenConfig config = AssetDatabase.LoadAssetAtPath<CityGenConfig>(configPath);
 		if (config == null)
 		{
 			config = ScriptableObject.CreateInstance<CityGenConfig>();
-			AssetDatabase.CreateAsset(config, DefaultConfigPath);
+			AssetDatabase.CreateAsset(config, configPath);
 		}
 
 		bool dirty = false;

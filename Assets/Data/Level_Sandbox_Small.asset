@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 76a19b13f68c89648a0a4c1fba3f8a6f, type: 3}
+  m_Name: Level_Sandbox_Small
+  m_EditorClassIdentifier: Assembly-CSharp::LevelData
+  levelPrefab: {fileID: 0}
+  humanCount: 24
+  levelTimer: 60
+  suddenDeathSpawnRate: 0.2
+  zombieSpeedMultiplier: 1
+  zombieHealthMultiplier: 1
+  waves:
+  - {fileID: 11400000, guid: 4b292612afac414e9d43b4a7a6a5d82e, type: 2}
+  - {fileID: 11400000, guid: 2be6e8a27e974cfbb684da97128c7658, type: 2}
+  - {fileID: 11400000, guid: e06742cb10894e85b7f7576afd9bac7b, type: 2}
+  - {fileID: 11400000, guid: ffc31b0209e8482abe9181be2765775a, type: 2}
+  - {fileID: 11400000, guid: c00e06a9262746e2895c3899be7ac555, type: 2}
+  requiredRescuedHumans: 10
+  star1RequiredHumans: 10
+  star2RequiredHumans: 18
+  star3Description:
+  missionTitleOverride: SANDBOX S
+  missionIcon: {fileID: 0}
+  missionDescription:
+  cameraType: 0
+  cameraPosition: {x: 0, y: 20, z: 0}
+  cameraRotation: {x: 90, y: 0, z: 0}
+  cameraFieldOfView: 60
+  orthographicSize: 10
+  currencyReward: 0
+  levelRewardLootbox: {fileID: 0}
+  clearGrants: []
+  scientistCount: 4
+  scientistPrefab: {fileID: 4991825780762222915, guid: f3998a4653bed4146998b1e0a79d50c9, type: 3}
+  abilityEnabled: 1
+  onStartTutorial: {fileID: 0}
+  onNightTutorial: {fileID: 0}
+  useCoreLoopV2: 1
+  startingSupply: 0
+  v2PlanningEnabled: 1
+  v2ShowSupplyHud: 1
+  v2ShowWaveIndicator: 1
+  v2ShowAdOffer: 0
+  isSandboxLevel: 1
