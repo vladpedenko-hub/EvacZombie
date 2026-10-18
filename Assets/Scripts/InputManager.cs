@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 // [WHERE IT LIVES]: On the InputManager object on the main scene.
 public class InputManager : MonoBehaviour
@@ -113,6 +114,9 @@ public class InputManager : MonoBehaviour
 			// (CardData + radiusMult + run modifiers) radius GetCardRadius already applies below.
 			else if (draggingCard.cardType == CardManager.CardType.Bait)
 				TryResolveBaitSnapPoint(hit.point, out ringCenter);
+			else if (draggingCard.cardType == CardManager.CardType.Bomb
+				&& (ComboTuning.Active == null || !ComboTuning.Active.legacyFeelEnabled))
+				BombBlastUtil.TrySampleEpicenter(hit.point, out ringCenter);
 
 			DrawRadiusCircle(ringCenter, radius);
 
@@ -140,10 +144,17 @@ public class InputManager : MonoBehaviour
 			}
 
 			HandleSniperOutline(hit, canPlace);
+
+			// feature/bomb-combo (step 4): friendly-fire preview, throttled to at most once per 0.1s.
+			if (draggingCard.cardType == CardManager.CardType.Bomb)
+				RefreshBombDangerPreview(ringCenter, radius);
+			else
+				ClearBombDangerPreview();
 		}
 		else
 		{
 			ClearBuildingOutline();
+			ClearBombDangerPreview();
 		}
 	}
 
@@ -154,6 +165,7 @@ public class InputManager : MonoBehaviour
 
 		isDragging = false;
 		radiusCircle.enabled = false;
+		ClearBombDangerPreview();
 
 		if (TimeManager.Instance != null)
 		{
@@ -294,6 +306,104 @@ public class InputManager : MonoBehaviour
 		outlinedBuilding = null;
 	}
 
+	// feature/bomb-combo (step 4): friendly-fire preview -- a small pool of red marker sprites, one
+	// per endangered Human/Scientist, refreshed at most every bombPreviewRefreshInterval (no
+	// per-frame allocations: the list only grows, markers are reused and just toggled inactive).
+	private const float BombPreviewRefreshInterval = 0.1f;
+	private readonly List<GameObject> bombDangerMarkers = new List<GameObject>();
+	private float lastBombPreviewRefreshTime = -999f;
+	private static Sprite dangerMarkerSprite;
+
+	private void RefreshBombDangerPreview(Vector3 epicenter, float radius)
+	{
+		if (ComboTuning.Active != null && ComboTuning.Active.legacyFeelEnabled)
+		{
+			ClearBombDangerPreview();
+			return;
+		}
+
+		if (Time.unscaledTime - lastBombPreviewRefreshTime < BombPreviewRefreshInterval) return;
+		lastBombPreviewRefreshTime = Time.unscaledTime;
+
+		bool epicenterSampled = BombBlastUtil.TrySampleEpicenter(epicenter, out Vector3 sampledEpicenter);
+		float radiusSqr = radius * radius;
+		int used = 0;
+
+		for (int i = 0; i < Human.AllHumans.Count; i++)
+		{
+			Human h = Human.AllHumans[i];
+			if (h == null) continue;
+			used = TryMarkDanger(h.transform.position, epicenter, sampledEpicenter, epicenterSampled, radiusSqr, used);
+		}
+
+		for (int i = 0; i < Scientist.AllScientists.Count; i++)
+		{
+			Scientist s = Scientist.AllScientists[i];
+			if (s == null) continue;
+			used = TryMarkDanger(s.transform.position, epicenter, sampledEpicenter, epicenterSampled, radiusSqr, used);
+		}
+
+		for (int i = used; i < bombDangerMarkers.Count; i++)
+			bombDangerMarkers[i].SetActive(false);
+	}
+
+	private int TryMarkDanger(Vector3 targetPos, Vector3 epicenter, Vector3 sampledEpicenter, bool epicenterSampled, float radiusSqr, int used)
+	{
+		if ((targetPos - epicenter).sqrMagnitude > radiusSqr) return used;
+		if (!BombBlastUtil.HasStreetReach(sampledEpicenter, epicenterSampled, targetPos)) return used;
+
+		GameObject marker = GetOrCreateBombDangerMarker(used);
+		marker.transform.position = targetPos + Vector3.up * 2f;
+		marker.SetActive(true);
+		return used + 1;
+	}
+
+	private GameObject GetOrCreateBombDangerMarker(int index)
+	{
+		if (dangerMarkerSprite == null) dangerMarkerSprite = CreateDangerMarkerSprite();
+
+		while (bombDangerMarkers.Count <= index)
+		{
+			GameObject marker = new GameObject("BombDangerMarker");
+			SpriteRenderer sr = marker.AddComponent<SpriteRenderer>();
+			sr.sprite = dangerMarkerSprite;
+			sr.color = new Color(1f, 0.15f, 0.1f, 0.95f);
+			sr.sortingOrder = 60;
+			marker.AddComponent<Billboard>();
+			marker.SetActive(false);
+			bombDangerMarkers.Add(marker);
+		}
+
+		return bombDangerMarkers[index];
+	}
+
+	private static Sprite CreateDangerMarkerSprite()
+	{
+		const int size = 16;
+		var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+		tex.wrapMode = TextureWrapMode.Clamp;
+		float c = (size - 1) * 0.5f;
+
+		for (int y = 0; y < size; y++)
+		{
+			for (int x = 0; x < size; x++)
+			{
+				float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c;
+				float a = Mathf.Clamp01(1f - d);
+				tex.SetPixel(x, y, new Color(1f, 1f, 1f, a * a));
+			}
+		}
+		tex.Apply();
+
+		return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+	}
+
+	private void ClearBombDangerPreview()
+	{
+		for (int i = 0; i < bombDangerMarkers.Count; i++)
+			if (bombDangerMarkers[i] != null) bombDangerMarkers[i].SetActive(false);
+	}
+
 	private bool CanPlaceCardAtScreenPoint(CardData card, Vector2 screenPos, RaycastHit hit)
 	{
 		if (card == null) return false;
@@ -309,7 +419,12 @@ public class InputManager : MonoBehaviour
 				return isBuilding;
 
 			case CardManager.CardType.Bomb:
-				return true;
+				// feature/bomb-combo (step 3): rejects exactly like any other invalid placement (no
+				// Supply spent) when there's no NavMesh point within BombBlastUtil.SnapMaxDistance --
+				// "Old feel" (ComboTuning.legacyFeelEnabled) skips this, matching original Bomb.cs
+				// (no placement validation at all).
+				if (ComboTuning.Active != null && ComboTuning.Active.legacyFeelEnabled) return true;
+				return BombBlastUtil.TrySampleEpicenter(hit.point, out _);
 
 			case CardManager.CardType.Bait:
 				// feature/bait-rework (step 2): rejects exactly like any other invalid placement
@@ -570,9 +685,17 @@ public class InputManager : MonoBehaviour
 			}
 
 			case CardManager.CardType.Bomb:
+			{
+				// feature/bomb-combo (step 3): snap to the same point CanPlaceCardAtScreenPoint
+				// already validated. "Old feel" keeps dropping at the raw tap point.
+				ComboTuning comboTuning = ComboTuning.Active;
+				if (comboTuning == null || !comboTuning.legacyFeelEnabled)
+					BombBlastUtil.TrySampleEpicenter(spawnPos, out spawnPos);
+
 				spawnedObject = Instantiate(card.cardPrefab);
 				spawnedObject.GetComponent<Bomb>().Launch(spawnPos);
 				break;
+			}
 
 			case CardManager.CardType.Bait:
 				spawnedObject = Instantiate(card.cardPrefab);

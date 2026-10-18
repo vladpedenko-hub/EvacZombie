@@ -19,7 +19,7 @@ public enum FeedbackEvent
 	// Weapons
 	SniperShot, SoldierShot, HeliGun, BombExplosion, BarricadeHit, BarricadeBreak,
 	BarricadePlace, BarricadeRepair, BarricadeStageBreak,
-	SniperLock, SniperKill, BaitCrowd,
+	SniperLock, SniperKill, BaitCrowd, ComboBlast,
 
 	// Transport / rescue
 	HeliArrive, HeliTakeoff, HeliFull, CarArrive, RescueDeparted, RescueTick, GoalReached,
@@ -125,6 +125,9 @@ public static class Feedback
 		// -- the ring's own width/color scaling is the continuous feedback, this is just the one-shot
 		// "crowd's at capacity" beat.
 		{ FeedbackEvent.BaitCrowd,        E(SfxId.BaitCrowd, HapticType.Light, hapticCd: 1f, vol: 0.7f) },
+		// feature/bomb-combo: the ring/dust VFX and the camera punch are played directly from
+		// ComboFeedback (not through this table) so they can use the combo's own worldPos/amplitude.
+		{ FeedbackEvent.ComboBlast,       E(SfxId.ComboBlast, HapticType.Heavy, vol: 0.9f) },
 
 		// ---- Transport / rescue
 		{ FeedbackEvent.HeliArrive,       E(SfxId.HeliArrive, vol: 0.8f) },

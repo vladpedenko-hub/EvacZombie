@@ -55,6 +55,16 @@ public class Zombie : MonoBehaviour
 	// feature/bait-rework (step 6): data-only combo hook, no behavior change -- read-only mirror of
 	// the same currentBait != null check TryUpdateBaitLatch already uses.
 	public bool IsLatchedToBait => currentBait != null;
+
+	// feature/bomb-combo (step 2): data-only "zombie status" hooks, no behavior change.
+	// IsGathered just reuses IsLatchedToBait under the combo system's own naming.
+	public bool IsGathered => IsLatchedToBait;
+
+	// In Siege mode AND actually at/attacking a barricade (not merely "stalled nearby" --
+	// IsNearBarricade(BarricadeCheckRadius) uses the same, narrower radius Siege's own attack check
+	// uses, not the wider stall-detection radius).
+	public bool IsHeld => currentMode == ZombieMode.Siege && (isAttacking || IsNearBarricade(BarricadeCheckRadius));
+
 	private Vector3 currentBaitDestination;
 
 	// fix/bite-and-bait (1): rolled once in LatchOntoBait(), kept until currentBait itself goes away

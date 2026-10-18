@@ -64,6 +64,7 @@ public static class PlaceholderSfx
 		{ SfxId.BarricadeStageBreak, new Recipe(Wave.Saw, 140,   50, 0.22f, 0.70f, 0.65f, 1.8f) },
 		{ SfxId.SniperLock,         new Recipe(Wave.Sine, 1400, 1400, 0.04f, 0.00f, 0.35f, 2.0f) },
 		{ SfxId.BaitCrowd,          new Recipe(Wave.Sine,  500, 1000, 0.18f, 0.10f, 0.45f, 1.5f) },
+		{ SfxId.ComboBlast,         new Recipe(Wave.Saw,   200, 1400, 0.30f, 0.20f, 0.70f, 1.2f) }, // short rising stinger
 
 		// Transport / rescue
 		{ SfxId.HeliArrive,       new Recipe(Wave.Saw,     80,  120, 0.50f, 0.50f, 0.45f, 1.0f) },

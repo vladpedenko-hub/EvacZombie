@@ -77,6 +77,11 @@ public class SandboxDevPanel : MonoBehaviour
 	private int cardScalePresetIndex = -1;
 	private TextMeshProUGUI cardScaleLabel;
 
+	// feature/bomb-combo: "Old"/"New" flips ComboTuning.legacyFeelEnabled plus useStreetBlast/
+	// sparesOwnUnits in place (same spirit as barricadeOldFeel/sniperOldFeel's multi-field presets).
+	private bool bombOldFeel;
+	private TextMeshProUGUI bombFeelLabel;
+
 	private RectTransform bodyRoot;
 	private TextMeshProUGUI countersText;
 	private TextMeshProUGUI presetLabel;
@@ -333,6 +338,23 @@ public class SandboxDevPanel : MonoBehaviour
 		if (cardScaleLabel != null) cardScaleLabel.text = "Card scale: " + label;
 	}
 
+	// ── Bomb feel preset (feature/bomb-combo) ───────────────────────────────────────────────
+
+	private void CycleBombFeelPreset()
+	{
+		bombOldFeel = !bombOldFeel;
+
+		ComboTuning tuning = ComboTuning.Active;
+		if (tuning != null)
+		{
+			tuning.legacyFeelEnabled = bombOldFeel;
+			tuning.useStreetBlast = !bombOldFeel;
+			tuning.sparesOwnUnits = !bombOldFeel;
+		}
+
+		if (bombFeelLabel != null) bombFeelLabel.text = "Bomb: " + (bombOldFeel ? "Old" : "New");
+	}
+
 	// ── UI construction (RuntimeUiKit — no scene/prefab edits) ──────────────────────────────
 
 	private void BuildPanel()
@@ -395,6 +417,7 @@ public class SandboxDevPanel : MonoBehaviour
 		BuildSniperFeelPresetRow(bodyRoot);
 		BuildBaitFeelPresetRow(bodyRoot);
 		BuildCardScalePresetRow(bodyRoot);
+		BuildBombFeelPresetRow(bodyRoot);
 		BuildCountersLabel(bodyRoot);
 	}
 
@@ -552,6 +575,15 @@ public class SandboxDevPanel : MonoBehaviour
 		Button cardScaleButton = RuntimeUiKit.CreateButton("CardScalePreset", row, "Card scale: Auto", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
 		cardScaleLabel = cardScaleButton.GetComponentInChildren<TextMeshProUGUI>();
 		cardScaleButton.onClick.AddListener(CycleCardScalePreset);
+	}
+
+	private void BuildBombFeelPresetRow(Transform parent)
+	{
+		RectTransform row = BuildRow(parent, 44f);
+
+		Button bombButton = RuntimeUiKit.CreateButton("BombFeelPreset", row, "Bomb: New", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+		bombFeelLabel = bombButton.GetComponentInChildren<TextMeshProUGUI>();
+		bombButton.onClick.AddListener(CycleBombFeelPreset);
 	}
 
 	private void BuildCountersLabel(Transform parent)
