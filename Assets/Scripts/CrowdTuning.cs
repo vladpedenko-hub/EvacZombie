@@ -128,6 +128,17 @@ public class CrowdTuning : ScriptableObject
 	[Tooltip("Grid cells (F_evac field steps, not meters). Within this radius of an active evacuation point, a civilian heads to it instead of wandering.")]
 	public float evacRadiusCells = 8f;
 
+	[Range(0f, 10f)]
+	[Tooltip("fix/civilian-flee: absolute floor (world meters) under FearRadiusWorld, regardless of cell size -- fearRadiusCells*cellSize alone can shrink below a sensible trigger distance on a level with small grid cells (narrow streets, cellSizeFromRoadWidth).")]
+	public float fearRadiusMinMeters = 3.0f;
+
+	[Range(0f, 10f)]
+	[Tooltip("fix/civilian-flee: absolute floor (world meters) under PanicContagionWorld, same reasoning as fearRadiusMinMeters.")]
+	public float contagionRadiusMinMeters = 1.5f;
+
+	[Tooltip("fix/civilian-flee: Old = original behavior (fearRadiusMinMeters/contagionRadiusMinMeters floors ignored, blind evac steps, no rescue-abort, no cornered fallback -- byte-for-byte pre-fix). New (default) = every fix/civilian-flee safety check active. SandboxDevPanel 'Civ AI: Old/New' toggle.")]
+	public bool civAiLegacyBehavior = false;
+
 	// ───────────────────────────── Siege ─────────────────────────────
 	[Header("Siege")]
 	[Range(1, 10)]

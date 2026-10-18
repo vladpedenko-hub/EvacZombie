@@ -59,6 +59,11 @@ public abstract class EvacueeBase : MonoBehaviour
 	private Vector3 rescueApproachPoint;
 	private bool isBoarding = false;
 
+	// fix/civilian-flee (step 4): set when a rescue run is temporarily aborted into a flee (a
+	// zombie was close and ahead) -- rescueTarget/hasRescueApproachPoint/rescueApproachPoint are
+	// deliberately left untouched during the flee so the rescue can resume from them unchanged.
+	private bool rescuePendingResume = false;
+
 	// feature/crowd-tuning-pass: every tunable below reads crowdTuning directly (a property, not
 	// a cached field) so Inspector edits apply immediately in Play Mode.
 	private float CalmSpeed => crowdTuning != null ? crowdTuning.civCalmSpeed : 0.45f;
@@ -71,12 +76,39 @@ public abstract class EvacueeBase : MonoBehaviour
 		CrowdFieldManager.Instance != null && CrowdFieldManager.Instance.GridReady
 			? CrowdFieldManager.Instance.CellSize : 2f;
 
+	// fix/civilian-flee: true unless the dev "Old/New" toggle (SandboxDevPanel) is set to Old --
+	// gates every new safety check in this file so it stays byte-for-byte the pre-fix behavior.
+	private bool LegacyCivAi => crowdTuning != null && crowdTuning.civAiLegacyBehavior;
+
 	// Part B.1: a single radius, compared against a straight-line zombie distance — no more
 	// panicRadius pre-cap shrinking the effective trigger range.
-	private float FearRadiusWorld => (crowdTuning != null ? crowdTuning.fearRadiusCells : 4f) * CellSizeOrDefault;
+	//
+	// fix/civilian-flee: floored at fearRadiusMinMeters (world units) -- fearRadiusCells*cellSize
+	// alone can shrink below a sensible trigger distance on a level with small grid cells. Old
+	// behavior (cells only, no floor) is kept byte-for-byte under LegacyCivAi.
+	private float FearRadiusWorld
+	{
+		get
+		{
+			float cellsWorld = (crowdTuning != null ? crowdTuning.fearRadiusCells : 4f) * CellSizeOrDefault;
+			if (LegacyCivAi) return cellsWorld;
+			float minMeters = crowdTuning != null ? crowdTuning.fearRadiusMinMeters : 3.0f;
+			return Mathf.Max(cellsWorld, minMeters);
+		}
+	}
 
 	// Part B.4: contagion range, also a straight-line comparison (same reasoning as fear radius).
-	private float PanicContagionWorld => (crowdTuning != null ? crowdTuning.panicContagionCells : 2f) * CellSizeOrDefault;
+	// fix/civilian-flee: same minMeters floor as FearRadiusWorld above.
+	private float PanicContagionWorld
+	{
+		get
+		{
+			float cellsWorld = (crowdTuning != null ? crowdTuning.panicContagionCells : 2f) * CellSizeOrDefault;
+			if (LegacyCivAi) return cellsWorld;
+			float minMeters = crowdTuning != null ? crowdTuning.contagionRadiusMinMeters : 1.5f;
+			return Mathf.Max(cellsWorld, minMeters);
+		}
+	}
 
 	// Part B.5: Calm civilians only wander to intersections at least this many F_zed *steps* away.
 	private float CalmSafeDistanceCells => crowdTuning != null ? crowdTuning.calmSafeDistanceCells : 6f;
@@ -179,6 +211,17 @@ public abstract class EvacueeBase : MonoBehaviour
 
 			Vector3 groundTarget = new Vector3(targetPoint.x, transform.position.y, targetPoint.z);
 
+			// fix/civilian-flee (step 4): don't run straight at a zombie standing between here and
+			// the pickup point -- abort the run temporarily (flee for panicDuration) and resume it
+			// (from the unchanged rescueTarget/approach point) once the flee ends.
+			if (!LegacyCivAi && IsZombieAheadDuringRescue(groundTarget - transform.position))
+			{
+				rescuePendingResume = true;
+				isRescuing = false;
+				StartPanicFleeOnly();
+				return;
+			}
+
 			if (!agent.hasPath || Vector3.Distance(agent.destination, groundTarget) > 0.35f)
 			{
 				agent.SetDestination(groundTarget);
@@ -197,6 +240,19 @@ public abstract class EvacueeBase : MonoBehaviour
 			if (Time.time >= panicEndTime)
 			{
 				isPanicking = false;
+
+				// fix/civilian-flee (step 4): resume the rescue run a nearby zombie interrupted, if
+				// the target is still there -- SetRescueTarget's own checks handle a destroyed/
+				// departed target (rescueTarget's Unity-null check / CancelRescue from the car/heli).
+				if (rescuePendingResume)
+				{
+					rescuePendingResume = false;
+					if (rescueTarget != null)
+					{
+						if (hasRescueApproachPoint) SetRescueTarget(rescueTarget, rescueApproachPoint);
+						else SetRescueTarget(rescueTarget);
+					}
+				}
 			}
 			else
 			{
@@ -244,8 +300,25 @@ public abstract class EvacueeBase : MonoBehaviour
 		StepPanic();
 	}
 
+	// fix/civilian-flee (step 4): forces the flee branch (not evac) regardless of the normal
+	// F_evac check above -- a rescue abort means "a zombie is in the way of this specific pickup
+	// point", not "go wander toward whatever evac point is nearest", so it must always flee.
+	private void StartPanicFleeOnly()
+	{
+		isPanicking = true;
+		panicEndTime = Time.time + PanicDuration;
+		panicUsesEvac = false;
+		StepPanic();
+	}
+
 	// Part B.3: a multi-cell lookahead step (not a single grid cell) in one SetDestination,
 	// re-called only on arrival from Update() above — no fixed-cooldown freeze mid-flight.
+	//
+	// fix/civilian-flee (step 3): panicUsesEvac is re-validated on EVERY step (not just once at
+	// StartPanic) -- an evac step that would run straight at a nearby zombie is rejected in favor
+	// of fleeing for that step only; panicUsesEvac itself is untouched, so the next re-step (on
+	// arrival) can resume evac once it's safe again. Old behavior (blind evac, no re-validation)
+	// is kept byte-for-byte under LegacyCivAi.
 	private void StepPanic()
 	{
 		CrowdFieldManager cfm = CrowdFieldManager.Instance;
@@ -255,12 +328,107 @@ public abstract class EvacueeBase : MonoBehaviour
 			return;
 		}
 
-		bool got = panicUsesEvac
-			? cfm.TryGetLookaheadDescent(transform.position, CrowdFieldType.Evac, PanicLookaheadCells, out Vector3 step)
-			: cfm.TryGetLookaheadAscent(transform.position, CrowdFieldType.Zombie, PanicLookaheadCells, out step);
+		if (panicUsesEvac)
+		{
+			if (LegacyCivAi)
+			{
+				if (cfm.TryGetLookaheadDescent(transform.position, CrowdFieldType.Evac, PanicLookaheadCells, out Vector3 legacyStep))
+					agent.SetDestination(legacyStep);
+				else
+					SetRandomDest();
+				return;
+			}
 
-		if (got) agent.SetDestination(step);
-		else SetRandomDest();
+			if (TryEvacStepIsSafe(cfm, out Vector3 evacStep))
+			{
+				agent.SetDestination(evacStep);
+				return;
+			}
+
+			if (TryFleeStep(cfm, out Vector3 fleeFromEvacStep)) agent.SetDestination(fleeFromEvacStep);
+			else agent.ResetPath(); // cornered -- stand still instead of running into the zombie
+			return;
+		}
+
+		if (LegacyCivAi)
+		{
+			if (cfm.TryGetLookaheadAscent(transform.position, CrowdFieldType.Zombie, PanicLookaheadCells, out Vector3 legacyFlee))
+				agent.SetDestination(legacyFlee);
+			else
+				SetRandomDest();
+			return;
+		}
+
+		if (TryFleeStep(cfm, out Vector3 step)) agent.SetDestination(step);
+		else agent.ResetPath(); // cornered -- stand still instead of running into the zombie
+	}
+
+	// fix/civilian-flee (step 3): before committing to the evac lookahead, check it doesn't run
+	// straight at the zombie that's currently scaring us -- only rejects when a zombie is within
+	// FearRadiusWorld right now AND the evac step would reduce the (straight-line) distance to it.
+	private bool TryEvacStepIsSafe(CrowdFieldManager cfm, out Vector3 evacStep)
+	{
+		evacStep = transform.position;
+		if (!cfm.TryGetLookaheadDescent(transform.position, CrowdFieldType.Evac, PanicLookaheadCells, out evacStep))
+			return false;
+
+		Zombie nearestZombie = TargetScanUtil.FindNearest(Zombie.AllZombies, transform.position, float.MaxValue, z => z.transform.position, out float distNow);
+		if (nearestZombie == null || distNow > FearRadiusWorld) return true;
+
+		float distAtStep = Vector3.Distance(evacStep, nearestZombie.transform.position);
+		return distAtStep >= distNow;
+	}
+
+	// fix/civilian-flee (step 5): the shared "flee the nearest zombie" step, hardened against
+	// running further INTO a zombie than standing still would -- used by the normal flee branch
+	// and by the evac-step-rejected fallback above.
+	private bool TryFleeStep(CrowdFieldManager cfm, out Vector3 destination)
+	{
+		Vector3 here = transform.position;
+		Zombie nearestZombie = TargetScanUtil.FindNearest(Zombie.AllZombies, here, float.MaxValue, z => z.transform.position, out float distNow);
+
+		if (cfm.TryGetLookaheadAscent(here, CrowdFieldType.Zombie, PanicLookaheadCells, out Vector3 lookaheadStep)
+			&& (nearestZombie == null || Vector3.Distance(lookaheadStep, nearestZombie.transform.position) > distNow))
+		{
+			destination = lookaheadStep;
+			return true;
+		}
+
+		// Cornered: the multi-cell lookahead either failed or doesn't actually gain distance (a
+		// dead end, or the zombie is on the far side of the only street) -- fall back to a single
+		// best neighbor (the same "steepest ascent of F_zed" the lookahead itself walks, one cell
+		// at a time -- exactly "the best of the neighboring branches by F_zed value" when standing
+		// at or near an intersection).
+		float hereFzed = cfm.SampleField(here, CrowdFieldType.Zombie);
+		if (cfm.TryGetAscentDirection(here, CrowdFieldType.Zombie, out Vector3 neighborStep)
+			&& cfm.SampleField(neighborStep, CrowdFieldType.Zombie) > hereFzed)
+		{
+			destination = neighborStep;
+			return true;
+		}
+
+		// Every option is worse (or none exists) -- stop moving rather than run into the zombie.
+		destination = here;
+		return false;
+	}
+
+	// fix/civilian-flee (step 4): a zombie close enough (0.8x fear radius) and roughly in the way
+	// (within ~60 degrees of the rescue heading) means continuing the run would walk toward it.
+	private bool IsZombieAheadDuringRescue(Vector3 movementDirection)
+	{
+		Zombie nearestZombie = TargetScanUtil.FindNearest(Zombie.AllZombies, transform.position, FearRadiusWorld * 0.8f, z => z.transform.position, out float _);
+		if (nearestZombie == null) return false;
+
+		Vector3 toZombie = nearestZombie.transform.position - transform.position;
+		toZombie.y = 0f;
+		if (toZombie.sqrMagnitude < 0.0001f) return true; // zombie is right on top of us
+
+		Vector3 dir = movementDirection;
+		dir.y = 0f;
+		if (dir.sqrMagnitude < 0.0001f) return false;
+
+		float cosAngle = Vector3.Dot(dir.normalized, toZombie.normalized);
+		return cosAngle >= 0.5f; // cos(60 degrees) = 0.5
 	}
 
 	// Part B.4: nearest OTHER civilian (Human or Scientist) currently panicking, straight-line.
@@ -345,9 +513,28 @@ public abstract class EvacueeBase : MonoBehaviour
 		if (IsInfected) return;
 		IsInfected = true;
 
+		RecordDeathTelemetry();
+
 		CancelRescue();
 		ShowInfectionMarker();
 		StartCoroutine(InfectionRoutine(delay, onTurned));
+	}
+
+	// fix/civilian-flee (step 1): snapshot state BEFORE CancelRescue() below clears isRescuing, so
+	// the counted state reflects what this civilian was actually doing when the bite landed.
+	// Sandbox-only (gated inside CivilianDeathTelemetry) -- a no-op on real levels.
+	private void RecordDeathTelemetry()
+	{
+		CivilianDeathTelemetry.DeathState state;
+		if (isBoarding) state = CivilianDeathTelemetry.DeathState.Boarding;
+		else if (isRescuing) state = CivilianDeathTelemetry.DeathState.Rescue;
+		else if (isPanicking) state = panicUsesEvac ? CivilianDeathTelemetry.DeathState.PanicEvac : CivilianDeathTelemetry.DeathState.PanicFlee;
+		else state = CivilianDeathTelemetry.DeathState.Calm;
+
+		Zombie nearestZombie = TargetScanUtil.FindNearest(Zombie.AllZombies, transform.position, float.MaxValue, z => z.transform.position, out float _);
+		Vector3? zombiePos = nearestZombie != null ? nearestZombie.transform.position : (Vector3?)null;
+
+		CivilianDeathTelemetry.RecordDeath(state, name, transform.position, agent != null ? agent.velocity : Vector3.zero, zombiePos);
 	}
 
 	private IEnumerator InfectionRoutine(float delay, System.Action<EvacueeBase> onTurned)
@@ -435,6 +622,7 @@ public abstract class EvacueeBase : MonoBehaviour
 		rescueTarget = null;
 		hasRescueApproachPoint = false;
 		isBoarding = false;
+		rescuePendingResume = false; // fix/civilian-flee (step 4): no target left to resume toward
 
 		if (agent.isActiveAndEnabled && agent.isOnNavMesh)
 		{

@@ -82,6 +82,12 @@ public class SandboxDevPanel : MonoBehaviour
 	private bool bombOldFeel;
 	private TextMeshProUGUI bombFeelLabel;
 
+	// fix/civilian-flee: "Old"/"New" flips CrowdTuning.civAiLegacyBehavior in place on the
+	// currently active tuning asset (same spirit as barricadeOldFeel/baitOldFeel) -- every spawned
+	// Human/Scientist already shares that one asset reference, so no per-instance loop is needed.
+	private bool civAiOldFeel;
+	private TextMeshProUGUI civAiFeelLabel;
+
 	private RectTransform bodyRoot;
 	private TextMeshProUGUI countersText;
 	private TextMeshProUGUI presetLabel;
@@ -355,6 +361,18 @@ public class SandboxDevPanel : MonoBehaviour
 		if (bombFeelLabel != null) bombFeelLabel.text = "Bomb: " + (bombOldFeel ? "Old" : "New");
 	}
 
+	// ── Civ AI preset (fix/civilian-flee) ───────────────────────────────────────────────────
+
+	private void CycleCivAiPreset()
+	{
+		civAiOldFeel = !civAiOldFeel;
+
+		CrowdTuning tuning = CrowdFieldManager.Instance != null ? CrowdFieldManager.Instance.ActiveTuning : null;
+		if (tuning != null) tuning.civAiLegacyBehavior = civAiOldFeel;
+
+		if (civAiFeelLabel != null) civAiFeelLabel.text = "Civ AI: " + (civAiOldFeel ? "Old" : "New");
+	}
+
 	// ── UI construction (RuntimeUiKit — no scene/prefab edits) ──────────────────────────────
 
 	private void BuildPanel()
@@ -418,6 +436,7 @@ public class SandboxDevPanel : MonoBehaviour
 		BuildBaitFeelPresetRow(bodyRoot);
 		BuildCardScalePresetRow(bodyRoot);
 		BuildBombFeelPresetRow(bodyRoot);
+		BuildCivAiPresetRow(bodyRoot);
 		BuildCountersLabel(bodyRoot);
 	}
 
@@ -586,6 +605,15 @@ public class SandboxDevPanel : MonoBehaviour
 		bombButton.onClick.AddListener(CycleBombFeelPreset);
 	}
 
+	private void BuildCivAiPresetRow(Transform parent)
+	{
+		RectTransform row = BuildRow(parent, 44f);
+
+		Button civAiButton = RuntimeUiKit.CreateButton("CivAiPreset", row, "Civ AI: New", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+		civAiFeelLabel = civAiButton.GetComponentInChildren<TextMeshProUGUI>();
+		civAiButton.onClick.AddListener(CycleCivAiPreset);
+	}
+
 	private void BuildCountersLabel(Transform parent)
 	{
 		countersText = RuntimeUiKit.CreateText("Counters", parent, "", 16f, Color.white, TextAlignmentOptions.Left);
@@ -638,6 +666,9 @@ public class SandboxDevPanel : MonoBehaviour
 			$"Zombies: {zombies}\n" +
 			$"Infected: {infected}\n" +
 			$"Stalled zombies: {stalled}\n" +
+			// fix/civilian-flee (step 1): deaths/infections bucketed by the civilian's state at the
+			// moment of the bite -- see CivilianDeathTelemetry.
+			$"Deaths -- Calm: {CivilianDeathTelemetry.DeathsCalm}  Flee: {CivilianDeathTelemetry.DeathsPanicFlee}  Evac: {CivilianDeathTelemetry.DeathsPanicEvac}  Rescue: {CivilianDeathTelemetry.DeathsRescue}  Boarding: {CivilianDeathTelemetry.DeathsBoarding}\n" +
 			$"FPS: {fps:F0}";
 	}
 
