@@ -19,6 +19,7 @@ public enum FeedbackEvent
 	// Weapons
 	SniperShot, SoldierShot, HeliGun, BombExplosion, BarricadeHit, BarricadeBreak,
 	BarricadePlace, BarricadeRepair, BarricadeStageBreak,
+	SniperLock, SniperKill,
 
 	// Transport / rescue
 	HeliArrive, HeliTakeoff, HeliFull, CarArrive, RescueDeparted, RescueTick, GoalReached,
@@ -114,6 +115,12 @@ public static class Feedback
 		// Reuses BarricadePlace's SFX at lower volume/scale -- a "lighter variant", no new sound.
 		{ FeedbackEvent.BarricadeRepair,     E(SfxId.BarricadePlace, HapticType.Light, VfxId.BarricadeDust, vol: 0.5f, vfxScale: 0.6f) },
 		{ FeedbackEvent.BarricadeStageBreak, E(SfxId.BarricadeStageBreak, HapticType.Light, VfxId.BarricadeDebris, hapticCd: 0.2f) },
+		// feature/sniper-feel: short tick in the last 0.15s of aim -- no VFX, just an audible/haptic
+		// "about to fire" cue layered under the lock-on ring's own brighten/blink.
+		{ FeedbackEvent.SniperLock,       E(SfxId.SniperLock, HapticType.Light, hapticCd: 0.1f, vol: 0.6f) },
+		// killCameraKick is applied directly via CameraShake.Shake at the Sniper.cs call site (same
+		// reasoning as BarricadePlace's shake -- keeps the knob in SniperFeelTuning), not here.
+		{ FeedbackEvent.SniperKill,       E(SfxId.None, vfx: VfxId.DeathPuff) },
 
 		// ---- Transport / rescue
 		{ FeedbackEvent.HeliArrive,       E(SfxId.HeliArrive, vol: 0.8f) },

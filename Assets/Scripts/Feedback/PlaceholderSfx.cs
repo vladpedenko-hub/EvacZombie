@@ -62,6 +62,7 @@ public static class PlaceholderSfx
 		{ SfxId.BarricadeBreak,   new Recipe(Wave.Sine,   150,   60, 0.30f, 0.80f, 0.60f, 2.0f) },
 		{ SfxId.BarricadePlace,     new Recipe(Wave.Sine, 180,   90, 0.12f, 0.35f, 0.55f, 2.2f) },
 		{ SfxId.BarricadeStageBreak, new Recipe(Wave.Saw, 140,   50, 0.22f, 0.70f, 0.65f, 1.8f) },
+		{ SfxId.SniperLock,         new Recipe(Wave.Sine, 1400, 1400, 0.04f, 0.00f, 0.35f, 2.0f) },
 
 		// Transport / rescue
 		{ SfxId.HeliArrive,       new Recipe(Wave.Saw,     80,  120, 0.50f, 0.50f, 0.45f, 1.0f) },

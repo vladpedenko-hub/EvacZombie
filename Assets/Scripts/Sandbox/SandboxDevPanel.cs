@@ -59,6 +59,11 @@ public class SandboxDevPanel : MonoBehaviour
 	private bool barricadeOldFeel;
 	private TextMeshProUGUI barricadeFeelLabel;
 
+	// feature/sniper-feel: "Old feel"/"New feel" toggles SniperFeelTuning fields in place, same
+	// pattern as heliOldFeel (Old = pre-feature aim timing/targeting/visuals, byte-for-byte).
+	private bool sniperOldFeel;
+	private TextMeshProUGUI sniperFeelLabel;
+
 	private RectTransform bodyRoot;
 	private TextMeshProUGUI countersText;
 	private TextMeshProUGUI presetLabel;
@@ -245,6 +250,36 @@ public class SandboxDevPanel : MonoBehaviour
 		if (barricadeFeelLabel != null) barricadeFeelLabel.text = "Barricade feel: " + (barricadeOldFeel ? "Old" : "New");
 	}
 
+	// ── Sniper feel preset (feature/sniper-feel) ────────────────────────────────────────────
+
+	private void CycleSniperFeelPreset()
+	{
+		sniperOldFeel = !sniperOldFeel;
+
+		SniperFeelTuning tuning = SniperFeelTuning.Active;
+		if (tuning != null)
+		{
+			if (sniperOldFeel)
+			{
+				tuning.aimDuration = 1.5f;
+				tuning.firstShotAimFactor = 0.4f;
+				tuning.useTargetingV2 = false;
+				tuning.lockOnRing = false;
+				tuning.lifetimeArc = false;
+			}
+			else
+			{
+				tuning.aimDuration = 1.1f;
+				tuning.firstShotAimFactor = 0.35f;
+				tuning.useTargetingV2 = true;
+				tuning.lockOnRing = true;
+				tuning.lifetimeArc = true;
+			}
+		}
+
+		if (sniperFeelLabel != null) sniperFeelLabel.text = "Sniper feel: " + (sniperOldFeel ? "Old feel" : "New feel");
+	}
+
 	// ── UI construction (RuntimeUiKit — no scene/prefab edits) ──────────────────────────────
 
 	private void BuildPanel()
@@ -304,6 +339,7 @@ public class SandboxDevPanel : MonoBehaviour
 		BuildPaletteRow(bodyRoot);
 		BuildHeliPresetRow(bodyRoot);
 		BuildBarricadeFeelPresetRow(bodyRoot);
+		BuildSniperFeelPresetRow(bodyRoot);
 		BuildCountersLabel(bodyRoot);
 	}
 
@@ -434,6 +470,15 @@ public class SandboxDevPanel : MonoBehaviour
 		Button barricadeButton = RuntimeUiKit.CreateButton("BarricadeFeelPreset", row, "Barricade feel: New", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
 		barricadeFeelLabel = barricadeButton.GetComponentInChildren<TextMeshProUGUI>();
 		barricadeButton.onClick.AddListener(CycleBarricadeFeelPreset);
+	}
+
+	private void BuildSniperFeelPresetRow(Transform parent)
+	{
+		RectTransform row = BuildRow(parent, 44f);
+
+		Button sniperButton = RuntimeUiKit.CreateButton("SniperFeelPreset", row, "Sniper feel: New feel", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+		sniperFeelLabel = sniperButton.GetComponentInChildren<TextMeshProUGUI>();
+		sniperButton.onClick.AddListener(CycleSniperFeelPreset);
 	}
 
 	private void BuildCountersLabel(Transform parent)

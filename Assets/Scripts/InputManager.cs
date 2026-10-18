@@ -250,14 +250,20 @@ public class InputManager : MonoBehaviour
 			return;
 		}
 
-		BoxCollider box = building.GetComponent<BoxCollider>();
-		if (box == null)
+		// feature/sniper-feel (step 0/5): generated-city buildings (CityGenerator.CreateBspBuilding)
+		// only ever get a MeshCollider, never a BoxCollider -- the old BoxCollider-only lookup made
+		// this silently return null on every generated building, so outlinedBuilding/buildingCorners
+		// were NEVER populated there and ExecuteSniperLogic's "if (outlinedBuilding == null) return
+		// false" made Sniper placement a silent no-op on every sandbox/generated level. Collider.bounds
+		// is identical to BoxCollider.bounds for a box (same AABB), so hand-built levels are unaffected.
+		Collider col = building.GetComponent<Collider>();
+		if (col == null)
 		{
 			ClearBuildingOutline();
 			return;
 		}
 
-		Bounds b = box.bounds;
+		Bounds b = col.bounds;
 		float y = b.max.y + 0.05f;
 
 		Vector3 p0 = new Vector3(b.min.x, y, b.min.z);
