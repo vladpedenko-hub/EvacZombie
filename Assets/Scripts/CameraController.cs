@@ -9,6 +9,11 @@ public class CameraController : MonoBehaviour
 	private Camera cam;
 	private CameraZoomPanController zoomPan;
 
+	// feature/readability-palette: lets LevelPaletteApplier/ActorDotRenderer reach the actual
+	// Camera component (clear color, orthographic/FOV, position) without duplicating this
+	// GetComponent lookup themselves.
+	public Camera Camera => cam;
+
 	[Header("Fit-to-width")]
 	[Tooltip("Extra breathing room added on top of the tight fit to the authored framing.")]
 	[Range(0f, 0.3f)] public float fitMarginPercent = 0.08f;

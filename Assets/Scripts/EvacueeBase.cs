@@ -87,10 +87,48 @@ public abstract class EvacueeBase : MonoBehaviour
 	// size — exactly the unit mismatch this pass fixes.)
 	private float EvacRadiusCells => crowdTuning != null ? crowdTuning.evacRadiusCells : 8f;
 
+	private Renderer[] paletteRenderers;
+
 	private void Awake()
 	{
 		ActorVisualScaler.Apply(transform);
 		agent = GetComponent<NavMeshAgent>();
+
+		// feature/readability-palette: generated-city-only (LevelPaletteService.Active is null on
+		// hand-built levels). Human/Scientist are never pooled -- a fresh Instantiate per spawn --
+		// so Awake() alone covers every instance.
+		if (LevelPaletteService.Active != null) ApplyPaletteTint(GetPaletteTintColor(LevelPaletteService.Active));
+	}
+
+	// Overridden by Scientist to use the palette's scientist color instead of the civilian one.
+	protected virtual Color GetPaletteTintColor(LevelPalette palette) => palette.civilianColor;
+
+	// feature/readability-palette: same renderer/property-block pattern as ShowInfectionMarker
+	// below -- no restore pass needed here either (SandboxDevPanel's live palette-cycle button is
+	// the only thing that re-tints an already-spawned civilian, and it always passes a real
+	// palette color, never needs to revert to "no tint").
+	public void ApplyPaletteTint(Color color)
+	{
+		if (paletteRenderers == null) paletteRenderers = GetComponentsInChildren<Renderer>();
+
+		for (int i = 0; i < paletteRenderers.Length; i++)
+		{
+			Renderer r = paletteRenderers[i];
+			if (r == null) continue;
+
+			Material mat = r.sharedMaterial;
+			if (mat == null) continue;
+
+			int propId;
+			if (mat.HasProperty("_BaseColor")) propId = Shader.PropertyToID("_BaseColor");
+			else if (mat.HasProperty("_Color")) propId = Shader.PropertyToID("_Color");
+			else continue;
+
+			MaterialPropertyBlock pb = new MaterialPropertyBlock();
+			r.GetPropertyBlock(pb);
+			pb.SetColor(propId, color);
+			r.SetPropertyBlock(pb);
+		}
 	}
 
 	private void Start()

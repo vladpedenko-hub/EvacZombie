@@ -46,9 +46,13 @@ public class SandboxDevPanel : MonoBehaviour
 	private List<CrowdTuning> tuningPresets;
 	private int tuningPresetIndex;
 
+	private List<LevelPalette> palettePresets;
+	private int palettePresetIndex;
+
 	private RectTransform bodyRoot;
 	private TextMeshProUGUI countersText;
 	private TextMeshProUGUI presetLabel;
+	private TextMeshProUGUI paletteLabel;
 	private Button pauseButton;
 	private Button noCooldownsButton;
 	private Button infiniteSupplyButton;
@@ -87,6 +91,7 @@ public class SandboxDevPanel : MonoBehaviour
 
 		ApplySandboxDeck();
 		LoadTuningPresets();
+		LoadPalettePresets();
 		BuildPanel();
 	}
 
@@ -164,6 +169,32 @@ public class SandboxDevPanel : MonoBehaviour
 		if (presetLabel != null) presetLabel.text = "Tuning: " + picked.name;
 	}
 
+	// ── LevelPalette presets (Resources-discovered, feature/readability-palette) ────────────
+
+	private void LoadPalettePresets()
+	{
+		LevelPalette[] found = Resources.LoadAll<LevelPalette>("Palettes");
+		palettePresets = new List<LevelPalette>(found);
+
+		if (palettePresets.Count == 0) return;
+
+		LevelPalette active = LevelPaletteService.Active;
+		palettePresetIndex = active != null ? Mathf.Max(0, palettePresets.IndexOf(active)) : 0;
+	}
+
+	private void CyclePalette()
+	{
+		if (palettePresets == null || palettePresets.Count == 0) return;
+
+		palettePresetIndex = (palettePresetIndex + 1) % palettePresets.Count;
+		LevelPalette picked = palettePresets[palettePresetIndex];
+
+		LevelPaletteApplier.Apply(picked);
+		LevelPaletteService.RememberSandboxChoice(picked);
+
+		if (paletteLabel != null) paletteLabel.text = "Palette: " + picked.name;
+	}
+
 	// ── UI construction (RuntimeUiKit — no scene/prefab edits) ──────────────────────────────
 
 	private void BuildPanel()
@@ -220,6 +251,7 @@ public class SandboxDevPanel : MonoBehaviour
 		BuildTogglesRow(bodyRoot);
 		BuildGizmoRow(bodyRoot);
 		BuildPresetRow(bodyRoot);
+		BuildPaletteRow(bodyRoot);
 		BuildCountersLabel(bodyRoot);
 	}
 
@@ -322,6 +354,16 @@ public class SandboxDevPanel : MonoBehaviour
 		Button presetButton = RuntimeUiKit.CreateButton("TuningPreset", row, "Tuning: " + initialName, 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
 		presetLabel = presetButton.GetComponentInChildren<TextMeshProUGUI>();
 		presetButton.onClick.AddListener(CycleTuningPreset);
+	}
+
+	private void BuildPaletteRow(Transform parent)
+	{
+		RectTransform row = BuildRow(parent, 44f);
+
+		string initialName = palettePresets != null && palettePresets.Count > 0 ? palettePresets[palettePresetIndex].name : "(none in Resources)";
+		Button paletteButton = RuntimeUiKit.CreateButton("LevelPalette", row, "Palette: " + initialName, 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+		paletteLabel = paletteButton.GetComponentInChildren<TextMeshProUGUI>();
+		paletteButton.onClick.AddListener(CyclePalette);
 	}
 
 	private void BuildCountersLabel(Transform parent)

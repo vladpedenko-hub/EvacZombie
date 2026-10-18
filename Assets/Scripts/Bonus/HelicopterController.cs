@@ -160,7 +160,13 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 			// which would leak landingColor onto every other user of a shared material.
 			Renderer r = landingMarker.GetComponent<Renderer>();
 			r.material = new Material(SharedMaterials.SpritesDefaultShader);
-			r.material.color = landingColor;
+
+			// feature/readability-palette: this landing-zone ring is the closest thing to an
+			// "evac/transport marker" with a renderer in a generated city -- tinted with the
+			// palette's evacMarkerColor there instead of the prefab's own landingColor. Null on
+			// hand-built levels, so they keep landingColor unchanged.
+			LevelPalette palette = LevelPaletteService.Active;
+			r.material.color = palette != null ? palette.evacMarkerColor : landingColor;
 		}
 	}
 

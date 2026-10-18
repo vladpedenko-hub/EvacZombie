@@ -260,6 +260,30 @@ public class Zombie : MonoBehaviour
 				originalColors[r] = sharedMat.GetColor("_Color");
 			}
 		}
+
+		// feature/readability-palette: generated-city-only (LevelPaletteService.Active is null on
+		// hand-built levels). Overwrites originalColors itself (not just the live property block),
+		// so HitFlashRoutine's RestoreOriginalColors() below restores to the palette tint rather
+		// than this prefab's own material color.
+		if (LevelPaletteService.Active != null) ApplyPaletteTint(LevelPaletteService.Active.zombieColor);
+	}
+
+	// feature/readability-palette: called from Awake() above and from OnTakenFromPool() below (the
+	// pool prewarms instances before any level/palette is active, so OnTakenFromPool -- called on
+	// every real spawn, including infection-created zombies via ZombiePool.Get -- is what actually
+	// guarantees coverage).
+	public void ApplyPaletteTint(Color color)
+	{
+		if (allRenderers == null) return;
+
+		for (int i = 0; i < allRenderers.Length; i++)
+		{
+			Renderer r = allRenderers[i];
+			if (r == null || !colorPropertyIds.ContainsKey(r)) continue;
+			originalColors[r] = color;
+		}
+
+		SetAllRendererColors(color);
 	}
 
 	protected virtual void OnEnable()
@@ -349,6 +373,12 @@ public class Zombie : MonoBehaviour
 		}
 
 		RestoreOriginalColors();
+
+		// feature/readability-palette: every real spawn (including infection-created zombies, via
+		// TurnIntoZombie -> ZombiePool.Get) goes through here, so this is what actually guarantees
+		// a pooled zombie reflects the active generated-city palette, regardless of when its one-
+		// time Awake() ran relative to the palette becoming active.
+		if (LevelPaletteService.Active != null) ApplyPaletteTint(LevelPaletteService.Active.zombieColor);
 
 		if (cachedCollider != null)
 		{

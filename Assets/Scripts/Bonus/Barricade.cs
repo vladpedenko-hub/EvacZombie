@@ -86,6 +86,25 @@ public class Barricade : MonoBehaviour, IDamageable
                 originalColors[r] = mat.GetColor("_Color");
             }
         }
+
+        // feature/readability-palette: generated-city-only (LevelPaletteService.Active is null on
+        // hand-built levels). Barricades are never pooled, so Awake() alone covers every instance.
+        if (LevelPaletteService.Active != null) ApplyPaletteTint(LevelPaletteService.Active.barricadeColor);
+    }
+
+    // feature/readability-palette: overwrites originalColors itself (not just the live property
+    // block), so HitFlashRoutine's RestoreOriginalColors() restores to the palette tint rather
+    // than this prefab's own material color.
+    public void ApplyPaletteTint(Color color)
+    {
+        for (int i = 0; i < allRenderers.Length; i++)
+        {
+            Renderer r = allRenderers[i];
+            if (r == null || !colorPropertyIds.ContainsKey(r)) continue;
+            originalColors[r] = color;
+        }
+
+        SetAllRendererColors(color);
     }
 
     private void Start()

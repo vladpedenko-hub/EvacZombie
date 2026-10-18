@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 851330617f7e42908f63aba43425cd14, type: 3}
+  m_Name: LevelPalette_RefDark
+  m_EditorClassIdentifier: Assembly-CSharp::LevelPalette
+  backgroundColor: {r: 0.117647, g: 0.129412, b: 0.149020, a: 1}
+  groundColor: {r: 0.168627, g: 0.180392, b: 0.200000, a: 1}
+  frameColor: {r: 0.227451, g: 0.227451, b: 0.219608, a: 1}
+  streetColor: {r: 0.078431, g: 0.086275, b: 0.101961, a: 1}
+  streetLineColor: {r: 0.419608, g: 0.435294, b: 0.462745, a: 1}
+  parkColor: {r: 0.247059, g: 0.309804, b: 0.215686, a: 1}
+  roofColors:
+  - {r: 0.545098, g: 0.560784, b: 0.580392, a: 1}
+  - {r: 0.603922, g: 0.584314, b: 0.533333, a: 1}
+  - {r: 0.494118, g: 0.521569, b: 0.549020, a: 1}
+  - {r: 0.639216, g: 0.619608, b: 0.572549, a: 1}
+  - {r: 0.529412, g: 0.545098, b: 0.501961, a: 1}
+  buildingSeamColor: {r: 0.419608, g: 0.435294, b: 0.462745, a: 1}
+  zombieColor: {r: 1.000000, g: 0.184314, b: 0.627451, a: 1}
+  civilianColor: {r: 0.949020, g: 0.964706, b: 0.972549, a: 1}
+  scientistColor: {r: 1.000000, g: 0.823529, b: 0.247059, a: 1}
+  barricadeColor: {r: 1.000000, g: 0.541176, b: 0.121569, a: 1}
+  spawnMarkerColor: {r: 0.878431, g: 0.141176, b: 0.231373, a: 1}
+  evacMarkerColor: {r: 0.239216, g: 0.862745, b: 1.000000, a: 1}
+  minActorPixelSize: 9

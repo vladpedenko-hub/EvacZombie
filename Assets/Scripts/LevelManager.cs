@@ -161,6 +161,7 @@ public class LevelManager : MonoBehaviour
 			Destroy(currentLevelEnvironment);
 
 		currentLevelEnvironment = Instantiate(data.levelPrefab, Vector3.zero, Quaternion.identity);
+		LevelPaletteApplier.OnLevelLoaded(currentLevelEnvironment);
 
 		if (CameraController.Instance != null)
 		{
