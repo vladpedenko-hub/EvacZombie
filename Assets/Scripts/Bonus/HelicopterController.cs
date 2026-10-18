@@ -150,6 +150,15 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 			if (run.HasFlag("heli_unlimited_capacity"))
 				maxCapacity = 999;
 		}
+
+		// feature/card-scale (step 4): hardcoded-metre fields, read here once (not edited on the
+		// prefab) -- panicRadius already at/left 0 above (heli_no_panic) stays 0 either way.
+		if (CardScale.ScaleHardcodedRanges)
+		{
+			landingRadius *= CardScale.RadiusMult;
+			boardingRadius *= CardScale.RadiusMult;
+			if (panicRadius > 0f) panicRadius *= CardScale.RadiusMult;
+		}
 	}
 
 	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): configures this instance as the free, one-shot

@@ -191,6 +191,9 @@ public class Sniper : MonoBehaviour
 		if (lifespan <= 0f) lifespan = 15f;
 		if (civilianThreatRadius <= 0f) civilianThreatRadius = 6f;
 
+		// feature/card-scale (step 4): hardcoded-metre field, read here once (not edited on the prefab).
+		if (CardScale.ScaleHardcodedRanges) civilianThreatRadius *= CardScale.RadiusMult;
+
 		// Run-modifiers (roguelite) -- unchanged
 		var run = RunSessionData.Instance;
 		if (run != null)

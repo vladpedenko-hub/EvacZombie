@@ -91,6 +91,14 @@ public class CardData : ScriptableObject
 			// Meta research bonuses: flat first, then percent. No-op when no node is purchased.
 			MetaModifiers meta = MetaRuntime.Modifiers;
 			if (meta != null) value = (value + meta.GetFlat(type, category)) * (1f + meta.GetPercent(type, category));
+
+			// feature/card-scale (step 3): the one central place every card's main range is scaled
+			// to the loaded level's street width -- every StatType.Radius consumer (Bait, Bomb,
+			// CarController, CombatHelicopter, HelicopterController, Sniper, Soldier,
+			// InputManager.GetCardRadius) picks this up with no call-site change. Deliberately after
+			// meta bonuses, same order CardInfoPopup's UI text would read them in if it ever did.
+			if (type == StatType.Radius) value *= CardScale.RadiusMult;
+
 			return value;
 		}
 

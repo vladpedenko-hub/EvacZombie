@@ -133,6 +133,9 @@ public class Bait : MonoBehaviour
 			navMeshSearchRadius = 6f;
 		}
 
+		// feature/card-scale (step 4): hardcoded-metre field, read here once (not edited on the prefab).
+		if (CardScale.ScaleHardcodedRanges) navMeshSearchRadius *= CardScale.RadiusMult;
+
 		maxLifeTime = lifeTime;
 
 		pingIntervalWait = new WaitForSeconds(pingInterval);

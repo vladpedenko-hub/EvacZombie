@@ -60,6 +60,9 @@ public class CombatHelicopter : MonoBehaviour
 		if (loadTime <= 0) loadTime = 5f;
 		if (shootRadius <= 0) shootRadius = 20f;
 		if (fireRate <= 0) fireRate = 0.4f;
+
+		// feature/card-scale (step 4): hardcoded-metre field, read here once (not edited on the prefab).
+		if (CardScale.ScaleHardcodedRanges) pickupRadius *= CardScale.RadiusMult;
 	}
 
 	public void Launch(Vector3 target)

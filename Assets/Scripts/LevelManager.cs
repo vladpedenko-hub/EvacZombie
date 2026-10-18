@@ -163,6 +163,11 @@ public class LevelManager : MonoBehaviour
 		currentLevelEnvironment = Instantiate(data.levelPrefab, Vector3.zero, Quaternion.identity);
 		LevelPaletteApplier.OnLevelLoaded(currentLevelEnvironment);
 
+		// feature/card-scale (step 2): after LevelPaletteApplier so LevelPaletteService.Active
+		// already reflects whether THIS level's environment is a generated city; the level's
+		// StreetSegment instances already exist too (just instantiated above).
+		CardScale.OnLevelLoaded(data);
+
 		if (CameraController.Instance != null)
 		{
 			(float topFrac, float bottomFrac) = GetReservedScreenFractions();

@@ -373,6 +373,9 @@ public class InputManager : MonoBehaviour
 
 		BaitTuning tuning = BaitTuning.Active;
 		float snapDistance = tuning != null ? (tuning.legacyFeelEnabled ? 6f : tuning.navSnapMaxDistance) : 6f;
+		// feature/card-scale (step 4): matches the same CardScale.RadiusMult Bait.cs itself applies
+		// to navMeshSearchRadius, so this preview/reject check agrees with what Launch() will do.
+		if (CardScale.ScaleHardcodedRanges) snapDistance *= CardScale.RadiusMult;
 		bool require = tuning != null && !tuning.legacyFeelEnabled && tuning.requireNavMeshPoint;
 
 		if (UnityEngine.AI.NavMesh.SamplePosition(rawPoint, out UnityEngine.AI.NavMeshHit navHit, snapDistance, UnityEngine.AI.NavMesh.AllAreas))
@@ -482,16 +485,23 @@ public class InputManager : MonoBehaviour
 
 		if (radius <= 0)
 		{
+			// feature/card-scale (step 1 audit): these fallback constants never pass through
+			// CardData.GetCalculatedStat (the branch above already returns before reaching it), so
+			// RadiusMult is applied explicitly here -- otherwise this degenerate "CardData has no
+			// Radius stat" case would show a ring that doesn't match the real (scaled) radius.
+			float fallback;
 			switch (card.cardType)
 			{
-				case CardManager.CardType.Car: return 4f;
-				case CardManager.CardType.Soldier: return 12f;
-				case CardManager.CardType.Sniper: return 25f;
-				case CardManager.CardType.Helicopter: radius = 12f; break;
-				case CardManager.CardType.Bait: return 15f;
-				case CardManager.CardType.Barricade: return 0f;
-				default: return 5f;
+				case CardManager.CardType.Car: fallback = 4f; break;
+				case CardManager.CardType.Soldier: fallback = 12f; break;
+				case CardManager.CardType.Sniper: fallback = 25f; break;
+				case CardManager.CardType.Helicopter: fallback = 12f; break;
+				case CardManager.CardType.Bait: fallback = 15f; break;
+				case CardManager.CardType.Barricade: return 0f; // 0 means "no ring", not a real range -- never scaled
+				default: fallback = 5f; break;
 			}
+
+			radius = CardScale.ScaleHardcodedRanges ? fallback * CardScale.RadiusMult : fallback;
 		}
 
 		// feature/heli-rework (step 9): HelicopterController.Start() multiplies its attractRadius

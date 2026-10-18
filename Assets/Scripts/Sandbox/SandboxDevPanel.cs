@@ -69,6 +69,14 @@ public class SandboxDevPanel : MonoBehaviour
 	private bool baitOldFeel;
 	private TextMeshProUGUI baitFeelLabel;
 
+	// feature/card-scale: cycles CardScaleTuning between Auto and 4 fixed manual multipliers.
+	// -1 = Auto (autoFromStreets = true); 0..3 = index into cardScalePresets (autoFromStreets =
+	// false, manualMult = that value). Re-runs CardScale.OnLevelLoaded immediately so the change
+	// applies live (to the drag ring and to newly placed cards) without a level reload.
+	private static readonly float[] cardScalePresets = { 0.3f, 0.5f, 0.75f, 1f };
+	private int cardScalePresetIndex = -1;
+	private TextMeshProUGUI cardScaleLabel;
+
 	private RectTransform bodyRoot;
 	private TextMeshProUGUI countersText;
 	private TextMeshProUGUI presetLabel;
@@ -297,6 +305,34 @@ public class SandboxDevPanel : MonoBehaviour
 		if (baitFeelLabel != null) baitFeelLabel.text = "Bait: " + (baitOldFeel ? "Old" : "New");
 	}
 
+	// ── Card scale preset (feature/card-scale) ──────────────────────────────────────────────
+
+	private void CycleCardScalePreset()
+	{
+		cardScalePresetIndex++;
+		if (cardScalePresetIndex >= cardScalePresets.Length) cardScalePresetIndex = -1;
+
+		CardScaleTuning tuning = CardScaleTuning.Active;
+		if (tuning != null)
+		{
+			if (cardScalePresetIndex < 0)
+			{
+				tuning.autoFromStreets = true;
+			}
+			else
+			{
+				tuning.autoFromStreets = false;
+				tuning.manualMult = cardScalePresets[cardScalePresetIndex];
+			}
+		}
+
+		LevelData data = LevelManager.Instance != null ? LevelManager.Instance.currentData : null;
+		CardScale.OnLevelLoaded(data);
+
+		string label = cardScalePresetIndex < 0 ? "Auto" : "x" + cardScalePresets[cardScalePresetIndex].ToString("0.##");
+		if (cardScaleLabel != null) cardScaleLabel.text = "Card scale: " + label;
+	}
+
 	// ── UI construction (RuntimeUiKit — no scene/prefab edits) ──────────────────────────────
 
 	private void BuildPanel()
@@ -358,6 +394,7 @@ public class SandboxDevPanel : MonoBehaviour
 		BuildBarricadeFeelPresetRow(bodyRoot);
 		BuildSniperFeelPresetRow(bodyRoot);
 		BuildBaitFeelPresetRow(bodyRoot);
+		BuildCardScalePresetRow(bodyRoot);
 		BuildCountersLabel(bodyRoot);
 	}
 
@@ -506,6 +543,15 @@ public class SandboxDevPanel : MonoBehaviour
 		Button baitButton = RuntimeUiKit.CreateButton("BaitFeelPreset", row, "Bait: New", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
 		baitFeelLabel = baitButton.GetComponentInChildren<TextMeshProUGUI>();
 		baitButton.onClick.AddListener(CycleBaitFeelPreset);
+	}
+
+	private void BuildCardScalePresetRow(Transform parent)
+	{
+		RectTransform row = BuildRow(parent, 44f);
+
+		Button cardScaleButton = RuntimeUiKit.CreateButton("CardScalePreset", row, "Card scale: Auto", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+		cardScaleLabel = cardScaleButton.GetComponentInChildren<TextMeshProUGUI>();
+		cardScaleButton.onClick.AddListener(CycleCardScalePreset);
 	}
 
 	private void BuildCountersLabel(Transform parent)
