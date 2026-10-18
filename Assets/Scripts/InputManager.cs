@@ -31,6 +31,25 @@ public class InputManager : MonoBehaviour
 
 	private void Awake() => Instance = this;
 
+	// feature/heli-rework (step 6): a plain tap (no card being dragged) on a Loading heli's own
+	// collider leaves early with whoever's already aboard. Reuses this project's existing picking
+	// pattern (Physics.Raycast off mainCam.ScreenPointToRay) -- the Helicopter prefab's root
+	// already carries a non-trigger BoxCollider for exactly this kind of hit.
+	private void Update()
+	{
+		if (isDragging) return;
+		if (IsPaused) return;
+		if (!Input.GetMouseButtonDown(0)) return;
+		if (CardManager.Instance != null && CardManager.Instance.IsScreenPointOverCardsPanel(Input.mousePosition)) return;
+
+		Ray ray = mainCam.ScreenPointToRay(Input.mousePosition);
+		if (Physics.Raycast(ray, out RaycastHit hit))
+		{
+			HelicopterController heli = hit.collider.GetComponentInParent<HelicopterController>();
+			heli?.RequestEarlyLeave();
+		}
+	}
+
 	private void Start()
 	{
 		mainCam = Camera.main;
@@ -84,7 +103,14 @@ public class InputManager : MonoBehaviour
 		if (Physics.Raycast(ray, out RaycastHit hit))
 		{
 			float radius = GetCardRadius(draggingCard);
-			DrawRadiusCircle(hit.point, radius);
+
+			// feature/heli-rework (step 9): preview the ring at the actual snapped landing point,
+			// not the raw tap, so the drag preview matches where the heli will really touch down.
+			Vector3 ringCenter = hit.point;
+			if (draggingCard.cardType == CardManager.CardType.Helicopter)
+				TryResolveHelicopterLandingPoint(hit.point, out ringCenter);
+
+			DrawRadiusCircle(ringCenter, radius);
 
 			bool canPlace = CanPlaceCardAtScreenPoint(draggingCard, screenPos, hit);
 
@@ -285,9 +311,34 @@ public class InputManager : MonoBehaviour
 				return segment != null; // valid only if a usable (non-intersection) segment is within the snap radius
 			}
 
+			case CardManager.CardType.Helicopter:
+				// feature/heli-rework (step 8): same "not a building" rule as before, plus the
+				// new snap-to-walkable requirement -- no walkable NavMesh point within
+				// snapMaxDistance rejects the placement exactly like any other invalid spot.
+				return !isBuilding && TryResolveHelicopterLandingPoint(hit.point, out _);
+
 			default:
 				return !isBuilding;
 		}
+	}
+
+	// feature/heli-rework (step 8): snaps a raw tap/hit point to the nearest NavMesh point within
+	// HeliTuning.snapMaxDistance (if snapToWalkable is on). Returns false (rejecting the
+	// placement) when snapping is on but no walkable point was found in range.
+	private bool TryResolveHelicopterLandingPoint(Vector3 rawPoint, out Vector3 resolved)
+	{
+		resolved = rawPoint;
+
+		HeliTuning tuning = HeliTuning.Active;
+		if (tuning == null || !tuning.snapToWalkable) return true;
+
+		if (UnityEngine.AI.NavMesh.SamplePosition(rawPoint, out UnityEngine.AI.NavMeshHit navHit, tuning.snapMaxDistance, UnityEngine.AI.NavMesh.AllAreas))
+		{
+			resolved = navHit.position;
+			return true;
+		}
+
+		return false;
 	}
 
 	// feature/city-gen-v2: resolves which StreetSegment a barricade placement should snap to.
@@ -371,11 +422,21 @@ public class InputManager : MonoBehaviour
 				case CardManager.CardType.Car: return 4f;
 				case CardManager.CardType.Soldier: return 12f;
 				case CardManager.CardType.Sniper: return 25f;
-				case CardManager.CardType.Helicopter: return 12f;
+				case CardManager.CardType.Helicopter: radius = 12f; break;
 				case CardManager.CardType.Bait: return 15f;
 				case CardManager.CardType.Barricade: return 0f;
 				default: return 5f;
 			}
+		}
+
+		// feature/heli-rework (step 9): HelicopterController.Start() multiplies its attractRadius
+		// by (1 + heli_radius_mult) at run time -- the drag-preview ring must reflect that SAME
+		// final radius, not just the raw card stat/fallback, or it under-/over-states the real
+		// attract radius whenever a roguelite run has this modifier active.
+		if (card.cardType == CardManager.CardType.Helicopter)
+		{
+			var run = RunSessionData.Instance;
+			if (run != null) radius *= (1f + run.GetModifier("heli_radius_mult"));
 		}
 
 		return radius;
@@ -406,6 +467,10 @@ public class InputManager : MonoBehaviour
 		{
 			case CardManager.CardType.Helicopter:
 			{
+				// feature/heli-rework (step 8): land at the snapped point, not the raw tap --
+				// CanPlaceCardAtScreenPoint already rejected this placement if none was found.
+				TryResolveHelicopterLandingPoint(spawnPos, out spawnPos);
+
 				spawnedObject = Instantiate(card.cardPrefab);
 				HelicopterController heli = spawnedObject.GetComponent<HelicopterController>();
 				heli.Launch(spawnPos);

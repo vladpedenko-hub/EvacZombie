@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8eb00d4b50b4412b0b608a6a8d64a58, type: 3}
+  m_Name: HeliTuning
+  m_EditorClassIdentifier: Assembly-CSharp::HeliTuning
+  inboundTime: 2.8
+  enableLiveRescan: 1
+  rescanInterval: 0.5
+  boardingSlots: 3
+  boardingStagger: 0.2
+  enableHeat: 1
+  heatRadius: 5
+  heatPerZombiePerSec: 1
+  heatMaxMultiplier: 3.5
+  heatBoardSlowFactor: 0.5
+  hardAbortRadius: 1.5
+  fullLoadSupplyBonus: 1
+  snapToWalkable: 1
+  snapMaxDistance: 4

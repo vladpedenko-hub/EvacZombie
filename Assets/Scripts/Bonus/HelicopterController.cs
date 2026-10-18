@@ -33,7 +33,7 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 	public float boardingAnimDuration = 0.28f;
 	public float boardingLiftHeight = 1.2f;
 
-	[Tooltip("Radius within which zombies trigger the helicopter to abort loading and flee")]
+	[Tooltip("Radius within which zombies create boarding pressure (heat) and, inside hardAbortRadius, force an immediate takeoff. 0 (or the heli_no_panic run flag) disables both.")]
 	public float panicRadius = 3f;
 
 	public GameObject sirenRingPrefab;
@@ -56,6 +56,25 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 	private Vector3 targetPos;
 	private GameObject landingMarker;
 	private bool isTooHot = false;
+	private bool hasTakenOff = false;
+	private bool fullLoadHandled = false;
+
+	// feature/heli-rework: ease-out descent timing (Landing state), replacing the old fixed
+	// verticalSpeed MoveTowards for every heli EXCEPT the Last Transport (see isLastTransport
+	// branches below -- its descent is explicitly left unchanged).
+	private Vector3 inboundStartPos;
+	private float inboundElapsed;
+
+	// feature/heli-rework: heat pressure (replaces the old instant panicRadius abort). Still
+	// read/clamped every heatCheckInterval inside NormalLoadRoutine; hardAbortRadius sets isTooHot
+	// the old way regardless of the heat multiplier.
+	private float currentHeatMultiplier = 1f;
+
+	// feature/heli-rework: parallel boarding throughput. reservedUnits holds units with a boarding
+	// coroutine in flight (picked, but not yet in loadedUnits) so a second slot never double-picks
+	// the same civilian.
+	private int activeBoardingCoroutines = 0;
+	private readonly HashSet<GameObject> reservedUnits = new HashSet<GameObject>();
 
 	// Core Loop v2 (Docs/CORE_LOOP_V2.md Phase 4): set via ConfigureAsLastTransport when this
 	// instance is the free, one-shot Night "LAST TRANSPORT" card.
@@ -63,6 +82,33 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 	private float lastTransportDepartAtTime;
 
 	private List<GameObject> loadedUnits = new List<GameObject>();
+
+	// feature/heli-rework: live, per-call read of the shared tunables asset -- Inspector/Resources
+	// edits apply immediately, same spirit as Zombie.cs's crowdTuning-backed properties.
+	private HeliTuning Tuning => HeliTuning.Active;
+	private float InboundTime => Tuning != null ? Mathf.Max(0.05f, Tuning.inboundTime) : 2.8f;
+	private bool EnableLiveRescan => Tuning == null || Tuning.enableLiveRescan;
+	private float RescanInterval => Tuning != null ? Mathf.Max(0.05f, Tuning.rescanInterval) : 0.5f;
+	private int BoardingSlots => Tuning != null ? Mathf.Max(1, Tuning.boardingSlots) : 3;
+	private float BoardingStagger => Tuning != null ? Mathf.Max(0f, Tuning.boardingStagger) : 0.2f;
+	private bool EnableHeat => Tuning == null || Tuning.enableHeat;
+	private float HeatRadius => Tuning != null ? Tuning.heatRadius : 5f;
+	private float HeatPerZombiePerSec => Tuning != null ? Tuning.heatPerZombiePerSec : 1f;
+	private float HeatMaxMultiplier => Tuning != null ? Mathf.Max(1f, Tuning.heatMaxMultiplier) : 3.5f;
+	private float HeatBoardSlowFactor => Tuning != null ? Mathf.Max(0.01f, Tuning.heatBoardSlowFactor) : 0.5f;
+	private float HardAbortRadius => Tuning != null ? Tuning.hardAbortRadius : 1.5f;
+	private int FullLoadSupplyBonus => Tuning != null ? Tuning.fullLoadSupplyBonus : 1;
+
+	private float EffectiveBoardingCooldown
+	{
+		get
+		{
+			float maxMult = HeatMaxMultiplier;
+			float normalized = maxMult > 1f ? Mathf.Clamp01((currentHeatMultiplier - 1f) / (maxMult - 1f)) : 0f;
+			float slow = Mathf.Lerp(1f, 1f / HeatBoardSlowFactor, normalized);
+			return boardingCooldown * slow;
+		}
+	}
 
 	private void Start()
 	{
@@ -111,6 +157,10 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 	// absolute Time.time value -- the transport stays loading until then regardless of capacity
 	// or the normal load timer, then departs. panicRadius = 0 reuses the existing panic-radius
 	// check (below) to mean "no too-hot abort" without a new branch.
+	//
+	// feature/heli-rework: isLastTransport also routes Update()'s Landing branch and LoadRoutine()
+	// to their original, byte-for-byte unchanged paths -- none of the new inbound-easing/live-
+	// rescan/heat/parallel-boarding logic applies to it.
 	public void ConfigureAsLastTransport(float departAtTime)
 	{
 		isLastTransport = true;
@@ -132,10 +182,17 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 		loadedHumanCount = 0;
 		loadedScientistCount = 0;
 		isTooHot = false;
+		hasTakenOff = false;
+		fullLoadHandled = false;
+		currentHeatMultiplier = 1f;
+		activeBoardingCoroutines = 0;
 		loadedUnits.Clear();
+		reservedUnits.Clear();
 
 		targetPos = pos;
 		transform.position = new Vector3(pos.x, exitHeight, pos.z);
+		inboundStartPos = transform.position;
+		inboundElapsed = 0f;
 		currentState = HeliState.Landing;
 
 		if (hotWarning != null) hotWarning.SetActive(false);
@@ -168,14 +225,38 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 			LevelPalette palette = LevelPaletteService.Active;
 			r.material.color = palette != null ? palette.evacMarkerColor : landingColor;
 		}
+
+		// feature/heli-rework (step 2): civilians start running to the call point the moment the
+		// card is placed, not at touchdown -- SetRescueTarget's own run speed means they're
+		// visibly already headed this way well before the heli actually lands.
+		ScanAndAttractCivilians();
 	}
 
 	private void Update()
 	{
 		if (currentState == HeliState.Landing)
 		{
-			transform.position = Vector3.MoveTowards(transform.position, new Vector3(targetPos.x, 1f, targetPos.z), verticalSpeed * Time.deltaTime);
-			if (transform.position.y <= 1.1f) StartLoading();
+			if (isLastTransport)
+			{
+				// feature/heli-rework: unchanged -- the Last Transport keeps the original
+				// speed-based descent (verticalSpeed is forced to >=9999 by ConfigureAsLastTransport,
+				// so this still reads as an instant landing).
+				transform.position = Vector3.MoveTowards(transform.position, new Vector3(targetPos.x, 1f, targetPos.z), verticalSpeed * Time.deltaTime);
+				if (transform.position.y <= 1.1f) StartLoading();
+			}
+			else
+			{
+				// feature/heli-rework (step 2): descent now takes exactly InboundTime seconds,
+				// eased out, instead of being driven by verticalSpeed.
+				inboundElapsed += Time.deltaTime;
+				float t = Mathf.Clamp01(inboundElapsed / InboundTime);
+				float eased = 1f - (1f - t) * (1f - t);
+
+				transform.position = Vector3.Lerp(inboundStartPos, new Vector3(targetPos.x, 1f, targetPos.z), eased);
+				UpdateInboundCountdownRing(t);
+
+				if (t >= 1f) StartLoading();
+			}
 		}
 		else if (currentState == HeliState.TakingOff)
 		{
@@ -187,55 +268,39 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 		}
 	}
 
+	// feature/heli-rework (step 2): shrinks the landing marker over the inbound descent so it
+	// reads as a countdown ring, reaching a small "about to land" size right as t hits 1.
+	private void UpdateInboundCountdownRing(float t)
+	{
+		if (landingMarker == null) return;
+
+		float scale = Mathf.Lerp(landingRadius * 2f, landingRadius * 2f * 0.12f, t);
+		Vector3 s = landingMarker.transform.localScale;
+		landingMarker.transform.localScale = new Vector3(scale, s.y, scale);
+	}
+
 	private void StartLoading()
 	{
 		currentState = HeliState.Loading;
 		Feedback.Play(FeedbackEvent.HeliArrive, transform.position);
-		if (landingMarker) Destroy(landingMarker);
+
+		// feature/heli-rework (step 4 visual): the landing marker survives touchdown now -- reset
+		// from its shrunk countdown-ring size back to a full ground ring, which the heat check
+		// below tints green->red for the rest of Loading. Destroyed in TakeOff() instead.
+		if (landingMarker != null)
+		{
+			Vector3 s = landingMarker.transform.localScale;
+			landingMarker.transform.localScale = new Vector3(landingRadius * 2f, s.y, landingRadius * 2f);
+			Renderer r = landingMarker.GetComponent<Renderer>();
+			if (r != null) r.material.color = Color.green;
+		}
+
 		if (loadText != null) loadText.gameObject.SetActive(true);
 
 		if (sirenRingPrefab != null)
 		{
 			GameObject ring = Instantiate(sirenRingPrefab, transform.position + Vector3.up * 0.1f, Quaternion.Euler(90, 0, 0));
 			ring.GetComponent<SirenEffect>()?.Setup(attractRadius, 1.2f);
-		}
-
-		foreach (var h in Human.AllHumans)
-		{
-			if (h == null) continue;
-
-			Vector2 heliPos2D = new Vector2(transform.position.x, transform.position.z);
-			Vector2 humanPos2D = new Vector2(h.transform.position.x, h.transform.position.z);
-
-			if (Vector2.Distance(heliPos2D, humanPos2D) < attractRadius)
-			{
-				h.SetRescueTarget(transform);
-
-				if (humanAlertPrefab != null)
-				{
-					GameObject alert = Instantiate(humanAlertPrefab, h.transform.position + Vector3.up * 0.1f, Quaternion.Euler(90, 0, 0), h.transform);
-					Destroy(alert, alertDuration);
-				}
-			}
-		}
-
-		foreach (var s in Scientist.AllScientists)
-		{
-			if (s == null) continue;
-
-			Vector2 heliPos2D = new Vector2(transform.position.x, transform.position.z);
-			Vector2 scientistPos2D = new Vector2(s.transform.position.x, s.transform.position.z);
-
-			if (Vector2.Distance(heliPos2D, scientistPos2D) < attractRadius)
-			{
-				s.SetRescueTarget(transform);
-
-				if (humanAlertPrefab != null)
-				{
-					GameObject alert = Instantiate(humanAlertPrefab, s.transform.position + Vector3.up * 0.1f, Quaternion.Euler(90, 0, 0), s.transform);
-					Destroy(alert, alertDuration);
-				}
-			}
 		}
 
 		// Ultimate: global attract - all civilians run to heli
@@ -269,22 +334,60 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 			}
 		}
 
-		StartCoroutine(LoadRoutine());
+		// feature/heli-rework: the Last Transport keeps the original single-slot, non-heat
+		// LoadRoutine byte-for-byte; every other heli gets the new feel.
+		StartCoroutine(isLastTransport ? LastTransportLoadRoutine() : NormalLoadRoutine());
 	}
 
-	private IEnumerator LoadRoutine()
+	// feature/heli-rework (step 2/3): shared by the call-time scan (Launch) and the periodic
+	// live-magnet rescan (NormalLoadRoutine) -- SetRescueTarget for anyone within attractRadius
+	// that doesn't already have a rescue target, with the same alert-prefab visual either way.
+	private void ScanAndAttractCivilians()
+	{
+		Vector2 heliPos2D = Flat(transform.position);
+
+		foreach (var h in Human.AllHumans)
+		{
+			if (h == null || h.rescueTarget != null) continue;
+			if (Vector2.Distance(heliPos2D, Flat(h.transform.position)) >= attractRadius) continue;
+
+			h.SetRescueTarget(transform);
+			SpawnAttractAlert(h.transform);
+		}
+
+		foreach (var s in Scientist.AllScientists)
+		{
+			if (s == null || s.rescueTarget != null) continue;
+			if (Vector2.Distance(heliPos2D, Flat(s.transform.position)) >= attractRadius) continue;
+
+			s.SetRescueTarget(transform);
+			SpawnAttractAlert(s.transform);
+		}
+	}
+
+	private void SpawnAttractAlert(Transform target)
+	{
+		if (humanAlertPrefab == null) return;
+		GameObject alert = Instantiate(humanAlertPrefab, target.position + Vector3.up * 0.1f, Quaternion.Euler(90, 0, 0), target);
+		Destroy(alert, alertDuration);
+	}
+
+	private static Vector2 Flat(Vector3 v) => new Vector2(v.x, v.z);
+
+	// feature/heli-rework: byte-for-byte the original LoadRoutine(), kept as its own method and
+	// used ONLY for the Last Transport -- the brief requires its path stay unchanged while every
+	// other heli gets the new inbound/rescan/heat/parallel-boarding feel below.
+	private IEnumerator LastTransportLoadRoutine()
 	{
 		float waitTimer = 0;
 
-		// Local timers using Time.deltaTime — pause automatically when timeScale=0
-		float boardCooldownTimer = boardingCooldown; // start ready to board
+		float boardCooldownTimer = boardingCooldown;
 		float panicCheckTimer = 0f;
 		const float panicCheckInterval = 0.2f;
 		float panicRadiusSqr = panicRadius * panicRadius;
 
 		while (isLastTransport ? Time.time < lastTransportDepartAtTime : (currentLoad < maxCapacity && !isTooHot && waitTimer < loadTime))
 		{
-			// Wait for time to resume — do not advance timers during pause
 			if (Time.timeScale < 0.001f)
 			{
 				yield return null;
@@ -292,11 +395,10 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 			}
 
 			float dt = Time.deltaTime;
-			waitTimer       += dt;
+			waitTimer += dt;
 			boardCooldownTimer += dt;
 			panicCheckTimer += dt;
 
-			// Periodic panic check (zombie nearby)
 			if (panicCheckTimer >= panicCheckInterval)
 			{
 				panicCheckTimer = 0f;
@@ -327,7 +429,6 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 					{
 						yield return StartCoroutine(hum.PlayBoardingAnimation(transform.position, boardingAnimDuration, boardingLiftHeight));
 
-						// Human may have been infected/destroyed mid-animation — skip if so
 						if (hum == null) break;
 
 						loadedUnits.Add(hum.gameObject);
@@ -352,7 +453,6 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 						{
 							yield return StartCoroutine(sci.PlayBoardingAnimation(transform.position, boardingAnimDuration, boardingLiftHeight));
 
-							// Scientist may have been infected/destroyed mid-animation — skip if so
 							if (sci == null) break;
 
 							loadedUnits.Add(sci.gameObject);
@@ -370,16 +470,11 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 					if (loadText) loadText.text = currentLoad.ToString();
 					boardCooldownTimer = 0f;
 
-					// ── Early takeoff: all remaining civilians are already on board ──
-					// Don't wait for the timer — if there's no one left to load, take off immediately.
-					// Core Loop v2: the Last Transport always stays until lastTransportDepartAtTime
-					// (brief: "it stays until the countdown hits 0, then takes off").
 					if (!isLastTransport && AllCiviliansHandled())
 						break;
 				}
 			}
 
-			// One more check at the end of the iteration (in case there were no civilians at all)
 			if (!isLastTransport && currentLoad > 0 && AllCiviliansHandled())
 				break;
 
@@ -387,6 +482,252 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 		}
 
 		TakeOff(isTooHot);
+	}
+
+	// feature/heli-rework: the new feel for every non-Last-Transport heli -- waitTimer/heat/rescan
+	// advance every frame via `yield return null` only (never blocked by a boarding animation),
+	// heat replaces the old instant panic-abort (hardAbortRadius is the one thing that still
+	// aborts immediately), and up to BoardingSlots units board in parallel.
+	private IEnumerator NormalLoadRoutine()
+	{
+		float waitTimer = 0f;
+		float boardCooldownTimer = boardingCooldown;
+		float heatCheckTimer = 0f;
+		float rescanTimer = 0f;
+		const float heatCheckInterval = 0.2f;
+
+		float heatRadiusSqr = HeatRadius * HeatRadius;
+		float hardAbortRadiusSqr = HardAbortRadius * HardAbortRadius;
+
+		// Step 4: panicRadius <= 0 (set directly, or via the heli_no_panic run flag in Start())
+		// disables heat AND hard-abort entirely, not just the old single panic check.
+		bool heatAndAbortActive = panicRadius > 0f;
+
+		while (currentState == HeliState.Loading && currentLoad < maxCapacity && !isTooHot && waitTimer < loadTime)
+		{
+			if (Time.timeScale < 0.001f)
+			{
+				yield return null;
+				continue;
+			}
+
+			float dt = Time.deltaTime;
+			waitTimer += dt * currentHeatMultiplier;
+			boardCooldownTimer += dt;
+			heatCheckTimer += dt;
+			rescanTimer += dt;
+
+			if (heatAndAbortActive)
+			{
+				if (heatCheckTimer >= heatCheckInterval)
+				{
+					heatCheckTimer = 0f;
+
+					int zombiesInRange = 0;
+					bool hardAbort = false;
+
+					foreach (var z in Zombie.AllZombies)
+					{
+						if (z == null) continue;
+						float distSqr = (z.transform.position - transform.position).sqrMagnitude;
+						if (distSqr <= heatRadiusSqr) zombiesInRange++;
+						if (distSqr <= hardAbortRadiusSqr) hardAbort = true;
+					}
+
+					if (hardAbort) isTooHot = true;
+
+					currentHeatMultiplier = EnableHeat
+						? Mathf.Clamp(1f + zombiesInRange * HeatPerZombiePerSec, 1f, HeatMaxMultiplier)
+						: 1f;
+
+					UpdateLandingRingHeatColor();
+				}
+			}
+			else
+			{
+				currentHeatMultiplier = 1f;
+			}
+
+			if (isTooHot) break;
+
+			// Step 3: live magnet -- periodic rescan for stragglers who wandered into attractRadius
+			// after the initial call-time scan.
+			if (EnableLiveRescan && rescanTimer >= RescanInterval)
+			{
+				rescanTimer = 0f;
+				ScanAndAttractCivilians();
+			}
+
+			// Step 5: throughput -- try to fill up to BoardingSlots parallel boarding coroutines,
+			// staggered by BoardingStagger, instead of boarding one unit at a time inline.
+			if (boardCooldownTimer >= EffectiveBoardingCooldown)
+			{
+				int slotsAvailable = Mathf.Max(0, BoardingSlots - activeBoardingCoroutines);
+				int capacityLeft = maxCapacity - currentLoad - activeBoardingCoroutines;
+				slotsAvailable = Mathf.Min(slotsAvailable, Mathf.Max(0, capacityLeft));
+
+				if (slotsAvailable > 0)
+				{
+					GameObject firstCandidate = FindBoardingCandidate(out bool firstIsHuman);
+					if (firstCandidate != null)
+					{
+						ReserveAndBoard(firstCandidate, firstIsHuman);
+						boardCooldownTimer = 0f;
+
+						if (slotsAvailable > 1)
+							StartCoroutine(FillBoardingSlotsRoutine(slotsAvailable - 1));
+					}
+				}
+			}
+
+			// Early takeoff: nobody left to load (a unit still mid-animation keeps this false
+			// until it lands in loadedUnits, so this never cuts a parallel boarding short).
+			if (currentLoad > 0 && AllCiviliansHandled())
+				break;
+
+			yield return null;
+		}
+
+		TakeOff(isTooHot);
+	}
+
+	// feature/heli-rework (step 5): fills up to slotsToFill additional parallel boarding slots,
+	// one start per BoardingStagger -- runs independently of NormalLoadRoutine's own yields, so it
+	// never blocks waitTimer/heat/rescan.
+	private IEnumerator FillBoardingSlotsRoutine(int slotsToFill)
+	{
+		for (int i = 0; i < slotsToFill; i++)
+		{
+			yield return new WaitForSeconds(BoardingStagger);
+
+			if (currentState != HeliState.Loading) yield break;
+			if (activeBoardingCoroutines >= BoardingSlots) yield break;
+
+			int capacityLeft = maxCapacity - currentLoad - activeBoardingCoroutines;
+			if (capacityLeft <= 0) yield break;
+
+			GameObject candidate = FindBoardingCandidate(out bool isHuman);
+			if (candidate == null) yield break;
+
+			ReserveAndBoard(candidate, isHuman);
+		}
+	}
+
+	private void ReserveAndBoard(GameObject unitGO, bool isHuman)
+	{
+		reservedUnits.Add(unitGO);
+		activeBoardingCoroutines++;
+		StartCoroutine(BoardUnitRoutine(unitGO, isHuman));
+	}
+
+	// feature/heli-rework (step 5): one unit's full boarding animation, as its own coroutine so
+	// several can run in parallel. Never yielded on by NormalLoadRoutine.
+	private IEnumerator BoardUnitRoutine(GameObject unitGO, bool isHuman)
+	{
+		EvacueeBase evacuee = unitGO != null ? unitGO.GetComponent<EvacueeBase>() : null;
+
+		if (evacuee != null)
+			yield return StartCoroutine(evacuee.PlayBoardingAnimation(transform.position, boardingAnimDuration, boardingLiftHeight));
+
+		activeBoardingCoroutines--;
+		reservedUnits.Remove(unitGO);
+
+		// Destroyed or infected-and-turned mid-animation (Unity fake-null) -- just free the slot.
+		if (unitGO == null) yield break;
+
+		// Step 6: the heli may have already departed (early-leave tap, hard abort, or a sibling
+		// parallel slot reaching full load first) while this one was still finishing its
+		// animation -- it still visibly made it aboard, so count/destroy it directly instead of
+		// leaving it stuck with a disabled NavMeshAgent after TakeOff() already ran.
+		if (currentState != HeliState.Loading)
+		{
+			if (isHuman) GameManager.Instance.AddRescuedFromTransport(1, 0, transform.position);
+			else GameManager.Instance.AddRescuedFromTransport(0, 1, transform.position);
+			Destroy(unitGO);
+			yield break;
+		}
+
+		loadedUnits.Add(unitGO);
+		currentLoad++;
+		if (isHuman) loadedHumanCount++; else loadedScientistCount++;
+		if (loadText) loadText.text = currentLoad.ToString();
+
+		CheckFullLoad();
+	}
+
+	// feature/heli-rework (step 5): nearest-eligible-first scan, skipping anyone already boarded
+	// or currently reserved by another in-flight boarding coroutine.
+	private GameObject FindBoardingCandidate(out bool isHuman)
+	{
+		Vector2 heliPos2D = Flat(transform.position);
+
+		foreach (var hum in Human.AllHumans)
+		{
+			if (hum == null) continue;
+			GameObject go = hum.gameObject;
+			if (loadedUnits.Contains(go) || reservedUnits.Contains(go)) continue;
+
+			if (Vector2.Distance(heliPos2D, Flat(hum.transform.position)) < boardingRadius)
+			{
+				isHuman = true;
+				return go;
+			}
+		}
+
+		foreach (var sci in Scientist.AllScientists)
+		{
+			if (sci == null) continue;
+			GameObject go = sci.gameObject;
+			if (loadedUnits.Contains(go) || reservedUnits.Contains(go)) continue;
+
+			if (Vector2.Distance(heliPos2D, Flat(sci.transform.position)) < boardingRadius)
+			{
+				isHuman = false;
+				return go;
+			}
+		}
+
+		isHuman = false;
+		return null;
+	}
+
+	// feature/heli-rework (step 4 visual): tints the landing ring green->red as heat climbs.
+	// hotWarning (the hard-abort flash) is untouched -- that still only shows on a real abort.
+	private void UpdateLandingRingHeatColor()
+	{
+		if (landingMarker == null) return;
+
+		Renderer r = landingMarker.GetComponent<Renderer>();
+		if (r == null) return;
+
+		float maxMult = HeatMaxMultiplier;
+		float normalized = maxMult > 1f ? Mathf.Clamp01((currentHeatMultiplier - 1f) / (maxMult - 1f)) : 0f;
+		r.material.color = Color.Lerp(Color.green, Color.red, normalized);
+	}
+
+	// feature/heli-rework (step 7): full load takes off immediately and grants a Supply bonus
+	// through the existing Supply API (SupplyManager.Gain -- a no-op on levels where Supply isn't
+	// active, e.g. hand-built levels outside Core Loop v2).
+	private void CheckFullLoad()
+	{
+		if (fullLoadHandled) return;
+		if (currentLoad < maxCapacity) return;
+
+		fullLoadHandled = true;
+		SupplyManager.Instance?.Gain(FullLoadSupplyBonus);
+		Feedback.Play(FeedbackEvent.HeliFull, transform.position);
+		TakeOff(false);
+	}
+
+	// feature/heli-rework (step 6): a tap on the heli while Loading leaves right away with
+	// whoever's already aboard. Not offered on the Last Transport -- its departure timing is one
+	// of the things the brief says must stay unchanged.
+	public void RequestEarlyLeave()
+	{
+		if (isLastTransport) return;
+		if (currentState != HeliState.Loading) return;
+
+		TakeOff(false);
 	}
 
 	/// <summary>
@@ -406,6 +747,13 @@ public class HelicopterController : MonoBehaviour, IEvacPoint
 
 	private void TakeOff(bool fromPanic = false)
 	{
+		// feature/heli-rework: idempotency guard -- full load, a hard abort, an early-leave tap,
+		// and the loop's own trailing call can now all race to call this once each.
+		if (hasTakenOff) return;
+		hasTakenOff = true;
+
+		if (landingMarker) { Destroy(landingMarker); landingMarker = null; }
+
 		if (fromPanic && hotWarning != null) hotWarning.SetActive(true);
 		if (loadText != null) loadText.gameObject.SetActive(false);
 

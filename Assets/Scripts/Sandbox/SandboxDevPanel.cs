@@ -49,6 +49,11 @@ public class SandboxDevPanel : MonoBehaviour
 	private List<LevelPalette> palettePresets;
 	private int palettePresetIndex;
 
+	// feature/heli-rework: "Old feel"/"New feel" toggles HeliTuning fields in place (no separate
+	// assets, unlike the LevelPalette presets above -- see CycleHeliPreset).
+	private bool heliOldFeel;
+	private TextMeshProUGUI heliPresetLabel;
+
 	private RectTransform bodyRoot;
 	private TextMeshProUGUI countersText;
 	private TextMeshProUGUI presetLabel;
@@ -195,6 +200,34 @@ public class SandboxDevPanel : MonoBehaviour
 		if (paletteLabel != null) paletteLabel.text = "Palette: " + picked.name;
 	}
 
+	// ── Heli feel preset (feature/heli-rework) ──────────────────────────────────────────────
+
+	private void CycleHeliPreset()
+	{
+		heliOldFeel = !heliOldFeel;
+
+		HeliTuning tuning = HeliTuning.Active;
+		if (tuning != null)
+		{
+			if (heliOldFeel)
+			{
+				tuning.inboundTime = 5.6f;
+				tuning.enableLiveRescan = false;
+				tuning.boardingSlots = 1;
+				tuning.enableHeat = false;
+			}
+			else
+			{
+				tuning.inboundTime = 2.8f;
+				tuning.enableLiveRescan = true;
+				tuning.boardingSlots = 3;
+				tuning.enableHeat = true;
+			}
+		}
+
+		if (heliPresetLabel != null) heliPresetLabel.text = "Heli: " + (heliOldFeel ? "Old feel" : "New feel");
+	}
+
 	// ── UI construction (RuntimeUiKit — no scene/prefab edits) ──────────────────────────────
 
 	private void BuildPanel()
@@ -252,6 +285,7 @@ public class SandboxDevPanel : MonoBehaviour
 		BuildGizmoRow(bodyRoot);
 		BuildPresetRow(bodyRoot);
 		BuildPaletteRow(bodyRoot);
+		BuildHeliPresetRow(bodyRoot);
 		BuildCountersLabel(bodyRoot);
 	}
 
@@ -364,6 +398,15 @@ public class SandboxDevPanel : MonoBehaviour
 		Button paletteButton = RuntimeUiKit.CreateButton("LevelPalette", row, "Palette: " + initialName, 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
 		paletteLabel = paletteButton.GetComponentInChildren<TextMeshProUGUI>();
 		paletteButton.onClick.AddListener(CyclePalette);
+	}
+
+	private void BuildHeliPresetRow(Transform parent)
+	{
+		RectTransform row = BuildRow(parent, 44f);
+
+		Button heliButton = RuntimeUiKit.CreateButton("HeliPreset", row, "Heli: New feel", 16f, new Color(0.2f, 0.2f, 0.26f, 0.9f), Color.white);
+		heliPresetLabel = heliButton.GetComponentInChildren<TextMeshProUGUI>();
+		heliButton.onClick.AddListener(CycleHeliPreset);
 	}
 
 	private void BuildCountersLabel(Transform parent)

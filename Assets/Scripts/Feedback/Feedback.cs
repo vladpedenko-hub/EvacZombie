@@ -20,7 +20,7 @@ public enum FeedbackEvent
 	SniperShot, SoldierShot, HeliGun, BombExplosion, BarricadeHit, BarricadeBreak,
 
 	// Transport / rescue
-	HeliArrive, HeliTakeoff, CarArrive, RescueDeparted, RescueTick, GoalReached,
+	HeliArrive, HeliTakeoff, HeliFull, CarArrive, RescueDeparted, RescueTick, GoalReached,
 
 	// Abilities / boss
 	AbilityReady, AbilityActivate, BossRage,
@@ -110,6 +110,9 @@ public static class Feedback
 		// ---- Transport / rescue
 		{ FeedbackEvent.HeliArrive,       E(SfxId.HeliArrive, vol: 0.8f) },
 		{ FeedbackEvent.HeliTakeoff,      E(SfxId.HeliTakeoff, vol: 0.8f) },
+		// feature/heli-rework: full-load takeoff -- reuses RescueDeparted's placeholder SFX/VFX
+		// (a positive "got everyone out" cue) instead of a new asset, with its own Success haptic.
+		{ FeedbackEvent.HeliFull,         E(SfxId.RescueDeparted, HapticType.Success, VfxId.RescueSparkle, vol: 0.9f) },
 		{ FeedbackEvent.CarArrive,        E(SfxId.CarArrive) },
 		{ FeedbackEvent.RescueDeparted,   E(SfxId.RescueDeparted, HapticType.Light, VfxId.RescueSparkle, hapticCd: 0.2f) },
 		{ FeedbackEvent.RescueTick,       E(SfxId.RescueTick, HapticType.Light, hapticCd: 0.15f) },
